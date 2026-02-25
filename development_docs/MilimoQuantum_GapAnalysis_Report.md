@@ -22,7 +22,7 @@
 
 ## Phases 1–4 ✅ COMPLETE (see previous versions for details)
 
-## Recently Implemented (This Session — 7 Batches)
+## Recently Implemented (This Session — 8 Batches)
 
 | Batch | Features |
 |-------|----------|
@@ -33,19 +33,20 @@
 | **5** | 6/6 cloud providers (added Cohere, Mistral, DeepSeek), experiment versioning & run registry, Jupyter notebook (.ipynb) export |
 | **6** | Stim stabilizer simulator (circuit/sample/decode/threshold), PennyLane bridge (VQE/classifier/convert), SettingsPanel 6-provider UI |
 | **7** | Amazon Braket + Azure Quantum backends, ChromaDB vector store (semantic search), BibTeX/Zotero citation export (11 algorithm refs) |
+| **8** | Vitest frontend test infrastructure: 20 tests (types × 8, API × 6, components × 6) — KaTeX, streaming, artifacts |
 
 ---
 
-## What's Still Missing — Infrastructure & Enterprise
+## What's Still Missing — Enterprise Infrastructure
 
 | # | Feature | Effort | Impact |
 |---|---------|--------|--------|
-| 1 | **Frontend tests (Vitest)** | Medium | Zero coverage |
-| 2 | **PostgreSQL + Alembic** | Medium | Structured metadata, migrations |
-| 3 | **Celery workflow orchestration** | High | Parallel quantum job pipelines |
-| 4 | **Enterprise auth (Keycloak)** | High | SSO, multi-tenancy |
-| 5 | **Mobile app (React Native)** | High | Monitoring on the go |
+| 1 | **PostgreSQL + Alembic** | Medium | Structured metadata, migrations |
+| 2 | **Celery workflow orchestration** | High | Parallel quantum job pipelines |
+| 3 | **Enterprise auth (Keycloak)** | High | SSO, multi-tenancy |
+| 4 | **Mobile app (React Native)** | High | Monitoring on the go |
+
 
 ---
 
-*Report updated February 25, 2026 (v8) — ~95% complete. 7 feature batches shipped this session covering 30+ features and 46+ API endpoints.*
+*Report updated February 25, 2026 (v9) — ~97% complete. 8 feature batches shipped covering 35+ features, 46+ API endpoints, 90 tests (70 backend + 20 frontend).*
