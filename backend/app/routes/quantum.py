@@ -154,7 +154,8 @@ async def execute_named_circuit(circuit_name: str, shots: int = 1024):
 async def execute_with_mitigation(circuit_name: str, method: str = "zne", shots: int = 4096):
     """Execute a circuit with error mitigation.
 
-    Methods: 'zne' (Zero-Noise Extrapolation) or 'measurement' (calibration-based).
+    Methods: 'zne' (Zero-Noise Extrapolation), 'measurement' (calibration-based),
+    or 'twirling' (Pauli Twirling).
     """
     if not QISKIT_AVAILABLE:
         return {"error": "Qiskit is not installed"}
@@ -162,7 +163,7 @@ async def execute_with_mitigation(circuit_name: str, method: str = "zne", shots:
     if circuit_name not in CIRCUIT_LIBRARY:
         return {"error": f"Unknown circuit: {circuit_name}"}
 
-    from app.quantum.mitigation import apply_zne, apply_measurement_mitigation
+    from app.quantum.mitigation import apply_zne, apply_measurement_mitigation, apply_pauli_twirling
 
     _, factory = CIRCUIT_LIBRARY[circuit_name]
     circuit = factory()
@@ -173,6 +174,36 @@ async def execute_with_mitigation(circuit_name: str, method: str = "zne", shots:
         return apply_zne(circuit, shots=shots)
     elif method == "measurement":
         return apply_measurement_mitigation(circuit, shots=shots)
+    elif method == "twirling":
+        return apply_pauli_twirling(circuit, shots=shots)
     else:
-        return {"error": f"Unknown method: {method}. Use 'zne' or 'measurement'."}
+        return {"error": f"Unknown method: {method}. Use 'zne', 'measurement', or 'twirling'."}
 
+
+@router.post("/execute-code")
+async def execute_code_direct(data: dict):
+    """Execute arbitrary Python/Qiskit code directly (used by Artifact Panel re-run)."""
+    code = data.get("code", "")
+    if not code.strip():
+        return {"error": "No code provided"}
+
+    from app.quantum.sandbox import execute_code, build_artifacts_from_result
+
+    result = execute_code(code)
+    artifacts = build_artifacts_from_result(result, code, agent_label="Re-run")
+
+    return {
+        "success": result.error is None,
+        "error": result.error,
+        "stdout": result.stdout,
+        "execution_time_ms": result.execution_time_ms,
+        "artifacts": [
+            {
+                "type": a.type.value if hasattr(a.type, 'value') else str(a.type),
+                "title": a.title,
+                "content": a.content,
+                "metadata": a.metadata,
+            }
+            for a in artifacts
+        ],
+    }

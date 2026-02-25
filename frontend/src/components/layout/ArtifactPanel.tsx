@@ -1,13 +1,14 @@
 /* Milimo Quantum — Artifact Panel (Enhanced)
  *
  * Features:
- * - Syntax-highlighted code display
+ * - Monaco editor for code with edit/re-run
  * - Copy-to-clipboard with feedback
  * - Download code as .py file
  * - Interactive results histogram
  * - Circuit text rendering
  */
 import { useMemo, useState, useCallback } from 'react';
+import Editor from '@monaco-editor/react';
 import type { Artifact } from '../../types';
 
 interface ArtifactPanelProps {
@@ -54,30 +55,59 @@ function ArtifactTypeIcon({ type }: { type: string }) {
     return <span className="text-[15px] shrink-0">{icons[type] || '📄'}</span>;
 }
 
-/* ── Syntax-highlighted Code View ─────────────────────── */
+/* ── Monaco Code View ─────────────────────────────────── */
 function CodeView({ content, language, title }: { content: string; language?: string; title?: string }) {
     const [copied, setCopied] = useState(false);
+    const [editable, setEditable] = useState(false);
+    const [code, setCode] = useState(content);
+    const [running, setRunning] = useState(false);
+    const [runResult, setRunResult] = useState<string | null>(null);
+
+    // Keep code in sync when artifact changes
+    useMemo(() => setCode(content), [content]);
 
     const handleCopy = useCallback(() => {
-        navigator.clipboard.writeText(content);
+        navigator.clipboard.writeText(code);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-    }, [content]);
+    }, [code]);
 
     const handleDownload = useCallback(() => {
         const ext = language === 'python' ? '.py' : language === 'javascript' ? '.js' : '.txt';
         const filename = (title || 'artifact').replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_').toLowerCase() + ext;
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
-    }, [content, language, title]);
+    }, [code, language, title]);
 
-    // Basic syntax highlighting for Python
-    const highlighted = useMemo(() => highlightPython(content), [content]);
+    const handleRerun = useCallback(async () => {
+        setRunning(true);
+        setRunResult(null);
+        try {
+            const res = await fetch('/api/quantum/execute-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setRunResult(`✅ Executed in ${data.execution_time_ms}ms` +
+                    (data.stdout ? `\n${data.stdout}` : ''));
+            } else {
+                setRunResult(`❌ ${data.error || 'Execution failed'}`);
+            }
+        } catch {
+            setRunResult('❌ Connection failed');
+        } finally {
+            setRunning(false);
+        }
+    }, [code]);
+
+
 
     return (
         <div className="animate-fade-in">
@@ -86,10 +116,36 @@ function CodeView({ content, language, title }: { content: string; language?: st
                     {language || 'python'}
                 </span>
                 <div className="flex items-center gap-2">
+                    {/* Re-run button */}
+                    <button
+                        onClick={handleRerun}
+                        disabled={running}
+                        className={`text-[11px] font-medium transition-all duration-200 cursor-pointer tracking-wide
+              flex items-center gap-1 px-2 py-0.5 rounded-md
+              ${running
+                                ? 'text-yellow-400 bg-yellow-400/10'
+                                : 'text-green-400/80 hover:text-green-400 hover:bg-green-400/10'
+                            }`}
+                        title="Re-run code in sandbox"
+                    >
+                        {running ? (
+                            <><span className="animate-spin inline-block w-3 h-3 border border-yellow-400 border-t-transparent rounded-full" /> Running...</>
+                        ) : (
+                            <>▶ Re-run</>
+                        )}
+                    </button>
+                    {/* Edit toggle */}
+                    <button
+                        onClick={() => setEditable(!editable)}
+                        className={`text-[11px] font-medium transition-colors duration-200 cursor-pointer tracking-wide
+              ${editable ? 'text-mq-cyan' : 'text-mq-text-tertiary hover:text-mq-cyan/70'}`}
+                    >
+                        {editable ? '🔒 Lock' : '✏️ Edit'}
+                    </button>
                     <button
                         onClick={handleDownload}
                         className="text-[11px] text-mq-text-tertiary hover:text-mq-cyan font-medium
-            transition-colors duration-200 cursor-pointer tracking-wide flex items-center gap-1"
+              transition-colors duration-200 cursor-pointer tracking-wide flex items-center gap-1"
                         title="Download file"
                     >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -108,12 +164,36 @@ function CodeView({ content, language, title }: { content: string; language?: st
                     </button>
                 </div>
             </div>
-            <pre className="!bg-black/60 border border-mq-border rounded-2xl p-5 overflow-x-auto glow-inset">
-                <code
-                    className="text-[13px] leading-[1.8]"
-                    dangerouslySetInnerHTML={{ __html: highlighted }}
+
+            {/* Editor */}
+            <div className="rounded-2xl overflow-hidden border border-mq-border glow-inset">
+                <Editor
+                    height="350px"
+                    language={language || 'python'}
+                    theme="vs-dark"
+                    value={code}
+                    onChange={(v: string | undefined) => editable && setCode(v || '')}
+                    options={{
+                        readOnly: !editable,
+                        minimap: { enabled: false },
+                        fontSize: 13,
+                        lineHeight: 1.8,
+                        scrollBeyondLastLine: false,
+                        padding: { top: 16, bottom: 16 },
+                        automaticLayout: true,
+                        wordWrap: 'on',
+                        scrollbar: { verticalScrollbarSize: 6 },
+                    }}
                 />
-            </pre>
+            </div>
+
+            {/* Run result */}
+            {runResult && (
+                <pre className="mt-3 text-[12px] leading-relaxed bg-black/40 border border-mq-border
+          rounded-xl p-3 text-mq-text-secondary whitespace-pre-wrap animate-fade-in">
+                    {runResult}
+                </pre>
+            )}
         </div>
     );
 }

@@ -16,6 +16,7 @@ from app.routes import hpc, marketplace
 from app.routes import graph as graph_routes
 from app.routes import academy
 from app.routes import feeds as feeds_routes
+from app.routes import ibm as ibm_routes
 
 logging.basicConfig(
     level=logging.INFO,
@@ -87,6 +88,7 @@ app.include_router(marketplace.router)
 app.include_router(graph_routes.router)
 app.include_router(academy.router)
 app.include_router(feeds_routes.router)
+app.include_router(ibm_routes.router)
 
 
 @app.get("/")

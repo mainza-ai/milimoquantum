@@ -227,7 +227,133 @@ def _apply_correction(
     return mitigated
 
 
-# ── Convenience function for chat integration ───────────
+def apply_pauli_twirling(
+    circuit: Any,
+    shots: int = 4096,
+    num_twirls: int = 16,
+) -> dict:
+    """Apply Pauli Twirling to convert coherent noise into stochastic noise.
+
+    Inserts random Pauli gates (I, X, Y, Z) before and after each 2-qubit
+    gate (CX, CZ) such that the ideal operation is preserved but coherent
+    errors are randomized. Results are averaged over `num_twirls` realizations.
+
+    Args:
+        circuit: A Qiskit QuantumCircuit with measurements.
+        shots: Number of shots per twirled circuit.
+        num_twirls: Number of random twirl realizations to average over.
+
+    Returns:
+        dict with raw counts, twirled (averaged) counts, and metadata.
+    """
+    if not QISKIT_AVAILABLE:
+        return {"error": "Qiskit not available for error mitigation"}
+
+    import random as _rng
+    import numpy as _np
+
+    # Pauli pairs that preserve CX: (before_ctrl, before_tgt, after_ctrl, after_tgt)
+    # These satisfy: (P_c ⊗ P_t) · CX · (P_c' ⊗ P_t') = CX  (up to global phase)
+    TWIRL_PAIRS_CX = [
+        ("id", "id", "id", "id"),
+        ("x", "id", "x", "x"),
+        ("id", "x", "id", "x"),
+        ("x", "x", "x", "id"),
+        ("y", "id", "y", "x"),
+        ("id", "y", "z", "y"),
+        ("y", "y", "x", "z"),
+        ("x", "y", "y", "z"),
+        ("y", "x", "y", "id"),
+        ("z", "id", "z", "id"),
+        ("id", "z", "z", "z"),
+        ("z", "z", "id", "z"),
+        ("z", "x", "z", "x"),
+        ("x", "z", "y", "y"),
+        ("y", "z", "x", "y"),
+        ("z", "y", "y", "x"),  # added for full group coverage
+    ]
+
+    PAULI_MAP = {"id": "id", "x": "x", "y": "y", "z": "z"}
+
+    def _apply_pauli(qc, qubit, pauli):
+        if pauli == "x":
+            qc.x(qubit)
+        elif pauli == "y":
+            qc.y(qubit)
+        elif pauli == "z":
+            qc.z(qubit)
+        # "id" → do nothing
+
+    # Noise model for demonstration
+    noise_model = NoiseModel()
+    error_1q = depolarizing_error(0.01, 1)
+    error_2q = depolarizing_error(0.02, 2)
+    noise_model.add_all_qubit_quantum_error(error_1q, ['h', 'x', 'y', 'z', 'rx', 'ry', 'rz'])
+    noise_model.add_all_qubit_quantum_error(error_2q, ['cx', 'cz'])
+    sim = AerSimulator(noise_model=noise_model)
+
+    # Run raw circuit (no twirling)
+    transpiled_raw = transpile(circuit, sim)
+    raw_result = sim.run(transpiled_raw, shots=shots).result()
+    raw_counts = raw_result.get_counts()
+
+    # Collect twirled results
+    all_twirl_counts: list[dict] = []
+
+    for _ in range(num_twirls):
+        # Build twirled circuit by walking through original gates
+        twirled = QuantumCircuit(circuit.num_qubits, circuit.num_clbits)
+
+        for instruction in circuit.data:
+            op = instruction.operation
+            qubits = [circuit.find_bit(q).index for q in instruction.qubits]
+
+            if op.name in ("cx", "cnot") and len(qubits) == 2:
+                # Pick a random twirl pair
+                pair = _rng.choice(TWIRL_PAIRS_CX)
+                ctrl, tgt = qubits[0], qubits[1]
+
+                # Before twirl
+                _apply_pauli(twirled, ctrl, pair[0])
+                _apply_pauli(twirled, tgt, pair[1])
+
+                # Original gate
+                twirled.cx(ctrl, tgt)
+
+                # After twirl (correction)
+                _apply_pauli(twirled, ctrl, pair[2])
+                _apply_pauli(twirled, tgt, pair[3])
+            else:
+                # Copy gate as-is
+                twirled.append(instruction)
+
+        transpiled_tw = transpile(twirled, sim)
+        tw_result = sim.run(transpiled_tw, shots=shots).result()
+        all_twirl_counts.append(tw_result.get_counts())
+
+    # Average across all twirls
+    avg_counts: dict[str, float] = {}
+    for tc in all_twirl_counts:
+        for state, count in tc.items():
+            avg_counts[state] = avg_counts.get(state, 0.0) + count / num_twirls
+
+    # Round to integer counts, normalized to shots
+    twirled_counts = {k: max(0, round(v)) for k, v in avg_counts.items()}
+    total = sum(twirled_counts.values())
+    if total > 0 and total != shots:
+        scale = shots / total
+        twirled_counts = {k: max(0, round(v * scale)) for k, v in twirled_counts.items()}
+
+    return {
+        "raw_counts": raw_counts,
+        "twirled_counts": twirled_counts,
+        "method": "Pauli Twirling",
+        "num_twirls": num_twirls,
+        "shots_per_twirl": shots,
+    }
+
+
+
 def get_mitigation_info() -> str:
     """Return educational content about error mitigation."""
     return """## Quantum Error Mitigation
