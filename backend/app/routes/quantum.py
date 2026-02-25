@@ -207,3 +207,39 @@ async def execute_code_direct(data: dict):
             for a in artifacts
         ],
     }
+
+
+# ── OpenQASM 3 ─────────────────────────────────────────
+@router.post("/qasm3/parse")
+async def parse_qasm3_endpoint(data: dict):
+    """Parse an OpenQASM 3 string into structured gate data."""
+    from app.quantum.qasm3 import parse_qasm3
+    qasm = data.get("qasm", "")
+    if not qasm.strip():
+        return {"error": "No QASM string provided"}
+    return parse_qasm3(qasm)
+
+
+@router.post("/qasm3/export")
+async def export_to_qasm3(data: dict):
+    """Convert Qiskit Python code to OpenQASM 3."""
+    from app.quantum.qasm3 import circuit_to_qasm3
+    code = data.get("code", "")
+    if not code.strip():
+        return {"error": "No code provided"}
+    try:
+        qasm = circuit_to_qasm3(code)
+        return {"qasm3": qasm}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/qasm3/validate")
+async def validate_qasm3_endpoint(data: dict):
+    """Validate an OpenQASM 3 string."""
+    from app.quantum.qasm3 import validate_qasm3
+    qasm = data.get("qasm", "")
+    if not qasm.strip():
+        return {"error": "No QASM string provided"}
+    return validate_qasm3(qasm)
+

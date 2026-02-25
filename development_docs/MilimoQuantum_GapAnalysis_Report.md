@@ -104,32 +104,30 @@ The development docs describe a **7-layer, 14-agent, 9-backend quantum platform*
 
 | # | Feature | Effort | Impact |
 |---|---------|--------|--------|
-| 1 | **Multi-agent collaboration** | Medium | Planning agent dispatches to domain agents via `dispatch_multi_agent()` |
-| 2 | **Interactive circuit visualizer** | Medium | Gate-level viewer with tooltips, zoom, qubit state |
+| 1 | **OpenQASM 3 import/export** | Medium | Parse .qasm files, export circuits as QASM |
+| 2 | **Visual circuit builder** | Medium | Drag-and-drop gate palette for building circuits |
 | 3 | **Three.js Bloch Sphere** | Medium | 3D qubit state visualization |
 | 4 | **Frontend tests (Vitest)** | Medium | No frontend test coverage |
-| 5 | **Data export (CSV/JSON)** | Low | Export results from conversations |
 
 ### 🟡 Medium Impact — Feature Expansion
 
 | # | Feature | Effort | Impact |
 |---|---------|--------|--------|
-| 6 | **D-Wave Ocean SDK** | High | Real quantum annealing (requires account) |
-| 7 | **OpenQASM 3 import/export** | Medium | File format support |
-| 8 | **Noise models from calibration** | Medium | Real device noise profiles |
-| 9 | **Vision model support** | Medium | Analyze circuit diagrams |
-| 10 | **Vitest frontend tests** | Medium | Code quality assurance |
+| 5 | **D-Wave Ocean SDK** | High | Real quantum annealing (requires account) |
+| 6 | **Noise models from calibration** | Medium | Real device noise profiles |
+| 7 | **Vision model support** | Medium | Analyze circuit diagrams |
+| 8 | **QPY serialization** | Medium | Binary circuit storage format |
 
 ### 🟢 Lower Priority — Infrastructure & Enterprise
 
 | # | Feature | Effort | Impact |
 |---|---------|--------|--------|
-| 11 | **Neo4j + GraphRAG** | High | Knowledge graph for experiments |
-| 12 | **PostgreSQL + Alembic** | Medium | Structured metadata, migrations |
-| 13 | **Workflow orchestration (Celery)** | High | Parallel quantum job pipelines |
-| 14 | **Enterprise auth (Keycloak)** | High | SSO, multi-tenancy |
-| 15 | **Mobile app (React Native)** | High | Monitoring on the go |
+| 9 | **Neo4j + GraphRAG** | High | Knowledge graph for experiments |
+| 10 | **PostgreSQL + Alembic** | Medium | Structured metadata, migrations |
+| 11 | **Workflow orchestration (Celery)** | High | Parallel quantum job pipelines |
+| 12 | **Enterprise auth (Keycloak)** | High | SSO, multi-tenancy |
+| 13 | **Mobile app (React Native)** | High | Monitoring on the go |
 
 ---
 
-*Report updated February 25, 2026 (v3) — reflects comprehensive codebase audit including all agent expansions, cloud AI integration, live data feeds, ChromaDB activation, error mitigation pipeline, IBM Runtime with SamplerV2/EstimatorV2, Pauli Twirling, Monaco editor, file upload, per-agent models, explain levels, dark/light theme, audit logging, marketplace, benchmarking, fault-tolerant circuits, HPC adapter, and academic citations.*
+*Report updated February 25, 2026 (v4) — includes batch 2: multi-agent collaboration, conversation export (CSV/JSON), SVG circuit visualizer with tooltips. Overall: ~80% complete.*

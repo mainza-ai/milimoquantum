@@ -199,53 +199,6 @@ function CodeView({ content, language, title }: { content: string; language?: st
     );
 }
 
-/* ── Syntax Highlighting Engine (Python) ─────────────── */
-function highlightPython(code: string): string {
-    // Escape HTML first
-    let html = code
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-
-    // Comments (# ...)
-    html = html.replace(/(#[^\n]*)/g,
-        '<span style="color:#6a9955;font-style:italic">$1</span>');
-
-    // Multi-line strings ("""...""" or '''...''')
-    html = html.replace(/("""[\s\S]*?"""|'''[\s\S]*?''')/g,
-        '<span style="color:#ce9178">$1</span>');
-
-    // Strings ("..." or '...')
-    html = html.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g,
-        '<span style="color:#ce9178">$1</span>');
-
-    // Keywords
-    const keywords = ['from', 'import', 'def', 'class', 'return', 'if', 'else', 'elif',
-        'for', 'in', 'while', 'try', 'except', 'finally', 'with', 'as',
-        'and', 'or', 'not', 'True', 'False', 'None', 'lambda', 'yield',
-        'raise', 'pass', 'break', 'continue', 'assert', 'global', 'async', 'await'];
-    const kwRegex = new RegExp(`\\b(${keywords.join('|')})\\b`, 'g');
-    html = html.replace(kwRegex,
-        '<span style="color:#c586c0;font-weight:500">$1</span>');
-
-    // Built-in functions
-    const builtins = ['print', 'range', 'len', 'list', 'dict', 'int', 'float', 'str',
-        'type', 'isinstance', 'enumerate', 'zip', 'map', 'filter', 'sum',
-        'min', 'max', 'abs', 'round', 'sorted', 'set', 'tuple', 'bool'];
-    const biRegex = new RegExp(`\\b(${builtins.join('|')})(?=\\()`, 'g');
-    html = html.replace(biRegex,
-        '<span style="color:#dcdcaa">$1</span>');
-
-    // Numbers
-    html = html.replace(/\b(\d+\.?\d*(?:e[+-]?\d+)?)\b/g,
-        '<span style="color:#b5cea8">$1</span>');
-
-    // Function definitions - def name(
-    html = html.replace(/\b(def\s+)(\w+)/g,
-        '$1<span style="color:#dcdcaa">$2</span>');
-
-    return html;
-}
 
 /* ── Circuit View ─────────────────────────────────────── */
 function CircuitView({ content }: { content: string }) {

@@ -1,6 +1,8 @@
 /* Milimo Quantum — Quantum Dashboard */
 import { useState, useEffect } from 'react';
 import { fetchHealth, fetchAnalyticsSummary, fetchCircuitStats, fetchQuantumStatus } from '../../services/api';
+import { CircuitBuilder } from '../quantum/CircuitBuilder';
+import { BlochSphereInteractive } from '../quantum/BlochSphere';
 
 interface DashboardProps {
     isOpen: boolean;
@@ -176,6 +178,21 @@ export function QuantumDashboard({ isOpen, onClose }: DashboardProps) {
                                 </div>
                             </div>
                         )}
+
+                        {/* Tools: Circuit Builder & Bloch Sphere */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Circuit Builder */}
+                            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5">
+                                <h3 className="text-sm font-medium text-gray-300 mb-4">🛠️ Circuit Builder</h3>
+                                <CircuitBuilder onExport={(code) => navigator.clipboard.writeText(code)} />
+                            </div>
+
+                            {/* Bloch Sphere */}
+                            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5 flex flex-col items-center">
+                                <h3 className="text-sm font-medium text-gray-300 mb-4 self-start">🌐 Bloch Sphere</h3>
+                                <BlochSphereInteractive />
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
