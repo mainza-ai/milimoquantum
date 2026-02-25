@@ -419,3 +419,114 @@ async def pennylane_convert(data: dict):
     """Get PennyLane conversion info for a Qiskit circuit."""
     from app.quantum.pennylane_bridge import convert_qiskit_to_pennylane
     return convert_qiskit_to_pennylane(data.get("code", ""))
+
+
+# ── Cloud Quantum Backends ────────────────────────────
+@router.get("/cloud-backends/status")
+async def cloud_backends_status():
+    """Get status of all cloud quantum providers."""
+    from app.quantum.cloud_backends import get_cloud_quantum_status
+    return get_cloud_quantum_status()
+
+
+@router.get("/cloud-backends/braket/devices")
+async def braket_devices():
+    """List available Amazon Braket devices."""
+    from app.quantum.cloud_backends import list_braket_devices
+    return {"devices": list_braket_devices()}
+
+
+@router.post("/cloud-backends/braket/run")
+async def braket_run(data: dict):
+    """Run a circuit on Amazon Braket."""
+    from app.quantum.cloud_backends import run_on_braket
+    return run_on_braket(
+        qiskit_code=data.get("code", ""),
+        device_arn=data.get("device_arn", "arn:aws:braket:::device/quantum-simulator/amazon/sv1"),
+        shots=data.get("shots", 1000),
+    )
+
+
+@router.get("/cloud-backends/azure/targets")
+async def azure_targets():
+    """List available Azure Quantum targets."""
+    from app.quantum.cloud_backends import list_azure_targets
+    return {"targets": list_azure_targets()}
+
+
+@router.post("/cloud-backends/azure/run")
+async def azure_run(data: dict):
+    """Run a circuit on Azure Quantum."""
+    from app.quantum.cloud_backends import run_on_azure
+    return run_on_azure(
+        qiskit_code=data.get("code", ""),
+        target=data.get("target", "ionq.simulator"),
+        shots=data.get("shots", 1000),
+    )
+
+
+# ── Vector Store (Semantic Search) ────────────────────
+@router.get("/vector-store/status")
+async def vector_store_status():
+    """Get vector store statistics."""
+    from app.quantum.vector_store import get_store_stats
+    return get_store_stats()
+
+
+@router.post("/vector-store/index")
+async def vector_store_index(data: dict):
+    """Index an experiment into the vector store."""
+    from app.quantum.vector_store import index_experiment
+    return index_experiment(
+        experiment_id=data.get("experiment_id", ""),
+        content=data.get("content", ""),
+        metadata=data.get("metadata"),
+    )
+
+
+@router.post("/vector-store/search")
+async def vector_store_search(data: dict):
+    """Semantic search over experiments."""
+    from app.quantum.vector_store import search_similar
+    return search_similar(
+        query=data.get("query", ""),
+        n_results=data.get("n_results", 5),
+        filter_metadata=data.get("filter"),
+    )
+
+
+# ── Citation Export ───────────────────────────────────
+@router.post("/citations/bibtex")
+async def citations_bibtex(data: dict):
+    """Generate BibTeX for algorithms."""
+    from app.experiments.citations import generate_bibtex
+    bibtex = generate_bibtex(
+        algorithms=data.get("algorithms"),
+        include_qiskit=data.get("include_qiskit", True),
+    )
+    return {"bibtex": bibtex}
+
+
+@router.post("/citations/zotero")
+async def citations_zotero(data: dict):
+    """Generate Zotero-compatible JSON for algorithms."""
+    from app.experiments.citations import generate_zotero_json
+    items = generate_zotero_json(
+        algorithms=data.get("algorithms"),
+        include_qiskit=data.get("include_qiskit", True),
+    )
+    return {"items": items}
+
+
+@router.post("/citations/detect")
+async def citations_detect(data: dict):
+    """Detect algorithms in code and return citations."""
+    from app.experiments.citations import detect_algorithms_in_code, generate_experiment_citation
+    code = data.get("code", "")
+    detected = detect_algorithms_in_code(code)
+    citation = generate_experiment_citation(
+        title=data.get("title", "Quantum Experiment"),
+        author=data.get("author", "Milimo Quantum User"),
+        algorithms=detected,
+    )
+    return citation
