@@ -92,12 +92,25 @@ async def send_message(request: ChatRequest):
         # enricher dynamically injects live data (stock prices,
         # arXiv papers, molecular data, agent memory) based on
         # what the user is asking about.
-        from app.agents.context_enricher import enrich_prompt, save_interaction_memory
+        from app.agents.context_enricher import enrich_prompt, save_interaction_memory, build_data_preamble
         base_prompt = SYSTEM_PROMPTS.get(agent_type, SYSTEM_PROMPTS[AgentType.ORCHESTRATOR])
         system_prompt = await enrich_prompt(agent_type, clean_message, base_prompt)
         history = msgs[-20:]
 
         full_response = ""
+
+        # ── Step 1a: Stream live data preamble DIRECTLY ────────
+        # Build a formatted data section (price tables, papers,
+        # molecule data) and stream it as tokens to the user first.
+        # This GUARANTEES the user sees real data regardless of
+        # how well the LLM incorporates it.
+        preamble = build_data_preamble(agent_type, clean_message)
+        if preamble:
+            # Stream preamble in word-sized chunks for natural feel
+            for chunk in _chunk_text(preamble, 12):
+                full_response += chunk
+                yield f"event: token\ndata: {json.dumps({'content': chunk})}\n\n"
+
         cloud = get_current_provider()
         if cloud.get("provider") != "ollama" and cloud.get("provider"):
             # ── Cloud AI provider active (Anthropic / OpenAI / Gemini)
