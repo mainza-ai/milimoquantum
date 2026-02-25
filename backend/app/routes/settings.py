@@ -120,3 +120,40 @@ async def update_agent_models(data: dict):
     settings.save_agent_models()
     return {"agent_models": settings.agent_models, "status": "ok"}
 
+
+@router.put("/hot-swap-model")
+async def hot_swap_model(data: dict):
+    """Switch the active Ollama model mid-conversation.
+
+    Body: { "model": "qwen2.5:latest" }
+    This immediately changes the default model for all subsequent requests.
+    """
+    model = data.get("model", "")
+    if not model:
+        return {"error": "No model specified"}
+
+    settings.DEFAULT_MODEL = model
+    return {"model": model, "status": "ok", "message": f"Switched to {model}"}
+
+
+@router.get("/vision/models")
+async def list_vision_models_endpoint():
+    """List available vision-capable models from Ollama."""
+    from app.llm.vision import list_vision_models
+    models = await list_vision_models()
+    return {"vision_models": models}
+
+
+@router.post("/vision/analyze")
+async def analyze_image_endpoint(data: dict):
+    """Analyze an image using a vision model.
+
+    Body: { "image_base64": str, "question": str, "model": str }
+    """
+    from app.llm.vision import analyze_image
+    return await analyze_image(
+        image_base64=data.get("image_base64"),
+        image_path=data.get("image_path"),
+        question=data.get("question", "Describe this quantum circuit diagram in detail."),
+        model=data.get("model", "llava"),
+    )

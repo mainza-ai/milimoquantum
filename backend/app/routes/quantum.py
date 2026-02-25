@@ -243,3 +243,83 @@ async def validate_qasm3_endpoint(data: dict):
         return {"error": "No QASM string provided"}
     return validate_qasm3(qasm)
 
+
+# ── QPY Circuit Store ──────────────────────────────────
+@router.get("/circuits/saved")
+async def list_saved_circuits():
+    """List all saved QPY circuits."""
+    from app.quantum.qpy_store import list_saved_circuits as _list
+    return {"circuits": _list()}
+
+
+@router.post("/circuits/save")
+async def save_circuit_qpy(data: dict):
+    """Save a circuit from code as QPY.
+
+    Body: {code: str, name: str}
+    """
+    from app.quantum.qpy_store import save_circuit_qpy as _save
+
+    code = data.get("code", "")
+    name = data.get("name", "untitled")
+    if not code.strip():
+        return {"error": "No code provided"}
+
+    try:
+        from qiskit import QuantumCircuit
+        local_ns: dict = {}
+        exec(code, {"QuantumCircuit": QuantumCircuit}, local_ns)
+        for val in local_ns.values():
+            if isinstance(val, QuantumCircuit):
+                return _save(val, name)
+        return {"error": "No QuantumCircuit found in code"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/circuits/load/{name}")
+async def load_circuit_qpy(name: str):
+    """Load a saved QPY circuit by name."""
+    from app.quantum.qpy_store import load_circuit_qpy as _load
+    return _load(name)
+
+
+# ── Noise Profiles ─────────────────────────────────────
+@router.get("/noise/profiles")
+async def list_noise_profiles():
+    """List available noise profiles based on real device calibrations."""
+    from app.quantum.noise_profiles import list_profiles
+    return {"profiles": list_profiles()}
+
+
+@router.get("/noise/profiles/{name}")
+async def get_noise_profile(name: str):
+    """Get detailed calibration data for a specific noise profile."""
+    from app.quantum.noise_profiles import get_profile
+    profile = get_profile(name)
+    if not profile:
+        return {"error": f"Unknown profile: {name}"}
+    return profile
+
+
+@router.post("/noise/execute")
+async def execute_noisy(data: dict):
+    """Execute a named circuit with a noise profile.
+
+    Body: {circuit_name: str, profile: str, shots: int}
+    """
+    from app.quantum.noise_profiles import execute_with_noise
+
+    circuit_name = data.get("circuit_name", "")
+    profile_name = data.get("profile", "ibm_brisbane")
+    shots = data.get("shots", 4096)
+
+    if circuit_name not in CIRCUIT_LIBRARY:
+        return {"error": f"Unknown circuit: {circuit_name}"}
+
+    _, factory = CIRCUIT_LIBRARY[circuit_name]
+    circuit = factory()
+    if circuit is None:
+        return {"error": "Failed to create circuit"}
+
+    return execute_with_noise(circuit, profile_name, shots=shots)
