@@ -12,6 +12,8 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
+from app.audit import log_action
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/collaboration", tags=["collaboration"])
 
@@ -58,6 +60,9 @@ async def create_share_link(data: dict):
     filepath = SHARES_DIR / f"{token}.json"
     filepath.write_text(json.dumps(share, indent=2), encoding="utf-8")
 
+    await log_action("system", "share_created", f"{resource_type}/{resource_id}",
+                     {"token": token[:8] + "...", "permissions": permissions, "expires_hours": expires_hours})
+
     return {
         "token": token,
         "share_url": f"/shared/{token}",
@@ -87,6 +92,9 @@ async def access_shared(token: str):
     # Increment access count
     share["access_count"] = share.get("access_count", 0) + 1
     filepath.write_text(json.dumps(share, indent=2), encoding="utf-8")
+
+    await log_action("guest", "share_accessed", f"{share['resource_type']}/{share['resource_id']}",
+                     {"token": token[:8] + "...", "access_count": share["access_count"]})
 
     # Load the resource
     resource_type = share["resource_type"]

@@ -16,6 +16,7 @@ from app.quantum.ibm_runtime import (
     list_backends,
     run_sampler,
 )
+from app.audit import log_action
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/quantum/ibm", tags=["ibm-quantum"])
@@ -46,6 +47,8 @@ async def ibm_status():
 async def ibm_connect(req: ConnectRequest):
     """Connect to IBM Quantum Runtime with an API token."""
     result = connect(token=req.token, channel=req.channel)
+    await log_action("user", "ibm_connect", "ibm_quantum",
+                     {"channel": req.channel, "status": result.get("status", "error")})
     return result
 
 

@@ -18,6 +18,8 @@ import uuid
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
+from app.audit import log_action
+
 from app.agents.orchestrator import (
     SYSTEM_PROMPTS,
     classify_intent,
@@ -83,6 +85,10 @@ async def send_message(request: ChatRequest):
 
     # Store user message
     msgs.append({"role": "user", "content": request.message})
+
+    # Audit log
+    await log_action("user", "chat_message", f"conversation/{conversation_id}",
+                     {"agent": agent_type, "length": len(request.message)})
 
     async def event_stream():
         """Generate SSE events."""
