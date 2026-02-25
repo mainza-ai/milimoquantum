@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional
 
 from qiskit import QuantumCircuit, transpile
 from app.quantum.hal import hal_config
-from app.quantum.executor import QISKIT_AVAILABLE, get_simulator
+from app.quantum.executor import QISKIT_AVAILABLE
 
 logger = logging.getLogger(__name__)
 

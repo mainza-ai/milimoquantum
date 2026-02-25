@@ -7,6 +7,8 @@ import SettingsPanel from './components/layout/SettingsPanel';
 import { AnalyticsDashboard } from './components/layout/AnalyticsDashboard';
 import { SearchPanel } from './components/layout/SearchPanel';
 import { MarketplacePanel } from './components/layout/MarketplacePanel';
+import { ProjectsPanel } from './components/layout/ProjectsPanel';
+import { QuantumDashboard } from './components/layout/QuantumDashboard';
 import { useChat } from './hooks/useChat';
 import type { Artifact, AgentType } from './types';
 
@@ -17,6 +19,8 @@ function App() {
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [marketplaceOpen, setMarketplaceOpen] = useState(false);
+  const [projectsOpen, setProjectsOpen] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
 
   const {
     messages,
@@ -65,6 +69,8 @@ function App() {
         onOpenAnalytics={() => setAnalyticsOpen(true)}
         onOpenSearch={() => setSearchOpen(true)}
         onOpenMarketplace={() => setMarketplaceOpen(true)}
+        onOpenProjects={() => setProjectsOpen(true)}
+        onOpenDashboard={() => setDashboardOpen(true)}
         currentConversationId={conversationId}
       />
 
@@ -106,9 +112,21 @@ function App() {
         isOpen={marketplaceOpen}
         onClose={() => setMarketplaceOpen(false)}
       />
+
+      {/* Projects Modal */}
+      <ProjectsPanel
+        isOpen={projectsOpen}
+        onClose={() => setProjectsOpen(false)}
+        currentConversationId={conversationId}
+      />
+
+      {/* Quantum Dashboard Modal */}
+      <QuantumDashboard
+        isOpen={dashboardOpen}
+        onClose={() => setDashboardOpen(false)}
+      />
     </div>
   );
 }
 
 export default App;
-

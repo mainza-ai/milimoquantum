@@ -841,7 +841,7 @@ product on earth combines all of these layers.
 |                                                                       |
 | │ LAYER 3: QUANTUM EXECUTION ENGINE │                                 |
 |                                                                       |
-| │ Qiskit v2.2 · D-Wave Ocean · SquidASM · Stim · CUDA-Q · pytket │    |
+| │ Qiskit v1.4 · D-Wave Ocean · SquidASM · Stim · CUDA-Q · pytket │    |
 |                                                                       |
 | ├─                                                                    |
 | ────────────────────────────────────────────────────────────────────┤ |
@@ -883,7 +883,7 @@ product on earth combines all of these layers.
   **Dimension**           **IBM       **Azure     **D-Wave   **Classiq**   **Milimo
                           Quantum**   Quantum**   Leap**                   Quantum**
   ----------------------- ----------- ----------- ---------- ------------- --------------
-  Gate-model Circuits     ✓ Native    ✓ Q#/Qiskit ✗          ✓             ✓ Qiskit v2.2
+  Gate-model Circuits     ✓ Native    ✓ Q#/Qiskit ✗          ✓             ✓ Qiskit v1.4
 
   Quantum Annealing       ✗           ✗           ✓ Native   ✗             ✓ D-Wave +
                                                                            QAOA
@@ -1027,5 +1027,5 @@ product on earth combines all of these layers.
 
 *✦ Milimo Quantum --- The Universe of Quantum, In One Place ✦*
 
-Qiskit v2.2 · D-Wave · SquidASM · CUDA-Q · Neo4j · Graphiti · Ollama ·
+Qiskit v1.4 · D-Wave · SquidASM · CUDA-Q · Neo4j · Graphiti · Ollama ·
 Open Source

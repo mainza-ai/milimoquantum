@@ -14,7 +14,7 @@ class Settings:
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.2"
+    ollama_model: str = ""  # Auto-detected from Ollama at startup
 
     # Quantum
     default_shots: int = 1024

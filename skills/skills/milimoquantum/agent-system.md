@@ -52,7 +52,7 @@ SYSTEM_PROMPTS = {
         When users ask about circuits, generate Qiskit code.""",
     AgentType.CODE: """You are the Code Agent. Generate executable Qiskit code.
         Always include: imports, circuit creation, transpilation, execution, result display.
-        Use the latest Qiskit v2.x API (QuantumCircuit, transpile, AerSimulator).""",
+        Use the latest Qiskit v1.4 API (QuantumCircuit, transpile, AerSimulator).""",
     AgentType.RESEARCH: """You are the Research Agent. Explain quantum concepts clearly.
         Use analogies, diagrams, and LaTeX notation.
         Reference original papers when applicable.""",

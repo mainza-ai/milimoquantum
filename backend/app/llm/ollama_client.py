@@ -15,10 +15,35 @@ logger = logging.getLogger(__name__)
 class OllamaClient:
     """Async client for Ollama API with streaming."""
 
-    def __init__(self, base_url: str | None = None, model: str | None = None):
+    def __init__(self, base_url: str | None = None):
         self.base_url = base_url or settings.ollama_base_url
-        self.model = model or settings.ollama_model
         self._client = httpx.AsyncClient(base_url=self.base_url, timeout=120.0)
+        self._auto_detected_model: str | None = None
+
+    @property
+    def model(self) -> str:
+        """Read the current model from settings. Auto-detect if not set."""
+        configured = settings.ollama_model
+        if configured:
+            return configured
+        # Auto-detect: use cached result if available
+        if self._auto_detected_model:
+            return self._auto_detected_model
+        # Try synchronous auto-detection
+        try:
+            import httpx as _httpx
+            resp = _httpx.get(f"{self.base_url}/api/tags", timeout=5.0)
+            if resp.status_code == 200:
+                models = resp.json().get("models", [])
+                if models:
+                    # Sort by modified_at descending → most recently pulled
+                    models.sort(key=lambda m: m.get("modified_at", ""), reverse=True)
+                    self._auto_detected_model = models[0]["name"]
+                    logger.info(f"Auto-detected Ollama model: {self._auto_detected_model}")
+                    return self._auto_detected_model
+        except Exception:
+            pass
+        return "llama3.2:latest"  # Fallback
 
     async def is_available(self) -> bool:
         """Check if Ollama is running."""
@@ -66,6 +91,12 @@ class OllamaClient:
                     if line.strip():
                         try:
                             chunk = json.loads(line)
+                            # Handle Ollama error responses (e.g. model not found)
+                            if "error" in chunk:
+                                error_msg = chunk["error"]
+                                logger.error(f"Ollama error: {error_msg}")
+                                yield f"⚠️ **Ollama Error:** {error_msg}\n\nPlease check your model selection in Settings."
+                                return
                             if "message" in chunk and "content" in chunk["message"]:
                                 token = chunk["message"]["content"]
                                 if token:
@@ -75,10 +106,10 @@ class OllamaClient:
                         except json.JSONDecodeError:
                             continue
         except httpx.ConnectError:
-            yield "[Ollama is not running. Please start Ollama with `ollama serve` and try again.]"
+            yield "⚠️ **Ollama is not running.** Please start Ollama with `ollama serve` and try again."
         except Exception as e:
             logger.error(f"Ollama streaming error: {e}")
-            yield f"[Error communicating with LLM: {str(e)}]"
+            yield f"⚠️ **Error communicating with LLM:** {str(e)}"
 
     async def generate(
         self,
@@ -99,12 +130,15 @@ class OllamaClient:
         try:
             resp = await self._client.post("/api/generate", json=payload)
             if resp.status_code == 200:
-                return resp.json().get("response", "")
-            return f"[Ollama error: HTTP {resp.status_code}]"
+                data = resp.json()
+                if "error" in data:
+                    return f"⚠️ **Ollama Error:** {data['error']}"
+                return data.get("response", "")
+            return f"⚠️ **Ollama error:** HTTP {resp.status_code}"
         except httpx.ConnectError:
-            return "[Ollama is not running. Please start Ollama.]"
+            return "⚠️ **Ollama is not running.** Please start Ollama."
         except Exception as e:
-            return f"[LLM Error: {str(e)}]"
+            return f"⚠️ **LLM Error:** {str(e)}"
 
     async def close(self):
         await self._client.aclose()

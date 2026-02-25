@@ -1,6 +1,9 @@
 /* Milimo Quantum — Message Bubble */
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import type { ChatMessage, Artifact } from '../../types';
 import { AGENTS } from '../../types';
 
@@ -49,7 +52,8 @@ export function MessageBubble({ message, onArtifactClick }: MessageBubbleProps) 
                         {/* Response */}
                         <div className="text-[14px] leading-relaxed markdown-content">
                             <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
+                                remarkPlugins={[remarkGfm, remarkMath]}
+                                rehypePlugins={[rehypeKatex]}
                                 components={{
                                     code({ className, children, ...props }) {
                                         const isInline = !className;

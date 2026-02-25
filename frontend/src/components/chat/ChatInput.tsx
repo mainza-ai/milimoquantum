@@ -25,6 +25,7 @@ export function ChatInput({ onSend, isStreaming, activeAgent }: ChatInputProps) 
 
     const handleSubmit = () => {
         if (!value.trim() || isStreaming) return;
+        setShowCommands(false);
         onSend(value);
         setValue('');
         if (textareaRef.current) textareaRef.current.style.height = 'auto';
@@ -47,24 +48,31 @@ export function ChatInput({ onSend, isStreaming, activeAgent }: ChatInputProps) 
             <div className="max-w-[720px] mx-auto relative">
                 {/* Slash command palette */}
                 {showCommands && (
-                    <div className="absolute bottom-full mb-2 left-0 right-0 glass-strong rounded-2xl p-2 z-20 animate-fade-in-scale glow-subtle">
-                        <p className="text-[10px] text-mq-text-tertiary tracking-[0.14em] uppercase px-3 py-1.5 font-medium">
-                            Commands
-                        </p>
-                        {AGENTS.filter((a) => a.command).map((a) => (
-                            <button
-                                key={a.type}
-                                onClick={() => handleCommandSelect(a.command)}
-                                className="w-full flex items-center gap-3 py-2.5 px-3 rounded-xl
-                  text-[13px] text-mq-text-secondary hover:bg-mq-hover
-                  hover:text-mq-text transition-all duration-200 cursor-pointer"
-                            >
-                                <span className="text-[15px]">{a.icon}</span>
-                                <span className="font-mono text-mq-cyan text-xs">{a.command}</span>
-                                <span className="text-[11px] text-mq-text-tertiary flex-1 text-right">{a.description}</span>
-                            </button>
-                        ))}
-                    </div>
+                    <>
+                        {/* Click-outside backdrop to dismiss */}
+                        <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setShowCommands(false)}
+                        />
+                        <div className="absolute bottom-full mb-2 left-0 right-0 glass-strong rounded-2xl p-2 z-20 animate-fade-in-scale glow-subtle">
+                            <p className="text-[10px] text-mq-text-tertiary tracking-[0.14em] uppercase px-3 py-1.5 font-medium">
+                                Commands
+                            </p>
+                            {AGENTS.filter((a) => a.command).map((a) => (
+                                <button
+                                    key={a.type}
+                                    onClick={() => handleCommandSelect(a.command)}
+                                    className="w-full flex items-center gap-3 py-2.5 px-3 rounded-xl
+                      text-[13px] text-mq-text-secondary hover:bg-mq-hover
+                      hover:text-mq-text transition-all duration-200 cursor-pointer"
+                                >
+                                    <span className="text-[15px]">{a.icon}</span>
+                                    <span className="font-mono text-mq-cyan text-xs">{a.command}</span>
+                                    <span className="text-[11px] text-mq-text-tertiary flex-1 text-right">{a.description}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </>
                 )}
 
                 {/* Input container */}

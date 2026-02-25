@@ -10,7 +10,7 @@ Before implementing any feature, read the relevant skill(s) in `skills/skills/mi
 - `architecture.md` — 7-layer system, agent roster, storage architecture
 - `hal.md` — Hardware Abstraction Layer, platform detection, qubit-count routing
 - `agent-system.md` — 14 agents, intent routing, system prompts, SSE protocol
-- `quantum-execution.md` — Qiskit v2.x patterns, circuit library, error mitigation
+- `quantum-execution.md` — Qiskit v1.4 patterns, circuit library, error mitigation
 - `frontend.md` — React/TS/TailwindCSS design system, component architecture
 - `backend.md` — FastAPI, API endpoints, SSE streaming, project structure
 

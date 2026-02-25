@@ -1016,5 +1016,5 @@ Quantum\'s strongest moat.
 
 *⬡ Milimo Quantum --- Where Quantum Circuits Meet Knowledge Graphs ⬡*
 
-Neo4j · FalkorDB · Graphiti · Qiskit v2.2 · GraphRAG · Quantum Graph
+Neo4j · FalkorDB · Graphiti · Qiskit v1.4 · GraphRAG · Quantum Graph
 Intelligence

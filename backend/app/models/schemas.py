@@ -21,6 +21,11 @@ class AgentType(str, Enum):
     CRYPTO = "crypto"
     QML = "qml"
     CLIMATE = "climate"
+    PLANNING = "planning"
+    QGI = "qgi"
+    SENSING = "sensing"
+    NETWORKING = "networking"
+    DWAVE = "dwave"
 
 
 class MessageRole(str, Enum):

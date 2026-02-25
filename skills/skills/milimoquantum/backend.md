@@ -8,7 +8,7 @@ description: Backend architecture — FastAPI with SSE streaming, agent routing,
 - **Framework**: Python 3.10+ with FastAPI
 - **Server**: Uvicorn with auto-reload
 - **LLM**: Ollama (local, async httpx client)
-- **Quantum**: Qiskit v2.x + Qiskit Aer
+- **Quantum**: Qiskit v1.4 + Qiskit Aer
 - **Streaming**: SSE via `StreamingResponse` (NOT sse-starlette)
 - **Validation**: Pydantic v2 schemas
 

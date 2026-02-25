@@ -19,9 +19,10 @@ export function useChat() {
 
             // Detect agent from slash command
             let agent: string | undefined;
-            const slashMatch = content.match(/^\/(code|research|chemistry|finance|optimize)\b/);
+            const slashMatch = content.match(/^\/(code|research|chemistry|finance|optimize|crypto|qml|climate|planning|qgi|sensing|networking|dwave)\b/);
             if (slashMatch) {
-                agent = slashMatch[1] === 'optimize' ? 'optimization' : slashMatch[1];
+                const cmdMap: Record<string, string> = { optimize: 'optimization' };
+                agent = cmdMap[slashMatch[1]] || slashMatch[1];
                 setActiveAgent(agent as AgentType);
             }
 

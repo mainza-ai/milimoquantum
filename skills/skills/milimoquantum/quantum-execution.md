@@ -13,7 +13,7 @@ User query → Agent generates Qiskit code → QuantumCircuit object
   → result.get_counts() → format results + generate SVG diagram
 ```
 
-## Qiskit v2.x API Pattern
+## Qiskit v1.4 API Pattern
 
 ```python
 from qiskit import QuantumCircuit, transpile

@@ -1,6 +1,6 @@
 /* Milimo Quantum — TypeScript Type Definitions */
 
-export type AgentType = 'orchestrator' | 'code' | 'research' | 'chemistry' | 'finance' | 'optimization' | 'crypto' | 'qml' | 'climate';
+export type AgentType = 'orchestrator' | 'code' | 'research' | 'chemistry' | 'finance' | 'optimization' | 'crypto' | 'qml' | 'climate' | 'planning' | 'qgi' | 'sensing' | 'networking' | 'dwave';
 
 export type ArtifactType = 'code' | 'circuit' | 'results' | 'notebook' | 'report';
 
@@ -127,5 +127,45 @@ export const AGENTS: AgentInfo[] = [
         color: '#80d0a0',
         command: '/climate',
         description: 'Materials, batteries, climate models',
+    },
+    {
+        type: 'planning',
+        name: 'Planning',
+        icon: '📋',
+        color: '#80c0d0',
+        command: '/planning',
+        description: 'Multi-step quantum workflows',
+    },
+    {
+        type: 'qgi',
+        name: 'Graph QGI',
+        icon: '🕸️',
+        color: '#6bb8c4',
+        command: '/qgi',
+        description: 'Neo4j & quantum graph mappings',
+    },
+    {
+        type: 'sensing',
+        name: 'Sensing',
+        icon: '📡',
+        color: '#5b98a4',
+        command: '/sensing',
+        description: 'Metrology, NV-centers & LiDAR',
+    },
+    {
+        type: 'networking',
+        name: 'Networking',
+        icon: '🌐',
+        color: '#4b7884',
+        command: '/networking',
+        description: 'Quantum internet & teleportation',
+    },
+    {
+        type: 'dwave',
+        name: 'D-Wave',
+        icon: '❄️',
+        color: '#3ecfef',
+        command: '/dwave',
+        description: 'QUBO, Ising models & annealing',
     },
 ];

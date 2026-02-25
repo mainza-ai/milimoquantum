@@ -232,7 +232,7 @@ if skipped.
 **3.3 Core Quantum Stack (CPU-Optimized for Apple Silicon)**
 
 +-----------------------------------------------------------------------+
-| \# Install Qiskit v2.2 and Aer (CPU only --- this is correct for      |
+| \# Install Qiskit v1.4 and Aer (CPU only --- this is correct for      |
 | macOS)                                                                |
 |                                                                       |
 | \$ pip install qiskit==2.2.0                                          |

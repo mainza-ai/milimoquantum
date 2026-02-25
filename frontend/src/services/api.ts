@@ -105,6 +105,62 @@ export async function updateSettings(data: Record<string, unknown>) {
 
 // ── SSE Chat Stream ────────────────────────────────────
 
+// ── Cloud AI Providers ─────────────────────────────────
+
+export async function fetchCloudProviders() {
+    const res = await fetch(`${API_BASE}/settings/cloud-providers`);
+    return res.json();
+}
+
+export async function setCloudProvider(provider: string, model?: string) {
+    const res = await fetch(`${API_BASE}/settings/cloud-provider`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, model }),
+    });
+    return res.json();
+}
+
+// ── Projects ───────────────────────────────────────────
+
+export async function fetchProjects() {
+    const res = await fetch(`${API_BASE}/projects/`);
+    return res.json();
+}
+
+export async function createProject(data: { name: string; description?: string; tags?: string[] }) {
+    const res = await fetch(`${API_BASE}/projects/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    return res.json();
+}
+
+export async function deleteProject(id: string) {
+    const res = await fetch(`${API_BASE}/projects/${id}`, { method: 'DELETE' });
+    return res.json();
+}
+
+export async function addConversationToProject(projectId: string, conversationId: string) {
+    const res = await fetch(`${API_BASE}/projects/${projectId}/conversations/${conversationId}`, {
+        method: 'POST',
+    });
+    return res.json();
+}
+
+// ── Dashboard ──────────────────────────────────────────
+
+export async function fetchAnalyticsSummary() {
+    const res = await fetch(`${API_BASE}/analytics/summary`);
+    return res.json();
+}
+
+export async function fetchCircuitStats() {
+    const res = await fetch(`${API_BASE}/analytics/circuits`);
+    return res.json();
+}
+
 export function streamChat(
     message: string,
     conversationId?: string,

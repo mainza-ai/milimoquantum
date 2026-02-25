@@ -116,7 +116,7 @@ with over 550,000 users, 550+ open-source contributors, and 3 trillion
 quantum circuits executed. Below is a comprehensive breakdown of all
 capabilities relevant to Milimo Quantum.
 
-**2.1 Core SDK (qiskit v2.2)**
+**2.1 Core SDK (Qiskit v1.4)**
 
 +-----------------------------------------------------------------------+
 | **Performance Highlights (v2.x vs v1.x)**                             |
@@ -616,7 +616,7 @@ planning, then delegates to specialized quantum agents.
   (e.g., drug discovery pipeline spanning chemistry + ML agents).
 
 - **Code Execution Sandbox:** Isolated Python environment with full
-  Qiskit v2.2 ecosystem installed; agents write and execute code
+  Qiskit v1.4 ecosystem installed; agents write and execute code
   securely, capturing stdout, circuit diagrams, and measurement results.
 
 - **Tool Registry:** Each agent has access to a defined set of quantum

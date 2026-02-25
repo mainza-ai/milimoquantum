@@ -858,4 +858,4 @@ mindmap
 ---
 
 *Milimo Quantum — The Universe of Quantum, In One Place*
-*Qiskit v2.2 · D-Wave · SquidASM · CUDA-Q · Neo4j · Graphiti · Apple MLX · Open Source*
+*Qiskit v1.4 · D-Wave · SquidASM · CUDA-Q · Neo4j · Graphiti · Apple MLX · Open Source*
