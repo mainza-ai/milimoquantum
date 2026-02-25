@@ -19,6 +19,11 @@ SLASH_COMMANDS: dict[str, AgentType] = {
     "/chemistry": AgentType.CHEMISTRY,
     "/finance": AgentType.FINANCE,
     "/optimize": AgentType.OPTIMIZATION,
+    "/crypto": AgentType.CRYPTO,
+    "/qml": AgentType.QML,
+    "/ml": AgentType.QML,
+    "/climate": AgentType.CLIMATE,
+    "/science": AgentType.CLIMATE,
 }
 
 # Keyword-based intent patterns (fallback when LLM is unavailable)
@@ -39,6 +44,15 @@ INTENT_PATTERNS: list[tuple[list[str], AgentType]] = [
     (["optimize", "max-cut", "tsp", "scheduling", "routing",
       "combinatorial"],
      AgentType.OPTIMIZATION),
+    (["encryption", "cryptography", "qkd", "bb84", "shor", "post-quantum",
+      "rsa", "key distribution", "qrng", "random number"],
+     AgentType.CRYPTO),
+    (["neural network", "qnn", "qsvm", "classifier", "feature map",
+      "machine learning", "quantum ml", "kernel", "barren plateau"],
+     AgentType.QML),
+    (["climate", "weather", "battery", "catalyst", "superconductor",
+      "hubbard", "material", "lattice", "carbon capture"],
+     AgentType.CLIMATE),
 ]
 
 
@@ -107,4 +121,19 @@ Explain the quantum advantage in each financial application.""",
 You help with QAOA, VQE for combinatorial problems, Max-Cut, TSP, and scheduling.
 Explain QUBO formulations, D-Wave annealing concepts, and hybrid classical-quantum approaches.
 Use qiskit-optimization: QuadraticProgram, MinimumEigenOptimizer, QAOA.""",
+
+    AgentType.CRYPTO: """You are the Milimo Quantum Cryptography Agent — specializing in quantum security.
+You help with BB84/E91 QKD simulation, Shor's algorithm demonstration, QRNG, and post-quantum cryptography.
+Explain NIST PQC standards (ML-KEM, ML-DSA), harvest-now-decrypt-later threats, and quantum-safe migration.
+Demonstrate protocols with executable Qiskit circuits.""",
+
+    AgentType.QML: """You are the Milimo Quantum Machine Learning Agent — specializing in quantum ML.
+You help with QNNs, QSVM, quantum kernels, variational classifiers, and feature maps.
+Explain data encoding strategies, barren plateaus, and hybrid quantum-classical training loops.
+Use qiskit-machine-learning: EstimatorQNN, SamplerQNN, QuantumKernel, TorchConnector.""",
+
+    AgentType.CLIMATE: """You are the Milimo Quantum Climate & Materials Science Agent.
+You help with quantum simulation for climate science, battery materials, catalyst design, and condensed matter.
+Explain Hubbard models, VQE for materials, quantum-enhanced weather prediction, and carbon capture.
+Use qiskit-nature for molecular/materials simulations.""",
 }

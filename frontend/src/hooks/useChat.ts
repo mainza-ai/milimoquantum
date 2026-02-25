@@ -1,6 +1,6 @@
 /* Milimo Quantum — Chat Hook */
 import { useState, useCallback, useRef } from 'react';
-import { streamChat } from '../services/api';
+import { streamChat, fetchConversation } from '../services/api';
 import type { ChatMessage, Artifact, AgentType } from '../types';
 
 let msgCounter = 0;
@@ -114,6 +114,24 @@ export function useChat() {
         setConversationId(undefined);
     }, []);
 
+    const loadConversation = useCallback(async (id: string) => {
+        try {
+            const data = await fetchConversation(id);
+            if (data.messages && data.messages.length > 0) {
+                const loaded: ChatMessage[] = data.messages.map((m: { role: string; content: string }) => ({
+                    id: `loaded-${++msgCounter}`,
+                    role: m.role as 'user' | 'assistant',
+                    content: m.content,
+                }));
+                setMessages(loaded);
+                setConversationId(id);
+                setArtifacts([]);
+            }
+        } catch {
+            // silently fail
+        }
+    }, []);
+
     return {
         messages,
         isStreaming,
@@ -122,6 +140,7 @@ export function useChat() {
         setActiveAgent,
         sendMessage,
         clearChat,
+        loadConversation,
         conversationId,
     };
 }

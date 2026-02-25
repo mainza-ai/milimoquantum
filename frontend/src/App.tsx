@@ -3,12 +3,20 @@ import { useState, useCallback } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { ChatArea } from './components/layout/ChatArea';
 import { ArtifactPanel } from './components/layout/ArtifactPanel';
+import SettingsPanel from './components/layout/SettingsPanel';
+import { AnalyticsDashboard } from './components/layout/AnalyticsDashboard';
+import { SearchPanel } from './components/layout/SearchPanel';
+import { MarketplacePanel } from './components/layout/MarketplacePanel';
 import { useChat } from './hooks/useChat';
 import type { Artifact, AgentType } from './types';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [marketplaceOpen, setMarketplaceOpen] = useState(false);
 
   const {
     messages,
@@ -17,6 +25,8 @@ function App() {
     setActiveAgent,
     sendMessage,
     clearChat,
+    loadConversation,
+    conversationId,
   } = useChat();
 
   const handleArtifactClick = useCallback((artifact: Artifact) => {
@@ -47,10 +57,15 @@ function App() {
       {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
         activeAgent={activeAgent}
         onAgentSelect={handleAgentSelect}
         onNewChat={clearChat}
+        onLoadConversation={loadConversation}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenAnalytics={() => setAnalyticsOpen(true)}
+        onOpenSearch={() => setSearchOpen(true)}
+        onOpenMarketplace={() => setMarketplaceOpen(true)}
+        currentConversationId={conversationId}
       />
 
       {/* Chat Area */}
@@ -67,8 +82,33 @@ function App() {
         artifact={activeArtifact}
         onClose={() => setActiveArtifact(null)}
       />
+
+      {/* Settings Modal */}
+      <SettingsPanel
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
+
+      {/* Analytics Dashboard Modal */}
+      <AnalyticsDashboard
+        isOpen={analyticsOpen}
+        onClose={() => setAnalyticsOpen(false)}
+      />
+
+      {/* Search Panel Modal */}
+      <SearchPanel
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+      />
+
+      {/* Marketplace Modal */}
+      <MarketplacePanel
+        isOpen={marketplaceOpen}
+        onClose={() => setMarketplaceOpen(false)}
+      />
     </div>
   );
 }
 
 export default App;
+

@@ -9,7 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.llm.ollama_client import ollama_client
-from app.routes import chat, quantum, projects
+from app.routes import chat, quantum, projects, settings as settings_routes
+from app.routes import analytics, search, collaboration
+from app.routes import benchmarks, citations, audit
+from app.routes import hpc, marketplace
 
 logging.basicConfig(
     level=logging.INFO,
@@ -69,6 +72,15 @@ app.add_middleware(
 app.include_router(chat.router)
 app.include_router(quantum.router)
 app.include_router(projects.router)
+app.include_router(settings_routes.router)
+app.include_router(analytics.router)
+app.include_router(search.router)
+app.include_router(collaboration.router)
+app.include_router(benchmarks.router)
+app.include_router(citations.router)
+app.include_router(audit.router)
+app.include_router(hpc.router)
+app.include_router(marketplace.router)
 
 
 @app.get("/")

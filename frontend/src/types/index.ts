@@ -1,6 +1,6 @@
 /* Milimo Quantum — TypeScript Type Definitions */
 
-export type AgentType = 'orchestrator' | 'code' | 'research' | 'chemistry' | 'finance' | 'optimization';
+export type AgentType = 'orchestrator' | 'code' | 'research' | 'chemistry' | 'finance' | 'optimization' | 'crypto' | 'qml' | 'climate';
 
 export type ArtifactType = 'code' | 'circuit' | 'results' | 'notebook' | 'report';
 
@@ -103,5 +103,29 @@ export const AGENTS: AgentInfo[] = [
         color: '#c0dce6',
         command: '/optimize',
         description: 'QAOA, VQE, combinatorial problems',
+    },
+    {
+        type: 'crypto',
+        name: 'Crypto',
+        icon: '🔐',
+        color: '#d4a0e0',
+        command: '/crypto',
+        description: 'QKD, post-quantum security, QRNG',
+    },
+    {
+        type: 'qml',
+        name: 'Quantum ML',
+        icon: '🧠',
+        color: '#e0c080',
+        command: '/qml',
+        description: 'QNN, QSVM, quantum kernels',
+    },
+    {
+        type: 'climate',
+        name: 'Climate',
+        icon: '🌍',
+        color: '#80d0a0',
+        command: '/climate',
+        description: 'Materials, batteries, climate models',
     },
 ];

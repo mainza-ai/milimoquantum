@@ -1,0 +1,6 @@
+site_name: Milimo Quantum Docs
+nav:
+  - Home: index.md
+  - Tutorials:
+    - Getting Started: tutorials/getting_started.md
+theme: readthedocs

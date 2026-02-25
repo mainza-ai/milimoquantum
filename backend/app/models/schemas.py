@@ -18,6 +18,9 @@ class AgentType(str, Enum):
     CHEMISTRY = "chemistry"
     FINANCE = "finance"
     OPTIMIZATION = "optimization"
+    CRYPTO = "crypto"
+    QML = "qml"
+    CLIMATE = "climate"
 
 
 class MessageRole(str, Enum):

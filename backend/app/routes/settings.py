@@ -1,0 +1,84 @@
+"""Milimo Quantum — Settings Routes."""
+from __future__ import annotations
+
+import logging
+
+from fastapi import APIRouter
+
+from app.config import settings
+from app.llm.ollama_client import ollama_client
+from app.llm.cloud_provider import get_available_providers, set_provider, get_current_provider
+from app.quantum.hal import detect_platform
+from app.quantum import ibm_runtime
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/api/settings", tags=["settings"])
+
+
+@router.get("/")
+async def get_settings():
+    """Get current application settings."""
+    platform = detect_platform()
+    cloud = get_current_provider()
+    ibm_status = ibm_runtime.get_status()
+    return {
+        "ollama_url": settings.OLLAMA_BASE_URL,
+        "ollama_model": settings.DEFAULT_MODEL,
+        "default_shots": settings.DEFAULT_SHOTS,
+        "cloud_provider": cloud,
+        "ibm_quantum": ibm_status,
+        "platform": {
+            "os": platform.os_name,
+            "arch": platform.arch,
+            "torch_device": platform.torch_device,
+            "aer_device": platform.aer_device,
+            "llm_backend": platform.llm_backend,
+            "gpu_available": platform.gpu_available,
+            "gpu_name": platform.gpu_name,
+        },
+    }
+
+
+@router.get("/models")
+async def list_models():
+    """List available Ollama models."""
+    try:
+        models = await ollama_client.list_models()
+        return {"models": models, "current": settings.DEFAULT_MODEL}
+    except Exception as e:
+        logger.warning(f"Failed to list Ollama models: {e}")
+        return {"models": [], "current": settings.DEFAULT_MODEL, "error": "Ollama not available"}
+
+
+@router.get("/cloud-providers")
+async def list_cloud_providers():
+    """List available cloud AI providers."""
+    return {"providers": get_available_providers()}
+
+
+@router.put("/cloud-provider")
+async def set_cloud_provider(data: dict):
+    """Set the active cloud AI provider."""
+    provider = data.get("provider", "ollama")
+    model = data.get("model")
+    result = set_provider(provider, model)
+    return result
+
+
+@router.put("/")
+async def update_settings(data: dict):
+    """Update runtime settings."""
+    updated = {}
+    if "ollama_model" in data:
+        settings.DEFAULT_MODEL = data["ollama_model"]
+        updated["ollama_model"] = settings.DEFAULT_MODEL
+    if "default_shots" in data:
+        shots = max(100, min(8192, int(data["default_shots"])))
+        settings.DEFAULT_SHOTS = shots
+        updated["default_shots"] = shots
+    if "ollama_url" in data:
+        settings.OLLAMA_BASE_URL = data["ollama_url"]
+        updated["ollama_url"] = settings.OLLAMA_BASE_URL
+
+    return {"updated": updated, "status": "ok"}
+

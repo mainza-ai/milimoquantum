@@ -22,6 +22,89 @@ export async function executeCircuit(name: string, shots = 1024) {
     return res.json();
 }
 
+// ── Fault Tolerance & Benchmarking ─────────────────────
+
+export async function runBenchmark(name: string, size: number, shots = 1024) {
+    const res = await fetch(`${API_BASE}/benchmarks/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, size, shots }),
+    });
+    return res.json();
+}
+
+export async function fetchBenchmarkHistory() {
+    const res = await fetch(`${API_BASE}/benchmarks/history`);
+    return res.json();
+}
+
+export async function fetchFaultTolerantResource(algo: string, size: number) {
+    const res = await fetch(`${API_BASE}/quantum/ft/resource-estimation?algorithm=${algo}&size=${size}`);
+    return res.json();
+}
+
+export async function fetchBibTeX(conversationId: string) {
+    const res = await fetch(`${API_BASE}/citations/bibtex/${conversationId}`);
+    return res.json();
+}
+
+// ── HPC & Marketplace ──────────────────────────────────
+
+export async function fetchMarketplacePlugins() {
+    const res = await fetch(`${API_BASE}/marketplace/`);
+    return res.json();
+}
+
+export async function installPlugin(id: string) {
+    const res = await fetch(`${API_BASE}/marketplace/install/${id}`, { method: 'POST' });
+    return res.json();
+}
+
+export async function checkHpcStatus() {
+    const res = await fetch(`${API_BASE}/hpc/status`);
+    return res.json();
+}
+
+// ── Conversations ──────────────────────────────────────
+
+export async function fetchConversations() {
+    const res = await fetch(`${API_BASE}/chat/conversations`);
+    return res.json();
+}
+
+export async function fetchConversation(id: string) {
+    const res = await fetch(`${API_BASE}/chat/conversations/${id}`);
+    return res.json();
+}
+
+export async function deleteConversation(id: string) {
+    const res = await fetch(`${API_BASE}/chat/conversations/${id}`, { method: 'DELETE' });
+    return res.json();
+}
+
+// ── Settings ───────────────────────────────────────────
+
+export async function fetchSettings() {
+    const res = await fetch(`${API_BASE}/settings/`);
+    return res.json();
+}
+
+export async function fetchModels() {
+    const res = await fetch(`${API_BASE}/settings/models`);
+    return res.json();
+}
+
+export async function updateSettings(data: Record<string, unknown>) {
+    const res = await fetch(`${API_BASE}/settings/`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    return res.json();
+}
+
+// ── SSE Chat Stream ────────────────────────────────────
+
 export function streamChat(
     message: string,
     conversationId?: string,
@@ -91,3 +174,4 @@ export function streamChat(
             onError(err.message || 'Connection failed');
         });
 }
+
