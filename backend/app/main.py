@@ -18,6 +18,7 @@ from app.routes import academy
 from app.routes import feeds as feeds_routes
 from app.routes import ibm as ibm_routes
 from app.routes import export as export_routes
+from app.routes import experiments as experiments_routes
 
 logging.basicConfig(
     level=logging.INFO,
@@ -91,6 +92,7 @@ app.include_router(academy.router)
 app.include_router(feeds_routes.router)
 app.include_router(ibm_routes.router)
 app.include_router(export_routes.router)
+app.include_router(experiments_routes.router)
 
 
 @app.get("/")

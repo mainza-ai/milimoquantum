@@ -89,12 +89,16 @@ async def update_settings(data: dict):
 
     # Cloud AI API keys — stored as environment variables
     import os
-    for key_name in ("anthropic_api_key", "openai_api_key", "gemini_api_key"):
+    for key_name in ("anthropic_api_key", "openai_api_key", "gemini_api_key",
+                      "cohere_api_key", "mistral_api_key", "deepseek_api_key"):
         if key_name in data and data[key_name]:
             env_map = {
                 "anthropic_api_key": "ANTHROPIC_API_KEY",
                 "openai_api_key": "OPENAI_API_KEY",
                 "gemini_api_key": "GOOGLE_API_KEY",
+                "cohere_api_key": "COHERE_API_KEY",
+                "mistral_api_key": "MISTRAL_API_KEY",
+                "deepseek_api_key": "DEEPSEEK_API_KEY",
             }
             env_var = env_map[key_name]
             os.environ[env_var] = data[key_name]

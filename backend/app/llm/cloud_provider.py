@@ -1,7 +1,7 @@
 """Milimo Quantum — Cloud AI Provider.
 
-Supports Anthropic, OpenAI, and Google Gemini as alternative LLM backends.
-Falls back to Ollama if no API keys are configured.
+Supports Anthropic, OpenAI, Google Gemini, Cohere, Mistral, and DeepSeek
+as alternative LLM backends. Falls back to Ollama if no API keys are configured.
 """
 from __future__ import annotations
 
@@ -27,6 +27,21 @@ CLOUD_PROVIDERS = {
         "name": "Google Gemini",
         "models": ["gemini-2.0-flash", "gemini-1.5-pro"],
         "env_key": "GOOGLE_API_KEY",
+    },
+    "cohere": {
+        "name": "Cohere Command R+",
+        "models": ["command-r-plus", "command-r", "command-light"],
+        "env_key": "COHERE_API_KEY",
+    },
+    "mistral": {
+        "name": "Mistral AI",
+        "models": ["mistral-large-latest", "mistral-medium-latest", "codestral-latest"],
+        "env_key": "MISTRAL_API_KEY",
+    },
+    "deepseek": {
+        "name": "DeepSeek",
+        "models": ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
+        "env_key": "DEEPSEEK_API_KEY",
     },
 }
 
@@ -98,6 +113,15 @@ async def stream_chat_cloud(
         elif _active_provider == "gemini":
             async for token in _stream_gemini(messages, system_prompt):
                 yield token
+        elif _active_provider == "cohere":
+            async for token in _stream_cohere(messages, system_prompt):
+                yield token
+        elif _active_provider == "mistral":
+            async for token in _stream_mistral(messages, system_prompt):
+                yield token
+        elif _active_provider == "deepseek":
+            async for token in _stream_deepseek(messages, system_prompt):
+                yield token
     except ImportError as e:
         yield f"[Error: {_active_provider} SDK not installed. Install with pip. {e}]"
     except Exception as e:
@@ -163,3 +187,89 @@ async def _stream_gemini(messages: list[dict], system_prompt: str) -> AsyncItera
     for chunk in response:
         if chunk.text:
             yield chunk.text
+
+
+async def _stream_cohere(messages: list[dict], system_prompt: str) -> AsyncIterator[str]:
+    """Stream via Cohere Command R+ API (OpenAI-compatible endpoint)."""
+    import httpx
+
+    api_key = os.environ.get("COHERE_API_KEY", "")
+    formatted = [{"role": "system", "content": system_prompt}] if system_prompt else []
+    formatted += [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] in ("user", "assistant")]
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        async with client.stream(
+            "POST",
+            "https://api.cohere.ai/v2/chat",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "model": _active_model or "command-r-plus",
+                "messages": formatted,
+                "stream": True,
+            },
+        ) as response:
+            async for line in response.aiter_lines():
+                if line.startswith("data:"):
+                    import json
+                    try:
+                        data = json.loads(line[5:].strip())
+                        if data.get("type") == "content-delta":
+                            text = data.get("delta", {}).get("message", {}).get("content", {}).get("text", "")
+                            if text:
+                                yield text
+                    except json.JSONDecodeError:
+                        pass
+
+
+async def _stream_mistral(messages: list[dict], system_prompt: str) -> AsyncIterator[str]:
+    """Stream via Mistral AI API (OpenAI-compatible endpoint)."""
+    import httpx
+
+    api_key = os.environ.get("MISTRAL_API_KEY", "")
+    formatted = [{"role": "system", "content": system_prompt}] if system_prompt else []
+    formatted += [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] in ("user", "assistant")]
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        async with client.stream(
+            "POST",
+            "https://api.mistral.ai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "model": _active_model or "mistral-large-latest",
+                "messages": formatted,
+                "stream": True,
+            },
+        ) as response:
+            async for line in response.aiter_lines():
+                if line.startswith("data:") and line.strip() != "data: [DONE]":
+                    import json
+                    try:
+                        data = json.loads(line[5:].strip())
+                        content = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                        if content:
+                            yield content
+                    except json.JSONDecodeError:
+                        pass
+
+
+async def _stream_deepseek(messages: list[dict], system_prompt: str) -> AsyncIterator[str]:
+    """Stream via DeepSeek API (OpenAI-compatible endpoint)."""
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(
+        api_key=os.environ.get("DEEPSEEK_API_KEY", ""),
+        base_url="https://api.deepseek.com",
+    )
+    formatted = [{"role": "system", "content": system_prompt}] if system_prompt else []
+    formatted += [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] in ("user", "assistant")]
+
+    stream = await client.chat.completions.create(
+        model=_active_model or "deepseek-chat",
+        messages=formatted,
+        max_tokens=4096,
+        stream=True,
+    )
+    async for chunk in stream:
+        if chunk.choices and chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
+
