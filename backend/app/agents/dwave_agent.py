@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 
 from app.models.schemas import Artifact, ArtifactType
-from app.quantum.executor import execute_named_circuit
 
 QUICK_TOPICS: dict[str, str] = {
     "dwave": """## D-Wave Quantum Annealing

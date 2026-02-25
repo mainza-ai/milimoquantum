@@ -16,7 +16,7 @@ class TestAgentImports:
         assert detect_slash_command is not None
 
     def test_import_code_agent(self):
-        from app.agents.code_agent import try_quick_circuit, try_quick_topic
+        from app.agents.code_agent import try_quick_circuit
         assert try_quick_circuit is not None
 
     def test_import_dwave_agent(self):

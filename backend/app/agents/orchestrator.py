@@ -99,6 +99,96 @@ def classify_intent(message: str) -> AgentType:
     return AgentType.ORCHESTRATOR
 
 
+def dispatch_to_agent(agent_type: AgentType, query: str) -> dict:
+    """Dispatch a sub-query to a specific agent's quick handler.
+
+    Returns dict with 'response' text and optional 'artifacts' list.
+    Used by the planning agent for multi-step workflows.
+    """
+    from app.agents import (
+        code_agent, research_agent, chemistry_agent, finance_agent,
+        optimization_agent, crypto_agent, qml_agent, climate_agent,
+        dwave_agent, sensing_agent, networking_agent, qgi_agent,
+    )
+
+    agent_map = {
+        AgentType.CODE: code_agent,
+        AgentType.RESEARCH: research_agent,
+        AgentType.CHEMISTRY: chemistry_agent,
+        AgentType.FINANCE: finance_agent,
+        AgentType.OPTIMIZATION: optimization_agent,
+        AgentType.CRYPTO: crypto_agent,
+        AgentType.QML: qml_agent,
+        AgentType.CLIMATE: climate_agent,
+        AgentType.DWAVE: dwave_agent,
+        AgentType.SENSING: sensing_agent,
+        AgentType.NETWORKING: networking_agent,
+        AgentType.QGI: qgi_agent,
+    }
+
+    module = agent_map.get(agent_type)
+    if not module:
+        return {"response": f"No handler for agent {agent_type}", "artifacts": []}
+
+    # Try quick topic first
+    topic_result = None
+    if hasattr(module, "try_quick_topic"):
+        topic_result = module.try_quick_topic(query)
+
+    if topic_result:
+        return {"response": topic_result, "artifacts": []}
+
+    # Try quick circuit
+    if hasattr(module, "try_quick_circuit"):
+        artifacts, summary = module.try_quick_circuit(query)
+        if artifacts:
+            return {
+                "response": summary or f"Generated circuit for: {query}",
+                "artifacts": artifacts,
+            }
+
+    # Fallback: return the system prompt context
+    system_prompt = SYSTEM_PROMPTS.get(agent_type, "")
+    return {
+        "response": f"[{agent_type.value}] Needs LLM processing: {query}",
+        "artifacts": [],
+        "needs_llm": True,
+        "system_prompt": system_prompt,
+    }
+
+
+def dispatch_multi_agent(steps: list[dict]) -> list[dict]:
+    """Execute a multi-step plan by dispatching each step to its agent.
+
+    Args:
+        steps: List of step dicts with 'agent', 'instruction' keys.
+
+    Returns:
+        List of result dicts with 'step', 'agent', 'response', 'artifacts'.
+    """
+    results = []
+    context = ""  # Accumulated context from previous steps
+
+    for step in steps:
+        agent_type = step.get("agent", AgentType.ORCHESTRATOR)
+        instruction = step.get("instruction", "")
+
+        # Enrich instruction with context from previous steps
+        if context:
+            instruction = f"{instruction}\n\nContext from previous steps:\n{context}"
+
+        result = dispatch_to_agent(agent_type, instruction)
+        result["step"] = step.get("step", len(results) + 1)
+        result["agent"] = agent_type.value
+        results.append(result)
+
+        # Accumulate context for dependent steps
+        if result.get("response"):
+            context += f"\n[Step {result['step']}]: {result['response'][:500]}"
+
+    return results
+
+
 # ── Shared instruction block appended to every agent prompt ──
 _CODE_INSTRUCTION = """
 
