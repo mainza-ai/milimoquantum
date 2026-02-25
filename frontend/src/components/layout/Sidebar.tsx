@@ -23,6 +23,7 @@ interface SidebarProps {
     onOpenMarketplace?: () => void;
     onOpenProjects?: () => void;
     onOpenDashboard?: () => void;
+    onOpenAcademy?: () => void;
     currentConversationId?: string;
 }
 
@@ -57,6 +58,8 @@ export function Sidebar({
     onOpenSearch,
     onOpenProjects,
     onOpenDashboard,
+    onOpenMarketplace,
+    onOpenAcademy,
     currentConversationId,
 }: SidebarProps) {
     const [health, setHealth] = useState<HealthStatus | null>(null);
@@ -274,6 +277,8 @@ export function Sidebar({
                             <FooterButton icon="📊" label="Analytics" onClick={onOpenAnalytics} />
                             <FooterButton icon="📁" label="Projects" onClick={onOpenProjects} />
                             <FooterButton icon="⚛️" label="Dashboard" onClick={onOpenDashboard} />
+                            <FooterButton icon="🎓" label="Academy" onClick={onOpenAcademy} />
+                            <FooterButton icon="🏪" label="Marketplace" onClick={onOpenMarketplace} />
                         </div>
 
                         {/* Settings */}

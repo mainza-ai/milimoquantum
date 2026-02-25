@@ -28,6 +28,7 @@ export function AnalyticsDashboard({ isOpen, onClose }: { isOpen: boolean; onClo
     const [summary, setSummary] = useState<SummaryData | null>(null);
     const [agents, setAgents] = useState<AgentData[]>([]);
     const [activities, setActivities] = useState<Activity[]>([]);
+    const [graphStatus, setGraphStatus] = useState<Record<string, unknown> | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -37,11 +38,13 @@ export function AnalyticsDashboard({ isOpen, onClose }: { isOpen: boolean; onClo
             fetch('/api/analytics/summary').then(r => r.json()),
             fetch('/api/analytics/agents').then(r => r.json()),
             fetch('/api/analytics/activity').then(r => r.json()),
+            fetch('/api/graph/status').then(r => r.json()).catch(() => null),
         ])
-            .then(([sum, ag, act]) => {
+            .then(([sum, ag, act, graph]) => {
                 setSummary(sum);
                 setAgents(ag.agents || []);
                 setActivities(act.activities || []);
+                if (graph) setGraphStatus(graph);
             })
             .catch(() => { })
             .finally(() => setLoading(false));
@@ -105,6 +108,35 @@ export function AnalyticsDashboard({ isOpen, onClose }: { isOpen: boolean; onClo
                         )}
 
                         {/* Agent Usage Chart */}
+
+                        {/* System Status — Graph, Memory, Feeds */}
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+                                <div className="text-xs text-gray-500 mb-2">🧠 Knowledge Graph</div>
+                                <div className="text-sm font-medium text-white">
+                                    {graphStatus?.neo4j ? (
+                                        (graphStatus.neo4j as Record<string, unknown>).connected ? '✅ Connected' : '⚪ Available'
+                                    ) : '—'}
+                                </div>
+                                <div className="text-[10px] text-gray-600 mt-1">Neo4j + Graph Intelligence</div>
+                            </div>
+                            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+                                <div className="text-xs text-gray-500 mb-2">💾 Agent Memory</div>
+                                <div className="text-sm font-medium text-white">
+                                    {graphStatus?.memory ? (
+                                        `${(graphStatus.memory as Record<string, unknown>).total_entries || 0} entries`
+                                    ) : '0 entries'}
+                                </div>
+                                <div className="text-[10px] text-gray-600 mt-1">
+                                    {graphStatus?.memory ? String((graphStatus.memory as Record<string, unknown>).backend || 'local') : 'local'}
+                                </div>
+                            </div>
+                            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+                                <div className="text-xs text-gray-500 mb-2">📡 Live Feeds</div>
+                                <div className="text-sm font-medium text-white">3 connectors</div>
+                                <div className="text-[10px] text-gray-600 mt-1">arXiv · PubChem · Finance</div>
+                            </div>
+                        </div>
                         {agents.length > 0 && (
                             <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5">
                                 <h3 className="text-sm font-medium text-gray-300 mb-4">Agent Usage</h3>

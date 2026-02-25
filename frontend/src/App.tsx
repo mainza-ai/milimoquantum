@@ -9,6 +9,7 @@ import { SearchPanel } from './components/layout/SearchPanel';
 import { MarketplacePanel } from './components/layout/MarketplacePanel';
 import { ProjectsPanel } from './components/layout/ProjectsPanel';
 import { QuantumDashboard } from './components/layout/QuantumDashboard';
+import { LearningAcademy } from './components/layout/LearningAcademy';
 import { useChat } from './hooks/useChat';
 import type { Artifact, AgentType } from './types';
 
@@ -21,6 +22,7 @@ function App() {
   const [marketplaceOpen, setMarketplaceOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [academyOpen, setAcademyOpen] = useState(false);
 
   const {
     messages,
@@ -71,6 +73,7 @@ function App() {
         onOpenMarketplace={() => setMarketplaceOpen(true)}
         onOpenProjects={() => setProjectsOpen(true)}
         onOpenDashboard={() => setDashboardOpen(true)}
+        onOpenAcademy={() => setAcademyOpen(true)}
         currentConversationId={conversationId}
       />
 
@@ -124,6 +127,12 @@ function App() {
       <QuantumDashboard
         isOpen={dashboardOpen}
         onClose={() => setDashboardOpen(false)}
+      />
+
+      {/* Learning Academy Modal */}
+      <LearningAcademy
+        isOpen={academyOpen}
+        onClose={() => setAcademyOpen(false)}
       />
     </div>
   );

@@ -15,6 +15,7 @@ from app.routes import benchmarks, citations, audit
 from app.routes import hpc, marketplace
 from app.routes import graph as graph_routes
 from app.routes import academy
+from app.routes import feeds as feeds_routes
 
 logging.basicConfig(
     level=logging.INFO,
@@ -85,6 +86,7 @@ app.include_router(hpc.router)
 app.include_router(marketplace.router)
 app.include_router(graph_routes.router)
 app.include_router(academy.router)
+app.include_router(feeds_routes.router)
 
 
 @app.get("/")
@@ -101,8 +103,12 @@ async def health():
     """Health check."""
     ollama_ok = await ollama_client.is_available()
     from app.quantum.executor import QISKIT_AVAILABLE
+    from app.graph.neo4j_client import neo4j_client
+    from app.graph.agent_memory import agent_memory
     return {
         "status": "healthy",
         "ollama": "connected" if ollama_ok else "disconnected",
         "qiskit": "available" if QISKIT_AVAILABLE else "unavailable",
+        "graph": neo4j_client.get_status(),
+        "memory": agent_memory.get_status(),
     }

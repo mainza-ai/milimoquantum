@@ -235,3 +235,61 @@ export function streamChat(
         });
 }
 
+// ── Graph Intelligence ─────────────────────────────────
+
+export async function fetchGraphStatus() {
+    const res = await fetch(`${API_BASE}/graph/status`);
+    return res.json();
+}
+
+export async function fetchGraphRelated(query: string) {
+    const res = await fetch(`${API_BASE}/graph/related?q=${encodeURIComponent(query)}`);
+    return res.json();
+}
+
+export async function fetchGraphStats() {
+    const res = await fetch(`${API_BASE}/graph/stats`);
+    return res.json();
+}
+
+export async function fetchAgentMemory(agentType: string, query?: string) {
+    const params = query ? `?query=${encodeURIComponent(query)}` : '';
+    const res = await fetch(`${API_BASE}/graph/memory/${agentType}${params}`);
+    return res.json();
+}
+
+// ── Learning Academy ───────────────────────────────────
+
+export async function fetchLessons() {
+    const res = await fetch(`${API_BASE}/academy/lessons`);
+    return res.json();
+}
+
+export async function fetchLesson(id: string) {
+    const res = await fetch(`${API_BASE}/academy/lessons/${id}`);
+    return res.json();
+}
+
+export async function saveAcademyProgress(lessonId: string, completed: boolean = true, quizScore?: number) {
+    const params = new URLSearchParams({ lesson_id: lessonId, completed: String(completed) });
+    if (quizScore !== undefined) params.set('quiz_score', String(quizScore));
+    const res = await fetch(`${API_BASE}/academy/progress?${params}`, { method: 'POST' });
+    return res.json();
+}
+
+// ── Live Data Feeds ────────────────────────────────────
+
+export async function searchArxivPapers(query: string, maxResults: number = 5) {
+    const res = await fetch(`${API_BASE}/feeds/arxiv?query=${encodeURIComponent(query)}&max_results=${maxResults}`);
+    return res.json();
+}
+
+export async function searchPubChem(name: string) {
+    const res = await fetch(`${API_BASE}/feeds/pubchem?name=${encodeURIComponent(name)}`);
+    return res.json();
+}
+
+export async function fetchStockPrices(symbols: string[]) {
+    const res = await fetch(`${API_BASE}/feeds/finance?symbols=${symbols.join(',')}`);
+    return res.json();
+}
