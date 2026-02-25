@@ -22,7 +22,7 @@
 
 ## Phases 1–4 ✅ COMPLETE (see previous versions for details)
 
-## Recently Implemented (This Session — 5 Batches)
+## Recently Implemented (This Session — 6 Batches)
 
 | Batch | Features |
 |-------|----------|
@@ -31,31 +31,24 @@
 | **3** | OpenQASM 3 (parse/export/validate + 3 endpoints), circuit builder (drag-and-drop), Bloch sphere (SVG + interactive θ/φ) |
 | **4** | QPY serialization (save/load/list + base64), noise profiles (IBM Brisbane/Osaka/Torino), vision model support (LLaVA), model hot-swap |
 | **5** | 6/6 cloud providers (added Cohere, Mistral, DeepSeek), experiment versioning & run registry, Jupyter notebook (.ipynb) export |
+| **6** | Stim stabilizer simulator (circuit/sample/decode/threshold), PennyLane bridge (VQE/classifier/convert), SettingsPanel 6-provider UI |
 
 ---
 
-## What's Still Missing — Actionable Items
-
-### � Remaining — Mostly Infrastructure & Enterprise
+## What's Still Missing — Infrastructure & Enterprise
 
 | # | Feature | Effort | Impact |
 |---|---------|--------|--------|
 | 1 | **Frontend tests (Vitest)** | Medium | Zero coverage |
 | 2 | **D-Wave Ocean SDK** | High | Real annealing (needs account) |
-| 3 | **Stim stabilizer simulator** | Medium | Fast Clifford simulation |
-| 4 | **PennyLane bridge** | Medium | Cross-framework QML |
-
-### 🟢 Lower Priority
-
-| # | Feature | Effort | Impact |
-|---|---------|--------|--------|
-| 5 | **Neo4j + GraphRAG** | High | Knowledge graph for experiments |
-| 6 | **PostgreSQL + Alembic** | Medium | Structured metadata, migrations |
-| 7 | **Celery workflow orchestration** | High | Parallel quantum job pipelines |
-| 8 | **Enterprise auth (Keycloak)** | High | SSO, multi-tenancy |
-| 9 | **Mobile app (React Native)** | High | Monitoring on the go |
+| 3 | **Neo4j + GraphRAG** | High | Knowledge graph for experiments |
+| 4 | **PostgreSQL + Alembic** | Medium | Structured metadata, migrations |
+| 5 | **Celery workflow orchestration** | High | Parallel quantum job pipelines |
+| 6 | **Enterprise auth (Keycloak)** | High | SSO, multi-tenancy |
+| 7 | **Mobile app (React Native)** | High | Monitoring on the go |
 
 ---
 
-*Report updated February 25, 2026 (v6) — ~88% complete. 5 feature batches shipped this session covering 20+ features.*
+*Report updated February 25, 2026 (v7) — ~92% complete. 6 feature batches shipped this session covering 25+ features and 35+ API endpoints.*
+
 
