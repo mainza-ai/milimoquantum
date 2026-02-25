@@ -22,11 +22,10 @@ def _ensure_dir():
 
 
 def save_conversation(conversation_id: str, messages: list[dict], title: str | None = None) -> None:
-    """Save a conversation to disk."""
-    _ensure_dir()
-    filepath = STORAGE_DIR / f"{conversation_id}.json"
+    """Save a conversation to the database."""
+    from app.db import get_session
+    from app.db.models import Conversation, Message, Artifact
 
-    # Auto-title from first user message
     if not title:
         for msg in messages:
             if msg.get("role") == "user":
@@ -37,68 +36,149 @@ def save_conversation(conversation_id: str, messages: list[dict], title: str | N
     if not title:
         title = "New Conversation"
 
-    data = {
-        "id": conversation_id,
-        "title": title,
-        "messages": messages,
-        "message_count": len(messages),
-        "created_at": _get_created_at(filepath),
-        "updated_at": datetime.utcnow().isoformat(),
-    }
+    session = get_session()
+    try:
+        # Check if conversation exists
+        conv = session.query(Conversation).filter_by(id=conversation_id).first()
+        if not conv:
+            conv = Conversation(id=conversation_id, title=title)
+            session.add(conv)
+        else:
+            conv.title = title
+            conv.message_count = len(messages)
+            conv.updated_at = datetime.utcnow()
+            # Delete existing messages to rewrite
+            session.query(Message).filter_by(conversation_id=conversation_id).delete()
 
-    filepath.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
-    logger.debug(f"Saved conversation {conversation_id} ({len(messages)} messages)")
+        # Add messages
+        for msg in messages:
+            db_msg = Message(
+                id=msg.get("id") or _uuid(),
+                conversation_id=conversation_id,
+                role=msg["role"],
+                content=msg["content"],
+                agent=msg.get("agent"),
+                timestamp=datetime.fromisoformat(msg["timestamp"]) if msg.get("timestamp") else datetime.utcnow(),
+            )
+            session.add(db_msg)
+            
+            # Add artifacts if any
+            artifacts = msg.get("artifacts", [])
+            for art in artifacts:
+                db_art = Artifact(
+                    id=art.get("id") or _uuid(),
+                    message_id=db_msg.id,
+                    type=art["type"],
+                    title=art.get("title"),
+                    content=art.get("content"),
+                    language=art.get("language"),
+                )
+                session.add(db_art)
+
+        conv.message_count = len(messages)
+        session.commit()
+        logger.debug(f"Saved conversation {conversation_id} ({len(messages)} messages)")
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to save conversation {conversation_id}: {e}")
+    finally:
+        session.close()
 
 
 def load_conversation(conversation_id: str) -> dict | None:
-    """Load a conversation from disk."""
-    _ensure_dir()
-    filepath = STORAGE_DIR / f"{conversation_id}.json"
-    if not filepath.exists():
-        return None
+    """Load a conversation from the database."""
+    from app.db import get_session
+    from app.db.models import Conversation
+
+    session = get_session()
     try:
-        return json.loads(filepath.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as e:
+        conv = session.query(Conversation).filter_by(id=conversation_id).first()
+        if not conv:
+            return None
+
+        messages = []
+        for msg in sorted(conv.messages, key=lambda m: m.timestamp):
+            msg_dict = {
+                "id": msg.id,
+                "role": msg.role,
+                "content": msg.content,
+                "agent": msg.agent,
+                "timestamp": msg.timestamp.isoformat(),
+            }
+            if msg.artifacts:
+                msg_dict["artifacts"] = [
+                    {
+                        "id": art.id,
+                        "type": art.type,
+                        "title": art.title,
+                        "content": art.content,
+                        "language": art.language,
+                    }
+                    for art in art.artifacts
+                ]
+            messages.append(msg_dict)
+
+        return {
+            "id": conv.id,
+            "title": conv.title,
+            "created_at": conv.created_at.isoformat(),
+            "updated_at": conv.updated_at.isoformat(),
+            "message_count": conv.message_count,
+            "messages": messages,
+        }
+    except Exception as e:
         logger.error(f"Failed to load conversation {conversation_id}: {e}")
         return None
+    finally:
+        session.close()
 
 
 def list_conversations() -> list[dict]:
     """List all saved conversations with summary info."""
-    _ensure_dir()
-    convos = []
-    for filepath in sorted(STORAGE_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
-        try:
-            data = json.loads(filepath.read_text(encoding="utf-8"))
-            convos.append({
-                "id": data.get("id", filepath.stem),
-                "title": data.get("title", "Untitled"),
-                "message_count": data.get("message_count", 0),
-                "updated_at": data.get("updated_at", ""),
-                "created_at": data.get("created_at", ""),
-            })
-        except (json.JSONDecodeError, OSError):
-            continue
-    return convos
+    from app.db import get_session
+    from app.db.models import Conversation
+
+    session = get_session()
+    try:
+        convos = session.query(Conversation).order_by(Conversation.updated_at.desc()).all()
+        return [
+            {
+                "id": c.id,
+                "title": c.title,
+                "message_count": c.message_count,
+                "updated_at": c.updated_at.isoformat(),
+                "created_at": c.created_at.isoformat(),
+            }
+            for c in convos
+        ]
+    except Exception as e:
+        logger.error(f"Failed to list conversations: {e}")
+        return []
+    finally:
+        session.close()
 
 
 def delete_conversation(conversation_id: str) -> bool:
-    """Delete a conversation from disk."""
-    _ensure_dir()
-    filepath = STORAGE_DIR / f"{conversation_id}.json"
-    if filepath.exists():
-        filepath.unlink()
-        logger.info(f"Deleted conversation {conversation_id}")
-        return True
-    return False
+    """Delete a conversation from the database."""
+    from app.db import get_session
+    from app.db.models import Conversation
 
+    session = get_session()
+    try:
+        conv = session.query(Conversation).filter_by(id=conversation_id).first()
+        if conv:
+            session.delete(conv)
+            session.commit()
+            logger.info(f"Deleted conversation {conversation_id}")
+            return True
+        return False
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to delete conversation {conversation_id}: {e}")
+        return False
+    finally:
+        session.close()
 
-def _get_created_at(filepath: Path) -> str:
-    """Get or preserve the created_at timestamp."""
-    if filepath.exists():
-        try:
-            data = json.loads(filepath.read_text(encoding="utf-8"))
-            return data.get("created_at", datetime.utcnow().isoformat())
-        except (json.JSONDecodeError, OSError):
-            pass
-    return datetime.utcnow().isoformat()
+def _uuid() -> str:
+    import uuid
+    return str(uuid.uuid4())

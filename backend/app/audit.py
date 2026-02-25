@@ -23,34 +23,49 @@ def _ensure_log_file():
 
 
 async def log_action(user: str, action: str, resource: str, details: dict = None):
-    """Append an immutable log entry."""
-    _ensure_log_file()
+    """Append an immutable log entry to the database."""
+    from app.db import get_session
+    from app.db.models import AuditLog
     
-    entry = {
-        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "user": user,
-        "action": action,
-        "resource": resource,
-        "details": details or {},
-    }
-    
-    # Append line to file (JSONL format)
-    with open(AUDIT_LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(json.dumps(entry) + "\n")
+    session = get_session()
+    try:
+        log = AuditLog(
+            user_id=user,
+            action=action,
+            resource_type="system",
+            resource_id=resource,
+            details=details or {},
+            timestamp=datetime.datetime.now(datetime.timezone.utc),
+        )
+        session.add(log)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to save audit log: {e}")
+    finally:
+        session.close()
 
 
 async def get_logs(limit: int = 50):
     """Retrieve recent audit logs (reverse chronological)."""
-    if not AUDIT_LOG_FILE.exists():
-        return []
-        
-    logs = []
-    with open(AUDIT_LOG_FILE, "r", encoding="utf-8") as f:
-        for line in f:
-            if line.strip():
-                try:
-                    logs.append(json.loads(line))
-                except json.JSONDecodeError:
-                    pass
+    from app.db import get_session
+    from app.db.models import AuditLog
     
-    return list(reversed(logs))[:limit]
+    session = get_session()
+    try:
+        logs = session.query(AuditLog).order_by(AuditLog.timestamp.desc()).limit(limit).all()
+        return [
+            {
+                "timestamp": l.timestamp.isoformat(),
+                "user": l.user_id,
+                "action": l.action,
+                "resource": l.resource_id,
+                "details": l.details,
+            }
+            for l in logs
+        ]
+    except Exception as e:
+        logger.error(f"Failed to fetch audit logs: {e}")
+        return []
+    finally:
+        session.close()

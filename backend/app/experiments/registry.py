@@ -44,94 +44,136 @@ def log_run(
 
     Returns the run metadata with a unique run_id.
     """
-    _ensure_dir()
+    from app.db import get_session
+    from app.db.models import Experiment
 
-    # Generate run ID from hash of circuit + timestamp
     now = datetime.utcnow()
     hash_input = f"{circuit_code}{now.isoformat()}{shots}".encode()
     run_id = hashlib.sha256(hash_input).hexdigest()[:12]
 
-    run_entry = {
-        "run_id": run_id,
-        "project": project,
-        "circuit_name": circuit_name,
-        "circuit_code": circuit_code,
-        "backend": backend,
-        "shots": shots,
-        "mitigation": mitigation,
-        "transpile_options": transpile_options or {},
-        "results": results or {},
-        "tags": tags or [],
-        "notes": notes,
-        "timestamp": now.isoformat(),
-        "version": 1,
-    }
+    session = get_session()
+    try:
+        exp = Experiment(
+            id=run_id,
+            project=project,
+            name=circuit_name,
+            circuit_code=circuit_code,
+            backend=backend,
+            shots=shots,
+            results=results or {},
+            tags=tags or [],
+            parameters={
+                "mitigation": mitigation,
+                "transpile_options": transpile_options or {},
+                "notes": notes,
+                "version": 1,
+            },
+            created_at=now,
+        )
+        session.add(exp)
+        session.commit()
+        logger.info(f"Logged run {run_id} for project '{project}' (DB)")
 
-    # Save to project directory
-    exp_dir = _experiment_dir(project)
-    filepath = exp_dir / f"{run_id}.json"
-    filepath.write_text(json.dumps(run_entry, indent=2, default=str))
-
-    # Also append to run log index
-    log_file = exp_dir / "_run_log.jsonl"
-    with open(log_file, "a") as f:
-        f.write(json.dumps({
+        return {
             "run_id": run_id,
+            "project": project,
             "circuit_name": circuit_name,
+            "circuit_code": circuit_code,
             "backend": backend,
             "shots": shots,
+            "mitigation": mitigation,
+            "transpile_options": transpile_options or {},
+            "results": results or {},
+            "tags": tags or [],
+            "notes": notes,
             "timestamp": now.isoformat(),
-        }) + "\n")
-
-    logger.info(f"Logged run {run_id} for project '{project}'")
-    return run_entry
+            "version": 1,
+        }
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to log run {run_id}: {e}")
+        return {}
+    finally:
+        session.close()
 
 
 def get_run(project: str, run_id: str) -> dict | None:
     """Retrieve a specific run by ID."""
-    filepath = _experiment_dir(project) / f"{run_id}.json"
-    if not filepath.exists():
-        return None
-    return json.loads(filepath.read_text())
+    from app.db import get_session
+    from app.db.models import Experiment
+
+    session = get_session()
+    try:
+        exp = session.query(Experiment).filter_by(project=project, id=run_id).first()
+        if not exp:
+            return None
+        return {
+            "run_id": exp.id,
+            "project": exp.project,
+            "circuit_name": exp.name or "",
+            "circuit_code": exp.circuit_code or "",
+            "backend": exp.backend,
+            "shots": exp.shots,
+            "mitigation": exp.parameters.get("mitigation"),
+            "transpile_options": exp.parameters.get("transpile_options", {}),
+            "results": exp.results,
+            "tags": exp.tags,
+            "notes": exp.parameters.get("notes", ""),
+            "timestamp": exp.created_at.isoformat(),
+            "version": exp.parameters.get("version", 1),
+        }
+    finally:
+        session.close()
 
 
 def list_runs(project: str = "default", limit: int = 50) -> list[dict]:
     """List recent runs for a project (most recent first)."""
-    exp_dir = _experiment_dir(project)
-    runs = []
-    for filepath in sorted(exp_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
-        if filepath.name.startswith("_"):
-            continue
-        try:
-            data = json.loads(filepath.read_text())
-            runs.append({
-                "run_id": data["run_id"],
-                "circuit_name": data.get("circuit_name", ""),
-                "backend": data.get("backend", ""),
-                "shots": data.get("shots", 0),
-                "timestamp": data.get("timestamp", ""),
-                "tags": data.get("tags", []),
-            })
-        except (json.JSONDecodeError, KeyError):
-            continue
-        if len(runs) >= limit:
-            break
-    return runs
+    from app.db import get_session
+    from app.db.models import Experiment
+
+    session = get_session()
+    try:
+        exps = session.query(Experiment).filter_by(project=project).order_by(Experiment.created_at.desc()).limit(limit).all()
+        return [
+            {
+                "run_id": e.id,
+                "circuit_name": e.name or "",
+                "backend": e.backend,
+                "shots": e.shots,
+                "timestamp": e.created_at.isoformat(),
+                "tags": e.tags,
+            }
+            for e in exps
+        ]
+    finally:
+        session.close()
 
 
 def list_projects() -> list[dict]:
     """List all experiment projects."""
-    _ensure_dir()
-    projects = []
-    for d in sorted(REGISTRY_DIR.iterdir()):
-        if d.is_dir():
-            run_count = len(list(d.glob("*.json"))) - len(list(d.glob("_*.json")))
-            projects.append({
-                "name": d.name,
-                "run_count": run_count,
-                "last_modified": datetime.fromtimestamp(d.stat().st_mtime).isoformat(),
-            })
-    return projects
+    from app.db import get_session
+    from app.db.models import Experiment
+    from sqlalchemy import func
+
+    session = get_session()
+    try:
+        # SELECT project, count(id), max(created_at) FROM experiments GROUP BY project
+        projects_data = session.query(
+            Experiment.project,
+            func.count(Experiment.id).label("run_count"),
+            func.max(Experiment.created_at).label("last_modified")
+        ).group_by(Experiment.project).all()
+
+        return [
+            {
+                "name": p.project,
+                "run_count": p.run_count,
+                "last_modified": p.last_modified.isoformat() if p.last_modified else "",
+            }
+            for p in projects_data
+        ]
+    finally:
+        session.close()
 
 
 def compare_runs(project: str, run_id_a: str, run_id_b: str) -> dict:
@@ -167,13 +209,23 @@ def compare_runs(project: str, run_id_a: str, run_id_b: str) -> dict:
 
 def tag_run(project: str, run_id: str, tags: list[str]) -> dict:
     """Add tags to a run for organization."""
-    filepath = _experiment_dir(project) / f"{run_id}.json"
-    if not filepath.exists():
-        return {"error": "Run not found"}
+    from app.db import get_session
+    from app.db.models import Experiment
 
-    data = json.loads(filepath.read_text())
-    existing = set(data.get("tags", []))
-    existing.update(tags)
-    data["tags"] = sorted(existing)
-    filepath.write_text(json.dumps(data, indent=2, default=str))
-    return {"run_id": run_id, "tags": data["tags"]}
+    session = get_session()
+    try:
+        exp = session.query(Experiment).filter_by(project=project, id=run_id).first()
+        if not exp:
+            return {"error": "Run not found"}
+
+        existing = set(exp.tags or [])
+        existing.update(tags)
+        exp.tags = sorted(existing)
+        session.commit()
+        return {"run_id": run_id, "tags": exp.tags}
+    except Exception as e:
+        session.rollback()
+        return {"error": str(e)}
+    finally:
+        session.close()
+
