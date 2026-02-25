@@ -382,6 +382,54 @@ def build_artifacts_from_result(
             },
         ))
 
+    # ── Error Mitigation: apply ZNE + measurement mitigation ────
+    # When we have both circuits and counts, run mitigation and add
+    # mitigated results as companion artifacts.
+    if result.circuits and result.counts:
+        try:
+            from app.quantum.mitigation import apply_zne, apply_measurement_mitigation
+            for i, circuit in enumerate(result.circuits):
+                # Only mitigate circuits with measurements
+                if circuit.num_clbits == 0:
+                    continue
+                try:
+                    # ZNE mitigation
+                    zne_result = apply_zne(circuit, shots=1024)
+                    if "extrapolated" in zne_result and zne_result["extrapolated"]:
+                        suffix = f" ({i+1})" if len(result.circuits) > 1 else ""
+                        artifacts.append(Artifact(
+                            type=ArtifactType.RESULTS,
+                            title=f"{agent_label} — ZNE Mitigated{suffix}",
+                            content=json.dumps(zne_result["extrapolated"]),
+                            metadata={
+                                "shots": 1024,
+                                "method": "ZNE (Richardson extrapolation)",
+                                "noise_factors": zne_result.get("noise_factors", [1, 2, 3]),
+                                "execution_time_ms": result.execution_time_ms,
+                                "num_states": len(zne_result["extrapolated"]),
+                            },
+                        ))
+
+                    # Measurement mitigation
+                    meas_result = apply_measurement_mitigation(circuit, shots=1024)
+                    if "mitigated_counts" in meas_result and meas_result["mitigated_counts"]:
+                        suffix = f" ({i+1})" if len(result.circuits) > 1 else ""
+                        artifacts.append(Artifact(
+                            type=ArtifactType.RESULTS,
+                            title=f"{agent_label} — Calibrated{suffix}",
+                            content=json.dumps(meas_result["mitigated_counts"]),
+                            metadata={
+                                "shots": 1024,
+                                "method": "Measurement calibration",
+                                "execution_time_ms": result.execution_time_ms,
+                                "num_states": len(meas_result["mitigated_counts"]),
+                            },
+                        ))
+                except Exception as e:
+                    logger.debug(f"Error mitigation skipped for circuit {i}: {e}")
+        except ImportError:
+            logger.debug("Mitigation module not available, skipping")
+
     return artifacts
 
 
