@@ -323,3 +323,99 @@ async def execute_noisy(data: dict):
         return {"error": "Failed to create circuit"}
 
     return execute_with_noise(circuit, profile_name, shots=shots)
+
+
+# ── Stim Stabilizer Simulator ─────────────────────────
+@router.get("/stim/available")
+async def stim_available():
+    """Check if Stim is installed."""
+    from app.quantum.stim_sim import is_stim_available
+    return {"available": is_stim_available()}
+
+
+@router.post("/stim/circuit")
+async def stim_create_circuit(data: dict):
+    """Create a stabilizer circuit."""
+    from app.quantum.stim_sim import create_stabilizer_circuit
+    return create_stabilizer_circuit(
+        code_distance=data.get("distance", 3),
+        rounds=data.get("rounds", 1),
+        noise_rate=data.get("noise_rate", 0.001),
+    )
+
+
+@router.post("/stim/sample")
+async def stim_sample(data: dict):
+    """Sample detection events from a stabilizer circuit."""
+    from app.quantum.stim_sim import sample_stabilizer
+    return sample_stabilizer(
+        circuit_str=data.get("circuit_str"),
+        code_distance=data.get("distance", 3),
+        rounds=data.get("rounds", 1),
+        noise_rate=data.get("noise_rate", 0.001),
+        shots=data.get("shots", 10000),
+    )
+
+
+@router.post("/stim/decode")
+async def stim_decode(data: dict):
+    """Run a full decode cycle with MWPM."""
+    from app.quantum.stim_sim import decode_errors
+    return decode_errors(
+        code_distance=data.get("distance", 3),
+        rounds=data.get("rounds", 3),
+        noise_rate=data.get("noise_rate", 0.01),
+        shots=data.get("shots", 10000),
+    )
+
+
+@router.post("/stim/threshold")
+async def stim_threshold(data: dict):
+    """Scan error rates across distances to find threshold."""
+    from app.quantum.stim_sim import threshold_scan
+    return threshold_scan(
+        distances=data.get("distances"),
+        noise_rates=data.get("noise_rates"),
+        shots=data.get("shots", 5000),
+    )
+
+
+# ── PennyLane Bridge ──────────────────────────────────
+@router.get("/pennylane/info")
+async def pennylane_info():
+    """Get PennyLane version and available devices."""
+    from app.quantum.pennylane_bridge import get_pennylane_info
+    return get_pennylane_info()
+
+
+@router.post("/pennylane/vqe")
+async def pennylane_vqe(data: dict):
+    """Run VQE with PennyLane's autodiff."""
+    from app.quantum.pennylane_bridge import run_vqe_pennylane
+    return run_vqe_pennylane(
+        hamiltonian=data.get("hamiltonian", "H2"),
+        num_qubits=data.get("num_qubits", 2),
+        layers=data.get("layers", 2),
+        steps=data.get("steps", 100),
+        step_size=data.get("step_size", 0.4),
+    )
+
+
+@router.post("/pennylane/classifier")
+async def pennylane_classifier(data: dict):
+    """Train a quantum classifier with PennyLane."""
+    from app.quantum.pennylane_bridge import run_qml_classifier
+    return run_qml_classifier(
+        n_samples=data.get("n_samples", 100),
+        n_features=data.get("n_features", 2),
+        n_qubits=data.get("n_qubits", 2),
+        layers=data.get("layers", 3),
+        epochs=data.get("epochs", 50),
+    )
+
+
+@router.post("/pennylane/convert")
+async def pennylane_convert(data: dict):
+    """Get PennyLane conversion info for a Qiskit circuit."""
+    from app.quantum.pennylane_bridge import convert_qiskit_to_pennylane
+    return convert_qiskit_to_pennylane(data.get("code", ""))

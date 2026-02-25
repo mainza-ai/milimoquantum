@@ -314,7 +314,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                                     : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]'}`}
                                         >
                                             <div className="text-sm font-medium text-white">
-                                                {p.id === 'anthropic' ? '🟠' : p.id === 'openai' ? '🟢' : '🔵'} {p.name}
+                                                {p.id === 'anthropic' ? '🟠' : p.id === 'openai' ? '🟢' : p.id === 'cohere' ? '🟣' : p.id === 'mistral' ? '🔷' : p.id === 'deepseek' ? '🐋' : '🔵'} {p.name}
                                             </div>
                                             <div className="text-[10px] text-[#636370] mt-0.5">
                                                 {p.models.length} models
@@ -351,8 +351,11 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                         <div className="flex gap-2">
                                             <input
                                                 type="password"
-                                                placeholder={`Enter ${activeProvider === 'anthropic' ? 'ANTHROPIC_API_KEY' :
-                                                    activeProvider === 'openai' ? 'OPENAI_API_KEY' : 'GOOGLE_API_KEY'}`}
+                                                placeholder={`Enter ${{
+                                                    anthropic: 'ANTHROPIC_API_KEY', openai: 'OPENAI_API_KEY',
+                                                    gemini: 'GOOGLE_API_KEY', cohere: 'COHERE_API_KEY',
+                                                    mistral: 'MISTRAL_API_KEY', deepseek: 'DEEPSEEK_API_KEY',
+                                                }[activeProvider] || 'API_KEY'}`}
                                                 className="flex-1 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
                                                     text-white text-sm font-mono focus:outline-none focus:border-[#3ecfef]/40 transition-colors"
                                                 id="cloud-api-key-input"
@@ -365,6 +368,9 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                                             anthropic: 'anthropic_api_key',
                                                             openai: 'openai_api_key',
                                                             gemini: 'gemini_api_key',
+                                                            cohere: 'cohere_api_key',
+                                                            mistral: 'mistral_api_key',
+                                                            deepseek: 'deepseek_api_key',
                                                         };
                                                         await updateSettings({ [keyMap[activeProvider]]: input.value });
                                                         input.value = '';
@@ -382,8 +388,11 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                         ) : (
                                             <p className="text-[10px] text-[#636370] mt-1.5">
                                                 Or set <code className="text-amber-300 bg-white/5 px-1 rounded text-[10px]">
-                                                    {activeProvider === 'anthropic' ? 'ANTHROPIC_API_KEY' :
-                                                        activeProvider === 'openai' ? 'OPENAI_API_KEY' : 'GOOGLE_API_KEY'}
+                                                    {{
+                                                        anthropic: 'ANTHROPIC_API_KEY', openai: 'OPENAI_API_KEY',
+                                                        gemini: 'GOOGLE_API_KEY', cohere: 'COHERE_API_KEY',
+                                                        mistral: 'MISTRAL_API_KEY', deepseek: 'DEEPSEEK_API_KEY',
+                                                    }[activeProvider] || 'API_KEY'}
                                                 </code> env var before starting the backend.
                                             </p>
                                         )}
