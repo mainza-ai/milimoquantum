@@ -23,8 +23,14 @@ from app.agents.orchestrator import (
     classify_intent,
     detect_slash_command,
 )
-from app.quantum.sandbox import execute_and_build_artifacts
+from app.quantum.sandbox import (
+    execute_and_build_artifacts,
+    extract_code_blocks,
+    execute_code,
+    build_artifacts_from_result,
+)
 from app.llm.ollama_client import ollama_client
+from app.llm.cloud_provider import get_current_provider, stream_chat_cloud
 from app.models.schemas import AgentType, ChatRequest
 from app import storage
 
@@ -90,26 +96,91 @@ async def send_message(request: ChatRequest):
         history = msgs[-20:]
 
         full_response = ""
-        async for token in ollama_client.stream_chat(messages=history, system_prompt=system_prompt):
-            full_response += token
-            yield f"event: token\ndata: {json.dumps({'content': token})}\n\n"
+        cloud = get_current_provider()
+        if cloud.get("provider") != "ollama" and cloud.get("provider"):
+            # ── Cloud AI provider active (Anthropic / OpenAI / Gemini)
+            async for token in stream_chat_cloud(messages=history, system_prompt=system_prompt):
+                full_response += token
+                yield f"event: token\ndata: {json.dumps({'content': token})}\n\n"
+        else:
+            # ── Default: local Ollama
+            async for token in ollama_client.stream_chat(messages=history, system_prompt=system_prompt):
+                full_response += token
+                yield f"event: token\ndata: {json.dumps({'content': token})}\n\n"
 
         msgs.append({"role": "assistant", "content": full_response})
 
-        # ── Step 2: Sandbox — Execute any code in the LLM response ──
-        # The sandbox extracts ```python blocks, runs them safely, and
-        # captures QuantumCircuit objects + measurement counts as artifacts.
-        # This is what makes every agent dynamic — the LLM writes the
-        # code, the sandbox executes it, artifacts appear in the UI.
+        # ── Step 2: Sandbox — Execute with auto-retry ──────────
+        # Extract code from the LLM response, execute it safely,
+        # and if it fails, ask the LLM to fix the code (up to 2 retries).
         agent_label = AGENT_LABELS.get(agent_type, "Milimo Quantum")
+        MAX_RETRIES = 2
+
+        async def _llm_generate(prompt: str, sys_prompt: str) -> str:
+            """Non-streaming LLM generation for retry loop."""
+            cloud = get_current_provider()
+            if cloud.get("provider") != "ollama" and cloud.get("provider"):
+                result_text = ""
+                async for t in stream_chat_cloud(
+                    messages=[{"role": "user", "content": prompt}],
+                    system_prompt=sys_prompt,
+                ):
+                    result_text += t
+                return result_text
+            else:
+                return await ollama_client.generate(prompt=prompt, system_prompt=sys_prompt)
+
         try:
             sandbox_artifacts, sandbox_error = execute_and_build_artifacts(
                 full_response, agent_label=agent_label
             )
+
+            # ── Auto-retry: if code failed, ask the LLM to fix it
+            if sandbox_error and not sandbox_artifacts:
+                code_blocks = extract_code_blocks(full_response)
+                failed_code = code_blocks[0] if code_blocks else ""
+
+                for attempt in range(1, MAX_RETRIES + 1):
+                    yield f"event: retry\ndata: {json.dumps({'attempt': attempt, 'max': MAX_RETRIES, 'error': sandbox_error[:300]})}\n\n"
+                    logger.info(f"Auto-retry attempt {attempt}/{MAX_RETRIES}")
+
+                    fix_prompt = (
+                        f"The following Qiskit code failed with an error. "
+                        f"Fix the code and return ONLY the corrected Python code in a ```python block.\n\n"
+                        f"**Failed Code:**\n```python\n{failed_code}\n```\n\n"
+                        f"**Error:**\n{sandbox_error[:500]}\n\n"
+                        f"Return ONLY the fixed ```python code block, no explanation."
+                    )
+                    fix_sys = "You are a Qiskit code debugger. Fix the code. Use Qiskit v1.4 API with qiskit_aer.AerSimulator. Return only the corrected code."
+
+                    fixed_response = await _llm_generate(fix_prompt, fix_sys)
+                    fixed_blocks = extract_code_blocks(fixed_response)
+
+                    if fixed_blocks:
+                        fixed_code = fixed_blocks[0]
+                        result = execute_code(fixed_code)
+                        if not result.error:
+                            # Success! Build artifacts from the fixed code
+                            sandbox_artifacts = build_artifacts_from_result(result, fixed_code, agent_label)
+                            sandbox_error = None
+                            # Stream a notice about the fix
+                            fix_notice = f"\n\n✅ *Code auto-corrected on attempt {attempt}.*\n"
+                            yield f"event: token\ndata: {json.dumps({'content': fix_notice})}\n\n"
+                            full_response += fix_notice
+                            msgs[-1]["content"] = full_response
+                            break
+                        else:
+                            failed_code = fixed_code
+                            sandbox_error = result.error
+                    else:
+                        break  # LLM didn't return code, stop retrying
+
+                if sandbox_error:
+                    logger.warning(f"Auto-retry exhausted. Final error: {sandbox_error[:200]}")
+
             for artifact in sandbox_artifacts:
                 yield f"event: artifact\ndata: {json.dumps(artifact.model_dump(), default=str)}\n\n"
-            if sandbox_error and not sandbox_artifacts:
-                logger.warning(f"Sandbox error (no artifacts): {sandbox_error[:200]}")
+
         except Exception as e:
             logger.error(f"Sandbox execution failed: {e}")
 

@@ -37,6 +37,8 @@ ALLOWED_MODULES = {
     "numpy", "math", "cmath", "random", "itertools",
     "functools", "collections", "fractions", "decimal",
     "scipy", "scipy.optimize", "scipy.linalg",
+    # D-Wave / Optimization
+    "dimod", "neal", "networkx",
     # Plotting (captured but not shown)
     "matplotlib", "matplotlib.pyplot",
 }

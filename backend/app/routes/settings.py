@@ -80,5 +80,18 @@ async def update_settings(data: dict):
         settings.OLLAMA_BASE_URL = data["ollama_url"]
         updated["ollama_url"] = settings.OLLAMA_BASE_URL
 
+    # Cloud AI API keys — stored as environment variables
+    import os
+    for key_name in ("anthropic_api_key", "openai_api_key", "gemini_api_key"):
+        if key_name in data and data[key_name]:
+            env_map = {
+                "anthropic_api_key": "ANTHROPIC_API_KEY",
+                "openai_api_key": "OPENAI_API_KEY",
+                "gemini_api_key": "GOOGLE_API_KEY",
+            }
+            env_var = env_map[key_name]
+            os.environ[env_var] = data[key_name]
+            updated[key_name] = "***configured***"
+
     return {"updated": updated, "status": "ok"}
 

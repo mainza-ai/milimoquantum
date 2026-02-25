@@ -57,6 +57,27 @@ def execute_circuit(
     num_qubits = circuit.num_qubits
     backend_opts = hal_config.aer_backend_options(num_qubits)
 
+    # ── Cloud routing: if IBM configured and qubit count is high, use IBM
+    from app.quantum import ibm_runtime
+    if ibm_runtime.is_configured() and num_qubits > hal_config.aer_backend_options(num_qubits).get("max_local", 28):
+        logger.info(f"Routing {num_qubits}-qubit circuit to IBM Quantum cloud")
+        if not ibm_runtime._service:
+            ibm_runtime.connect()
+        if ibm_runtime._service:
+            ibm_result = ibm_runtime.run_sampler(circuit, shots=shots)
+            if "error" not in ibm_result:
+                return {
+                    "counts": ibm_result.get("counts", {}),
+                    "circuit_svg": str(circuit.draw(output="text")),
+                    "num_qubits": num_qubits,
+                    "depth": circuit.depth(),
+                    "shots": shots,
+                    "execution_time_ms": 0,
+                    "backend": f"ibm_{ibm_result.get('backend', 'cloud')}",
+                    "job_id": ibm_result.get("job_id"),
+                }
+
+    # ── Local execution: Aer simulator
     # Create simulator
     try:
         simulator = AerSimulator(**backend_opts)

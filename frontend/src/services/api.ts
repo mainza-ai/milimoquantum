@@ -215,6 +215,10 @@ export function streamChat(
                                 case 'artifact':
                                     onArtifact(parsed);
                                     break;
+                                case 'retry':
+                                    // Auto-retry: show correction status in chat
+                                    onToken(`\n\n🔄 *Auto-correcting code (attempt ${parsed.attempt}/${parsed.max})...*\n`);
+                                    break;
                                 case 'done':
                                     onDone(parsed);
                                     break;
