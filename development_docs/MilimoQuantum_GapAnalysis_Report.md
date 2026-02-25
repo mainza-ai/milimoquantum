@@ -22,46 +22,40 @@
 
 ## Phases 1–4 ✅ COMPLETE (see previous versions for details)
 
-## Recently Implemented (This Session — 3 Batches)
+## Recently Implemented (This Session — 5 Batches)
 
 | Batch | Features |
 |-------|----------|
 | **1** | File upload (📎 + D&D), per-agent models, explain levels, dark/light theme |
 | **2** | Multi-agent collaboration, data export (CSV/JSON), circuit visualizer (SVG) |
 | **3** | OpenQASM 3 (parse/export/validate + 3 endpoints), circuit builder (drag-and-drop), Bloch sphere (SVG + interactive θ/φ) |
+| **4** | QPY serialization (save/load/list + base64), noise profiles (IBM Brisbane/Osaka/Torino), vision model support (LLaVA), model hot-swap |
+| **5** | 6/6 cloud providers (added Cohere, Mistral, DeepSeek), experiment versioning & run registry, Jupyter notebook (.ipynb) export |
 
 ---
 
 ## What's Still Missing — Actionable Items
 
-### 🔴 High Impact — Next Priority
+### � Remaining — Mostly Infrastructure & Enterprise
 
 | # | Feature | Effort | Impact |
 |---|---------|--------|--------|
-| 1 | **Frontend tests (Vitest)** | Medium | Zero frontend test coverage |
-| 2 | **QPY serialization** | Low | Binary circuit save/load format |
-| 3 | **Vision model support** | Medium | LLM can analyze circuit diagrams/images |
-| 4 | **Noise models from calibration** | Medium | Real device noise profiles |
+| 1 | **Frontend tests (Vitest)** | Medium | Zero coverage |
+| 2 | **D-Wave Ocean SDK** | High | Real annealing (needs account) |
+| 3 | **Stim stabilizer simulator** | Medium | Fast Clifford simulation |
+| 4 | **PennyLane bridge** | Medium | Cross-framework QML |
 
-### 🟡 Medium Impact — Feature Expansion
-
-| # | Feature | Effort | Impact |
-|---|---------|--------|--------|
-| 5 | **D-Wave Ocean SDK** | High | Real quantum annealing (requires account) |
-| 6 | **Stim stabilizer simulator** | Medium | Fast Clifford simulation |
-| 7 | **PennyLane bridge** | Medium | Cross-framework QML |
-| 8 | **Model hot-swap mid-conversation** | Low | Switch model without new chat |
-
-### 🟢 Lower Priority — Infrastructure & Enterprise
+### 🟢 Lower Priority
 
 | # | Feature | Effort | Impact |
 |---|---------|--------|--------|
-| 9 | **Neo4j + GraphRAG** | High | Knowledge graph for experiments |
-| 10 | **PostgreSQL + Alembic** | Medium | Structured metadata, migrations |
-| 11 | **Workflow orchestration (Celery)** | High | Parallel quantum job pipelines |
-| 12 | **Enterprise auth (Keycloak)** | High | SSO, multi-tenancy |
-| 13 | **Mobile app (React Native)** | High | Monitoring on the go |
+| 5 | **Neo4j + GraphRAG** | High | Knowledge graph for experiments |
+| 6 | **PostgreSQL + Alembic** | Medium | Structured metadata, migrations |
+| 7 | **Celery workflow orchestration** | High | Parallel quantum job pipelines |
+| 8 | **Enterprise auth (Keycloak)** | High | SSO, multi-tenancy |
+| 9 | **Mobile app (React Native)** | High | Monitoring on the go |
 
 ---
 
-*Report updated February 25, 2026 (v5) — ~85% complete. Includes all 3 feature batches.*
+*Report updated February 25, 2026 (v6) — ~88% complete. 5 feature batches shipped this session covering 20+ features.*
+
