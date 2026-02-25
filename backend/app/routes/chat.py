@@ -87,12 +87,14 @@ async def send_message(request: ChatRequest):
     async def event_stream():
         """Generate SSE events."""
 
-        # ── Step 1: LLM with domain-specific system prompt ────
-        # Every agent has a detailed system prompt that instructs
-        # the LLM to generate runnable Qiskit code. The LLM is
-        # the brain — it decides what circuit to build based on
-        # the user's request. Every response is unique.
-        system_prompt = SYSTEM_PROMPTS.get(agent_type, SYSTEM_PROMPTS[AgentType.ORCHESTRATOR])
+        # ── Step 1: LLM with enriched system prompt ───────────
+        # Every agent has a detailed system prompt. The context
+        # enricher dynamically injects live data (stock prices,
+        # arXiv papers, molecular data, agent memory) based on
+        # what the user is asking about.
+        from app.agents.context_enricher import enrich_prompt, save_interaction_memory
+        base_prompt = SYSTEM_PROMPTS.get(agent_type, SYSTEM_PROMPTS[AgentType.ORCHESTRATOR])
+        system_prompt = await enrich_prompt(agent_type, clean_message, base_prompt)
         history = msgs[-20:]
 
         full_response = ""
@@ -192,6 +194,15 @@ async def send_message(request: ChatRequest):
             await index_conversation(conversation_id, msgs)
         except Exception:
             pass  # Search indexing is best-effort
+
+        # ── Step 4: Save to agent memory ──
+        try:
+            summary_text = full_response[:300] if full_response else ""
+            await save_interaction_memory(
+                agent_type, conversation_id, clean_message, summary_text
+            )
+        except Exception:
+            pass  # Memory saving is best-effort
 
         yield f"event: done\ndata: {json.dumps({'conversation_id': conversation_id, 'agent': agent_type.value})}\n\n"
 
