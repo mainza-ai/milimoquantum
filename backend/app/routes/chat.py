@@ -25,7 +25,9 @@ from app.agents.orchestrator import (
     classify_intent,
     detect_slash_command,
     get_system_prompt,
+    dispatch_multi_agent,
 )
+from app.agents.planning_agent import needs_planning, decompose_task, format_plan
 from app.quantum.sandbox import (
     execute_and_build_artifacts,
     extract_code_blocks,
@@ -97,6 +99,34 @@ async def send_message(request: ChatRequest):
 
     async def event_stream():
         """Generate SSE events."""
+
+        # ── Step 0: Multi-agent planning (if needed) ──────────
+        multi_agent_context = ""
+        if agent_type == AgentType.PLANNING or needs_planning(clean_message):
+            steps = decompose_task(clean_message)
+            plan_text = format_plan(steps)
+
+            # Stream the plan to the user
+            for chunk in _chunk_text(plan_text, 12):
+                yield f"event: token\ndata: {json.dumps({'content': chunk})}\n\n"
+
+            # Execute each step
+            results = dispatch_multi_agent(steps)
+            for r in results:
+                step_header = f"\n### Step {r['step']} — {r['agent']}\n"
+                yield f"event: token\ndata: {json.dumps({'content': step_header})}\n\n"
+
+                step_body = r.get('response', '')
+                for chunk in _chunk_text(step_body, 12):
+                    yield f"event: token\ndata: {json.dumps({'content': chunk})}\n\n"
+
+                # Send any artifacts from the step
+                for art in r.get('artifacts', []):
+                    yield f"event: artifact\ndata: {json.dumps(art.model_dump() if hasattr(art, 'model_dump') else art, default=str)}\n\n"
+
+                multi_agent_context += f"\n[Step {r['step']} - {r['agent']}]: {step_body[:400]}"
+
+            yield f"event: token\ndata: {json.dumps({'content': '\n---\n\n'})}\n\n"
 
         # ── Step 1: LLM with enriched system prompt ───────────
         # Every agent has a detailed system prompt. The context
