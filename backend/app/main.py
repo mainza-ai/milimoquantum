@@ -13,6 +13,8 @@ from app.routes import chat, quantum, projects, settings as settings_routes
 from app.routes import analytics, search, collaboration
 from app.routes import benchmarks, citations, audit
 from app.routes import hpc, marketplace
+from app.routes import graph as graph_routes
+from app.routes import academy
 
 logging.basicConfig(
     level=logging.INFO,
@@ -81,6 +83,8 @@ app.include_router(citations.router)
 app.include_router(audit.router)
 app.include_router(hpc.router)
 app.include_router(marketplace.router)
+app.include_router(graph_routes.router)
+app.include_router(academy.router)
 
 
 @app.get("/")
