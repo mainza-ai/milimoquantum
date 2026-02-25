@@ -1,0 +1,92 @@
+"""Milimo Quantum — FastAPI Application Entry Point."""
+from __future__ import annotations
+
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.config import settings
+from app.llm.ollama_client import ollama_client
+from app.routes import chat, quantum, projects
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup / shutdown."""
+    logger.info("⚛  Milimo Quantum starting up...")
+
+    # Check Ollama
+    if await ollama_client.is_available():
+        models = await ollama_client.list_models()
+        logger.info(f"✅ Ollama connected — models: {models}")
+    else:
+        logger.warning("⚠️  Ollama not available — LLM features disabled")
+
+    # Log platform info
+    from app.quantum.hal import hal_config
+    logger.info(f"🖥  Platform: {hal_config.os_name} {hal_config.arch}")
+    logger.info(f"⚡ GPU: {hal_config.gpu_name or 'None'}")
+
+    from app.quantum.executor import QISKIT_AVAILABLE
+    if QISKIT_AVAILABLE:
+        logger.info("✅ Qiskit loaded — quantum execution ready")
+    else:
+        logger.warning("⚠️  Qiskit not installed — quantum features disabled")
+
+    logger.info(f"⚛  Milimo Quantum ready on http://{settings.host}:{settings.port}")
+    yield
+
+    # Shutdown
+    await ollama_client.close()
+    logger.info("⚛  Milimo Quantum shut down")
+
+
+app = FastAPI(
+    title="Milimo Quantum",
+    description="The Universe of Quantum, In One Place",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Register routes
+app.include_router(chat.router)
+app.include_router(quantum.router)
+app.include_router(projects.router)
+
+
+@app.get("/")
+async def root():
+    return {
+        "name": "Milimo Quantum",
+        "version": "0.1.0",
+        "tagline": "The Universe of Quantum, In One Place",
+    }
+
+
+@app.get("/api/health")
+async def health():
+    """Health check."""
+    ollama_ok = await ollama_client.is_available()
+    from app.quantum.executor import QISKIT_AVAILABLE
+    return {
+        "status": "healthy",
+        "ollama": "connected" if ollama_ok else "disconnected",
+        "qiskit": "available" if QISKIT_AVAILABLE else "unavailable",
+    }
