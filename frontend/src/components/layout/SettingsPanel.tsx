@@ -31,6 +31,13 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     const [cloudSaved, setCloudSaved] = useState(false);
     const [activeTab, setActiveTab] = useState<'local' | 'cloud'>('local');
 
+    // New features state
+    const [explainLevel, setExplainLevel] = useState<'beginner' | 'intermediate' | 'expert'>('intermediate');
+    const [agentModels, setAgentModels] = useState<Record<string, string>>({});
+    const [theme, setTheme] = useState<'dark' | 'light'>(
+        () => (localStorage.getItem('mq-theme') as 'dark' | 'light') || 'dark'
+    );
+
     useEffect(() => {
         if (!isOpen) return;
         fetchSettings().then((data) => {
@@ -38,6 +45,8 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             setShots(data.default_shots || 1024);
             setOllamaUrl(data.ollama_url || '');
             setPlatform(data.platform || {});
+            if (data.explain_level) setExplainLevel(data.explain_level);
+            if (data.agent_models) setAgentModels(data.agent_models);
             if (data.cloud_provider?.provider && data.cloud_provider.provider !== 'ollama') {
                 setActiveProvider(data.cloud_provider.provider);
                 setCloudModel(data.cloud_provider.model || '');
@@ -55,7 +64,21 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
     const handleSave = async () => {
         setSaving(true);
-        await updateSettings({ ollama_model: model, default_shots: shots, ollama_url: ollamaUrl });
+        await updateSettings({
+            ollama_model: model,
+            default_shots: shots,
+            ollama_url: ollamaUrl,
+            explain_level: explainLevel,
+        });
+        // Save agent models separately
+        await fetch('/api/settings/agent-models', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agent_models: agentModels }),
+        });
+        // Apply theme
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('mq-theme', theme);
         setSaving(false);
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
@@ -183,6 +206,86 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                     </div>
                                 </div>
                             )}
+
+                            {/* ── Explain Level ──────────────────── */}
+                            <div>
+                                <label className="block text-sm font-medium text-[#a1a1aa] mb-2">Explain Level</label>
+                                <div className="flex gap-1.5">
+                                    {(['beginner', 'intermediate', 'expert'] as const).map((level) => (
+                                        <button
+                                            key={level}
+                                            onClick={() => setExplainLevel(level)}
+                                            className={`flex-1 py-2 px-3 rounded-xl text-xs font-medium transition-all cursor-pointer
+                                                ${explainLevel === level
+                                                    ? 'bg-[#3ecfef]/10 text-[#3ecfef] border border-[#3ecfef]/30'
+                                                    : 'bg-white/[0.03] text-[#636370] border border-white/[0.06] hover:text-[#a1a1aa]'}`}
+                                        >
+                                            {level === 'beginner' ? '🎓' : level === 'intermediate' ? '📊' : '🔬'}{' '}
+                                            {level.charAt(0).toUpperCase() + level.slice(1)}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-[10px] text-[#636370] mt-1">
+                                    {explainLevel === 'beginner'
+                                        ? 'Detailed explanations with analogies'
+                                        : explainLevel === 'expert'
+                                            ? 'Concise, technical responses'
+                                            : 'Balanced depth and clarity'}
+                                </p>
+                            </div>
+
+                            {/* ── Agent Models ──────────────────── */}
+                            {models.length > 0 && (
+                                <div>
+                                    <label className="block text-sm font-medium text-[#a1a1aa] mb-2">Per-Agent Models</label>
+                                    <div className="space-y-1.5">
+                                        {['code', 'research', 'chemistry', 'finance', 'optimization'].map((agent) => (
+                                            <div key={agent} className="flex items-center gap-2">
+                                                <span className="text-xs text-[#636370] w-20 capitalize">{agent}</span>
+                                                <select
+                                                    value={agentModels[agent] || ''}
+                                                    onChange={(e) => setAgentModels(prev => ({
+                                                        ...prev,
+                                                        [agent]: e.target.value,
+                                                    }))}
+                                                    className="flex-1 px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06]
+                                                        text-[#a1a1aa] text-xs focus:outline-none focus:border-[#3ecfef]/30
+                                                        transition-colors appearance-none cursor-pointer"
+                                                >
+                                                    <option value="" className="bg-[#0c0c14]">Default</option>
+                                                    {models.map((m) => (
+                                                        <option key={m} value={m} className="bg-[#0c0c14]">{m}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="text-[10px] text-[#636370] mt-1">
+                                        Assign specific LLM models to each agent (e.g., CodeLlama for Code)
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* ── Theme Toggle ──────────────────── */}
+                            <div>
+                                <label className="block text-sm font-medium text-[#a1a1aa] mb-2">Theme</label>
+                                <div className="flex gap-1.5">
+                                    <button
+                                        onClick={() => setTheme('dark')}
+                                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-medium transition-all cursor-pointer
+                                            ${theme === 'dark'
+                                                ? 'bg-[#3ecfef]/10 text-[#3ecfef] border border-[#3ecfef]/30'
+                                                : 'bg-white/[0.03] text-[#636370] border border-white/[0.06] hover:text-[#a1a1aa]'}`}
+                                    >🌙 Dark</button>
+                                    <button
+                                        onClick={() => setTheme('light')}
+                                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-medium transition-all cursor-pointer
+                                            ${theme === 'light'
+                                                ? 'bg-[#3ecfef]/10 text-[#3ecfef] border border-[#3ecfef]/30'
+                                                : 'bg-white/[0.03] text-[#636370] border border-white/[0.06] hover:text-[#a1a1aa]'}`}
+                                    >☀️ Light</button>
+                                </div>
+                            </div>
                         </>
                     ) : (
                         <>

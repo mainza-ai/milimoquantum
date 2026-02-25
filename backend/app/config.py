@@ -1,7 +1,10 @@
 """Milimo Quantum — Application Configuration."""
+import json
 import os
 import platform
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Dict
 
 
 @dataclass
@@ -32,6 +35,12 @@ class Settings:
         )
     )
 
+    # Explain level: beginner, intermediate, expert
+    explain_level: str = "intermediate"
+
+    # Per-agent model overrides: {agent_type: model_name}
+    agent_models: Dict[str, str] = field(default_factory=dict)
+
     def __post_init__(self):
         os.makedirs(self.data_dir, exist_ok=True)
 
@@ -60,5 +69,27 @@ class Settings:
     def DEFAULT_SHOTS(self, val: int) -> None:
         self.default_shots = val
 
+    # ── Agent model persistence ────────────────────────
+    _AGENT_MODELS_FILE = Path.home() / ".milimoquantum" / "agent_models.json"
+
+    def load_agent_models(self) -> Dict[str, str]:
+        """Load per-agent model assignments from disk."""
+        if self._AGENT_MODELS_FILE.exists():
+            try:
+                self.agent_models = json.loads(
+                    self._AGENT_MODELS_FILE.read_text(encoding="utf-8")
+                )
+            except (json.JSONDecodeError, OSError):
+                pass
+        return self.agent_models
+
+    def save_agent_models(self) -> None:
+        """Save per-agent model assignments to disk."""
+        self._AGENT_MODELS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self._AGENT_MODELS_FILE.write_text(
+            json.dumps(self.agent_models, indent=2), encoding="utf-8"
+        )
+
 
 settings = Settings()
+settings.load_agent_models()

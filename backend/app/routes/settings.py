@@ -27,6 +27,8 @@ async def get_settings():
         "default_shots": settings.DEFAULT_SHOTS,
         "cloud_provider": cloud,
         "ibm_quantum": ibm_status,
+        "explain_level": settings.explain_level,
+        "agent_models": settings.agent_models,
         "platform": {
             "os": platform.os_name,
             "arch": platform.arch,
@@ -79,6 +81,11 @@ async def update_settings(data: dict):
     if "ollama_url" in data:
         settings.OLLAMA_BASE_URL = data["ollama_url"]
         updated["ollama_url"] = settings.OLLAMA_BASE_URL
+    if "explain_level" in data:
+        level = data["explain_level"]
+        if level in ("beginner", "intermediate", "expert"):
+            settings.explain_level = level
+            updated["explain_level"] = level
 
     # Cloud AI API keys — stored as environment variables
     import os
@@ -94,4 +101,22 @@ async def update_settings(data: dict):
             updated[key_name] = "***configured***"
 
     return {"updated": updated, "status": "ok"}
+
+
+@router.get("/agent-models")
+async def get_agent_models():
+    """Get per-agent model assignments."""
+    return {"agent_models": settings.agent_models}
+
+
+@router.put("/agent-models")
+async def update_agent_models(data: dict):
+    """Update per-agent model assignments.
+
+    Body: { "agent_models": { "code": "codellama:latest", "research": "qwen2.5:latest" } }
+    """
+    models = data.get("agent_models", {})
+    settings.agent_models = {k: v for k, v in models.items() if v}  # remove empty
+    settings.save_agent_models()
+    return {"agent_models": settings.agent_models, "status": "ok"}
 

@@ -24,6 +24,7 @@ from app.agents.orchestrator import (
     SYSTEM_PROMPTS,
     classify_intent,
     detect_slash_command,
+    get_system_prompt,
 )
 from app.quantum.sandbox import (
     execute_and_build_artifacts,
@@ -83,6 +84,10 @@ async def send_message(request: ChatRequest):
     agent_type = request.agent or classify_intent(request.message)
     _, clean_message = detect_slash_command(request.message)
 
+    # Auto-detect QASM file content → route to Code Agent
+    if 'OPENQASM' in request.message or 'qreg' in request.message:
+        agent_type = AgentType.CODE
+
     # Store user message
     msgs.append({"role": "user", "content": request.message})
 
@@ -99,9 +104,13 @@ async def send_message(request: ChatRequest):
         # arXiv papers, molecular data, agent memory) based on
         # what the user is asking about.
         from app.agents.context_enricher import enrich_prompt, save_interaction_memory, build_data_preamble
-        base_prompt = SYSTEM_PROMPTS.get(agent_type, SYSTEM_PROMPTS[AgentType.ORCHESTRATOR])
+        base_prompt = get_system_prompt(agent_type)  # explain-level aware
         system_prompt = await enrich_prompt(agent_type, clean_message, base_prompt)
         history = msgs[-20:]
+
+        # Per-agent model override
+        from app.config import settings as app_settings
+        agent_model = app_settings.agent_models.get(agent_type, None)
 
         full_response = ""
 
@@ -125,7 +134,10 @@ async def send_message(request: ChatRequest):
                 yield f"event: token\ndata: {json.dumps({'content': token})}\n\n"
         else:
             # ── Default: local Ollama
-            async for token in ollama_client.stream_chat(messages=history, system_prompt=system_prompt):
+            model_override = agent_model if agent_model else None
+            async for token in ollama_client.stream_chat(
+                messages=history, system_prompt=system_prompt, model=model_override
+            ):
                 full_response += token
                 yield f"event: token\ndata: {json.dumps({'content': token})}\n\n"
 

@@ -1,5 +1,5 @@
 /* Milimo Quantum — Main App Component */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { ChatArea } from './components/layout/ChatArea';
 import { ArtifactPanel } from './components/layout/ArtifactPanel';
@@ -23,6 +23,14 @@ function App() {
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [academyOpen, setAcademyOpen] = useState(false);
+
+  // Apply persisted theme on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('mq-theme');
+    if (saved === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  }, []);
 
   const {
     messages,

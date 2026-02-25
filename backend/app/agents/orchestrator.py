@@ -204,6 +204,36 @@ CRITICAL INSTRUCTIONS — ALWAYS FOLLOW:
 9. For multi-qubit circuits, always include `qc.measure_all()` or explicit measurements.
 """
 
+# ── Explain level modifiers ──────────────────────────
+EXPLAIN_LEVEL_PROMPTS = {
+    "beginner": (
+        "\n\nEXPLAIN LEVEL: BEGINNER\n"
+        "- Explain every quantum concept from scratch.\n"
+        "- Use real-world analogies (coins, dice, light switches).\n"
+        "- Define all quantum terminology before using it.\n"
+        "- Include step-by-step breakdowns of what each gate does.\n"
+        "- Avoid jargon; if you must use it, explain it immediately.\n"
+    ),
+    "intermediate": "",  # default — no extra instructions
+    "expert": (
+        "\n\nEXPLAIN LEVEL: EXPERT\n"
+        "- Be concise and technical. Skip introductory explanations.\n"
+        "- Use standard notation (bra-ket, density matrices, Hamiltonians).\n"
+        "- Focus on implementation details, edge cases, and advanced techniques.\n"
+        "- Reference papers and formal definitions where helpful.\n"
+        "- Assume familiarity with linear algebra, quantum information theory, and Qiskit.\n"
+    ),
+}
+
+
+def get_system_prompt(agent_type: AgentType) -> str:
+    """Get system prompt for an agent, adjusted for explain level."""
+    from app.config import settings
+    base = SYSTEM_PROMPTS.get(agent_type, SYSTEM_PROMPTS[AgentType.ORCHESTRATOR])
+    level_mod = EXPLAIN_LEVEL_PROMPTS.get(settings.explain_level, "")
+    return base + level_mod
+
+
 # System prompts for each agent
 SYSTEM_PROMPTS: dict[AgentType, str] = {
     AgentType.ORCHESTRATOR: """You are Milimo Quantum, a powerful AI assistant specializing in quantum computing.
