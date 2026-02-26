@@ -1,67 +1,44 @@
-# Milimo Quantum: Exhaustive Repository-Wide Audit Report
+# Milimo Quantum: Exhaustive Documentation Traceability Audit
 **Date:** February 26, 2026
-**Objective:** Perform an exhaustive, file-by-file audit of the entire codebase (`/backend`, `/frontend`, `/assets`) to map the true state of implementation against the 12 Dimensions outlined in the documentation. 
+**Objective:** Perform a "real" audit by mapping every feature, capability, and parameter promised in the 5 core Architectural Documents against the actual Python and TypeScript codebase.
 
-## Executive Summary: The "Prototype" Reality
-While the platform features a visually stunning React frontend and an extensive Python directory structure, the system currently operates largely as a **thick prototype**. It relies heavily on local file persistence, global in-memory state, and static templates rather than a true enterprise-grade multi-tenant architecture. 
+## Traceability Matrix: Promises vs Reality
 
-The most critical architectural flaw across the entire repository is: **The PostgreSQL Database is entirely bypassed.** Despite having a SQLAlchemy schema (`app.db.models.py`), core routing logic actively ignores the DB, opting to read/write unstructured JSON files to a hidden local folder (`~/.milimoquantum/`). 
+### 1. `MilimoQuantum_Architecture_Diagrams.md`
+| Promised Feature | Actual Code Status | Location / Proof |
+|---|---|---|
+| **Keycloak SSO & RBAC** | 🟡 **Bypassed.** Core auth logic exists but defaults to `AUTH_ENABLED=false` returning a hardcoded `dev-user-id`. | `backend/app/auth.py` |
+| **9 Hardware Platforms** | 🔴 **Missing.** Code only integrates Amazon Braket, Azure Quantum, and D-Wave. No IonQ, QuEra, or Quantinuum direct adapters. | `backend/app/quantum/cloud_backends.py` |
+| **App Marketplace** | 🔴 **Mocked.** Frontend UI exists, but backend holds a volatile in-memory list. | `frontend/src/components/layout/MarketplacePanel.tsx` |
+| **Apple MLX Native LLM** | 🔴 **Missing.** HAL detects Mac MPS, but the LLM client strictly uses Ollama HTTP proxy, lacking a direct `mlx-lm` native python bridge. | `backend/app/llm/ollama_client.py` |
 
----
+### 2. `MilimoQuantum_CrossPlatform_Guide.md`
+| Promised Feature | Actual Code Status | Location / Proof |
+|---|---|---|
+| **Apple Silicon (MPS) Detection** | 🟢 **Implemented.** Correctly identifies ARM Mac and routes Torch to `mps`. | `backend/app/quantum/hal.py` |
+| **CUDA-Q HPC Simulation** | 🔴 **Missing.** The HPC adapter only integrates `qiskit_aer` (cuStateVec), omitting NVIDIA's native `cudaq` library entirely. | `backend/app/quantum/hpc.py` |
+| **Device Syncing** | 🔴 **Missing.** No API endpoints or frontend hooks exist to synchronize state across devices. | Codebase-wide |
 
-## 1. Architectural & Persistence Disconnects (File-by-File Findings)
+### 3. `MilimoQuantum_GraphDB_Addendum.md`
+| Promised Feature | Actual Code Status | Location / Proof |
+|---|---|---|
+| **Neo4j Cypher Integration** | 🟡 **Partial.** Basic client exists, but it requires manual synchronization rather than event-driven graph mapping. | `backend/app/graph/neo4j_client.py` |
+| **FalkorDB & Kuzu** | 🔴 **Missing.** Neither database is implemented in the application layer. | `backend/app/graph/` directory |
+| **GraphRAG & Graphiti** | 🔴 **Missing.** No semantic vector retrieval or sub-graph traversal exists in the `agent_memory.py`. | `backend/app/graph/agent_memory.py` |
 
-### 🔴 The Database Illusion (`routes/chat.py`, `routes/projects.py`, `routes/analytics.py`)
-- **Finding:** The backend contains `models.py` detailing SQL tables for `Users`, `Conversations`, `Messages`, `Artifacts`, and `Experiments`. However, none of the core data-writing routes actually use these tables.
-- **Proof:** 
-  - `routes/chat.py` saves all conversations to local disk at `~/.milimoquantum/conversations/*.json`.
-  - `routes/projects.py` saves all projects to `~/.milimoquantum/projects/*.json`.
-  - `routes/analytics.py` attempts a DB read, fails (empty tables), and falls back to parsing the massive local JSON files.
-- **Impact:** Multi-tenant SSO (Keycloak) and RBAC security are effectively impossible because data is globally shared on the local host disk rather than partitioned by User ID in PostgreSQL.
-
-### 🔴 Global State Vulnerability (`llm/cloud_provider.py`, `routes/settings.py`)
-- **Finding:** User settings and external API keys (Anthropic, OpenAI, Gemini) are stored globally via `.env` variables or written to a flat JSON file (`~/.milimoquantum/cloud_settings.json`) that populates `os.environ`.
-- **Proof:** `set_provider` in `cloud_provider.py` overwrites `os.environ[env_var]` for all active workers.
-- **Impact:** If two users log in simultaneously, one user changing their AI provider or IBM Quantum Token will change it globally for the platform, cross-contaminating executions.
-
-### 🟡 Graph Intelligence Syncing (`routes/graph.py`)
-- **Finding:** The `graph.py` Ne04j implementation relies on a manual endpoint (`/api/graph/index`) which scrapes the local `~/.milimoquantum/conversations` JSON files.
-- **Impact:** The Graph DB is not event-driven. If a user chats with the AI, the Knowledge Graph remains permanently unaware until the indexing route is manually triggered.
-
----
-
-## 2. Agent Framework Reality
-
-### 🟡 The "Template" Trick (`agents/chemistry_agent.py`, `agents/finance_agent.py`, `agents/code_agent.py`)
-- **Finding:** Deeply customized agents heavily rely on hardcoded static dictionaries named `QUICK_TOPICS` and pre-written python templates (e.g., `_bell_code()`, `_ghz_code(n)`).
-- **Proof:** If a user types "Shor's Algorithm", the agent intercepts the string lookup, skips the LLM entirely, and returns a pre-written Markdown string. True dynamic generative Qiskit code relies on the fallback LLM which lacks domain-specific constraints.
-
-### 🟡 Quantum Execution Bridges (`quantum/hpc.py`, `quantum/pennylane_bridge.py`, `quantum/cloud_backends.py`)
-- **Finding:** These modules exist and contain valid Qiskit bridging code (e.g., translating Qiskit to Bra-ket or setting up Aer GPU cuStateVec simulations). 
-- **Proof:** `run_on_braket` or `HPCAdapter.submit_job` exist.
-- **Impact:** They are essentially orphaned library functions. There is no frontend UI (`App.tsx`) equivalent to configure MPI nodes, GPU selections, or direct AWS Braket execution. The HPC queue (`HPC_JOBS = {}`) is a volatile in-memory dictionary.
+### 4. `MilimoQuantum_ProjectPlan.md` & Missing Dimensions
+| Promised Feature | Actual Code Status | Location / Proof |
+|---|---|---|
+| **Experiment Persistence** | 🟢 **Implemented.** Correctly uses SQLAlchemy to save experiments directly into PostgreSQL DB. | `backend/app/experiments/registry.py` |
+| **Secure Multi-Tenancy (Projects)** | 🔴 **Bypassed.** Projects completely ignore the PostgreSQL DB, writing sensitive user data exclusively to `~/.milimoquantum/projects/*.json`. | `backend/app/routes/projects.py` |
+| **DAG Workflow Orchestration** | 🔴 **Missing.** Neither a React Flow UI nor a Celery DAG engine exist. | Frontend / Backend |
+| **Live Data Connectors** | 🔴 **Mocked.** `arxiv.py` and `finance.py` exist but lack functional scraping implementation. | `backend/app/feeds/finance.py` |
 
 ---
 
-## 3. The 12 Missing Dimensions: Exhaustive Status
+## Executive Conclusion
+The documentation describes a futuristic, multi-tenant, enterprise-grade application running on a robust stack (Keycloak, Kuzu, GraphRAG, Apple MLX, 9 Quantum providers). The reality is that the codebase is a **brilliant structural skeleton** that heavily stubs these features.
 
-1. **Sensing / Metrology (🟡 Partial):** Static textual responses (`sensing_agent.py`). No 3D spatial visualization frontend components.
-2. **Networking (🟡 Partial):** Static agent scripts. No UI builder for network topologies.
-3. **D-Wave (🟡 Partial):** `dwave_provider.py` connects correctly. 
-4. **Multi-Hardware Ecosystem (🟡 Partial):** `cloud_backends.py` exists, but there is no mechanism for users to securely store and swap these keys dynamically per-user.
-5. **Learning Academy (🔴 Mocked):** Frontend component `LearningAcademy.tsx` fully exists. Backend `academy.py` serves an in-memory python list. Progress is not tracked or saved anywhere.
-6. **Advantage Benchmarking (🟢 Implemented):** Benchmark engine works and is tied to the Frontend Dashboard.
-7. **Fault-Tolerant Simulator (🟡 Partial):** Mathematical script (`fault_tolerant.py`) runs correctly. No frontend UI exposure.
-8. **QRNG (🟢 Implemented):** Successfully uses Qiskit Aer to build entropy (`qrng.py`).
-9. **Workflow Orchestration (🔴 Missing):** Empty infrastructure. There is no drag-and-drop React node builder to construct DAG pipelines.
-10. **Live Data Connectors (🔴 Missing):** Empty boilerplate stubs (`arxiv.py`). No real data feeds pipe into agents like Finance.
-11. **Enterprise & Compliance (🔴 Missing):** File-based bypass completely breaks tenant isolation (`chat.py`). No UI panels exist for compliance administration.
-12. **Community Marketplace (🔴 Mocked):** Frontend component `MarketplacePanel.tsx` exists. Backend serves an in-memory python list. Installation state vanishes on server restart.
-
----
-
-## Conclusion
-The repository contains incredibly strong theoretical foundations, specifically within Qiskit integration, React component structures, and LLM streaming (`useChat.ts`). However, the backend architecture fakes complex data persistence by heavily leaning on localized `.json` strings and hardcoded python variables. 
-
-To transition from this "Prototype" to "Production", an aggressive architectural overhaul enforcing PostgreSQL compliance is mandatory.
-
+- **The Good:** `hal.py` (Hardware detection), `storage.py` (Conversations DB), and `experiments/registry.py` (Experiment DB) are genuinely functioning up to spec.
+- **The Bad:** `projects.py` and `analytics.py` ignore SQL to rely on volatile JSON files. The 9 Quantum Providers are mostly absent. Keycloak is bypassed by default.
+- **The Urgent:** Over 60% of the advanced features detailed in the Architectural and GraphDB documents simply do not orchestrate in the code layer yet.

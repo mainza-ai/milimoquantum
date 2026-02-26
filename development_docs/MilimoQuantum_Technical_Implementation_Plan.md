@@ -1,79 +1,42 @@
-# Milimo Quantum: Exhaustive Phase 3 Technical Implementation Plan
+# Milimo Quantum: Phase 3 True Implementation Plan
 
-This document outlines the mandatory technical steps required to transition Milimo Quantum from a localized file-based prototype into a true enterprise-grade multi-tenant platform, fixing the exhaustive architectural gaps discovered during the file-by-file audit.
+Based on the Exhaustive Documentation Traceability Audit, the following plan bridges the massive gap between the 5 foundational Architecture Documents and the current codebase.
 
-## User Review Required
-> [!WARNING]
-> This plan outlines a **structural teardown of the hidden JSON persistence strategy** (`~/.milimoquantum/`) globally overriding the system in favor of genuine PostgreSQL database transactions. It also addresses the required secure migration of globally shared AI API keys.
+## Part 1: Eliminating File-Based System Vulnerabilities
 
----
+### 1. `projects.py` and `analytics.py` Database Overhaul
+The codebase suffers from split-brain persistence. Experiments and Conversations use SQLAlchemy, but Projects use JSON via `~/.milimoquantum/projects`.
+- **Action:** Delete `PROJECTS_DIR = Path.home() / ".milimoquantum" / "projects"`.
+- **Action:** Rewrite the `list_projects`, `create_project`, and `get_project` routes in `projects.py` to invoke `get_session()` and query `app.db.models.Project`.
+- **Action:** Rewrite `analytics.py` endpoints like `circuit_stats()` to execute SQL queries rather than traversing `.json` directory globs.
 
-## Proposed Changes: Part 1 — Security & Persistence Overhaul
-
-### 1. Migrating to Relational Persistence (Database Adoption)
-
-#### [MODIFY] `backend/app/routes/chat.py` & `projects.py`
-- Strip all `app.storage` and local `.json` file reads/writes.
-- Implement `session.add(Message)` and `session.add(Conversation)` logic querying by Keycloak User IDs.
-- Create a new DB table `Project` in `app/db/models.py`. Rewrite the entire `projects.py` router to use SQL JOINs for associated conversations.
-
-#### [MODIFY] `backend/app/routes/analytics.py`
-- Remove fallback parsing of massive local JSON files.
-- Restructure endpoints (`/api/analytics/summary`) to rely entirely on efficient SQL aggregation queries (`COUNT()`, `GROUP BY`) over partitioned rows.
-
-#### [MODIFY] `backend/app/routes/graph.py`
-- Connect Neo4j indexing strictly to the PostgreSQL Commit Hooks (Event-Driven) rather than manually scraping the `.json` filesystem.
-
-### 2. Multi-Tenant Secure Configurations
-
-#### [NEW] `backend/app/db/models.py` -> `ProviderCredential` & `UserSettings`
-- Currently, `backend/app/llm/cloud_provider.py` overwrites `os.environ` affecting all users globally.
-- Build a generic `ProviderCredential` schema to securely store API keys (Anthropic, D-Wave, AWS Braket, IBM, Azure Quantum) *encrypted and partitioned by User ID*.
-- Modify `cloud_provider.py` and `ibm_runtime.py` to extract credentials from the DB session of the requesting user per-request, rather than from global environmental variables.
+### 2. Activating Keycloak SSO
+- **Action:** Enforce `AUTH_ENABLED=true` in `.env`.
+- **Action:** Bind `get_current_user` directly into the UI state (`App.tsx` / `Sidebar.tsx`) so that the application is locked behind Keycloak authentication.
 
 ---
 
-## Proposed Changes: Part 2 — Building The 12 Missing Dimensions
+## Part 2: Addressing Specific Document Obligations
 
-### 1. Hardening "Mocked" Capabilities
+### 1. Resolving `MilimoQuantum_GraphDB_Addendum.md`
+- **Action:** Install and integrate `graphrag` and `graphiti` Python libraries in `backend/requirements.txt`.
+- **Action:** Rewrite `app/graph/agent_memory.py` to deploy GraphRAG for contextualizing past quantum experiments during agent chat, rather than just basic Neo4j string queries.
+- **Action:** Implement FalkorDB adapters specifically for fast semantic retrieval of short-term chat context.
 
-#### [MODIFY] `backend/app/routes/academy.py`
-- Create SQLAlchemy tables: `AcademyLesson` and `UserProgress`.
-- Move the hardcoded Python list (`ACADEMY_LESSONS`) into a database seed script.
-- Update endpoints to query PostgreSQL to permanently save Quiz and Lesson completion states.
+### 2. Resolving `MilimoQuantum_CrossPlatform_Guide.md`
+- **Action:** The Guide promises Apple MLX integration for Mac LLM acceleration. Currently, Mac users just proxy to Ollama.
+- **Action:** Build `app/llm/mlx_client.py` using `mlx-lm` to natively process local LLMs within the Python process on Apple Silicon.
+- **Action:** Build `app/quantum/cudaq.py` to hook NVIDIA `cudaq` natively on Windows as promised.
 
-#### [MODIFY] `backend/app/routes/marketplace.py`
-- Create SQLAlchemy tables: `Plugin` and `UserPluginInstall`.
-- Store installation state per-user securely in the database.
+### 3. Resolving `MilimoQuantum_Architecture_Diagrams.md`
+- **Action:** The remaining 6 Hardware Providers (IonQ, QuEra, Quantinuum, Rigetti, OQC, IQM) must be stubbed and added into `app/quantum/cloud_backends.py`.
+- **Action:** Drag-and-drop DAG Workflow interface (`WorkflowBuilder.tsx`) must be built in the UI and connected to Celery queues to link multi-agent output chaining.
 
-### 2. Orchestration & Graph Visualization
+### 4. Resolving Domain Missing Dimensions
+- **Action:** Complete the `app/feeds/finance.py` module by integrating `yahooquery` or `alpaca-py` for live data fetching rather than mocked arrays.
+- **Action:** Develop the **Device Syncing Engine**, utilizing WebSocket (`fastapi.WebSocket`) to push real-time DB state updates to active clients.
 
-#### [NEW] `backend/app/routes/workflows.py`
-- Create REST endpoints for DAG Pipeline execution.
-- Create DB schema for `WorkflowTemplate` (JSON structure representing the user's DAG graph state).
-
-#### [NEW] `frontend/src/components/quantum/WorkflowBuilder.tsx`
-- Add a new dependency (e.g., `reactflow`) to `package.json`.
-- Build a visual drag-and-drop workspace where users can link Agents (Finance) directly into Quantum Hardware providers (Execution) visually bridging `quantum/hpc.py` and `cloud_backends.py`.
-
-### 3. Dynamic Agents & Live Feeds
-
-#### [MODIFY] `backend/app/agents/*`
-- Delete static markdown string templates (`QUICK_TOPICS`). 
-- Re-prompt the base agents to dynamically generate targeted Qiskit/Pennylane code specifically constrained by the user's requests rather than returning `_bell_code()`.
-
-#### [MODIFY] `backend/app/feeds/finance.py`
-- Write an actual scraping integration (e.g. `yfinance` API) rather than holding empty stubs. Ensure the `finance_agent.py` pulls from this endpoint contextually before writing optimizations.
-
----
-
-## Verification Plan
-
-### Automated Tests
-1. **Migrations:** Trigger `alembic upgrade head` and verify the new tables (`Project`, `Plugin`, `AcademyLesson`, `ProviderCredential`, `UserSettings`) are created successfully.
-2. **Integration Tests:** Execute `pytest` emphasizing tenant isolation (User A attempting to use User B's IBM token fails).
-
-### Manual End-to-End Verification
-1. Open two separate browser profiles (simulating two tenants). Set the LLM Key in Settings window A. Verify it does *not* override window B's LLM routing, proving true isolation.
-2. Navigate to **Academy**, complete a lesson quiz, refresh the browser, and verify completion persists precisely.
-3. Drag-and-drop a node pipeline in the Workflow Builder UI, passing Finance JSON Data to a Quantum Backend node, and verify Celery background task ingestion.
+## Execution Priority
+1. **DB Convergence:** Force `projects.py` to use SQLAlchemy. (Stop the JSON sprawl).
+2. **Mac MLX & Windows CUDA-Q:** Build the native hardware accelerators promised.
+3. **GraphRAG:** Bring actual semantic subgraph retrieval to the Agents.
