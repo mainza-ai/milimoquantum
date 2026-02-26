@@ -43,9 +43,7 @@ The platform comprises an expansive, layered technology stack:
 | **Presentation (Frontend)** | React 18, Vite, TailwindCSS dashboard featuring Artifact panels, code execution widgets (Monaco), and circuit views. | `/frontend` |
 | **Enterprise Monitor (Mobile)**| React Native iOS/Android app to monitor live quantum job statuses globally. | `/mobile` |
 | **Orchestration (Backend)** | FastAPI, Python-based agent core utilizing Celery/Redis for job queues and asynchronous routing. | `/backend` |
-| **Agent Knowledge (Skills)** | Embedded agent logic, system prompts, architecture layouts, and specialized LLM instructional rules. | `/skills/skills/milimoquantum` |
 | **Documentation** | Deep-dive research reports, gap analysis, and phased development roadmaps. | `/development_docs` & `/docs` |
-| **Static Ecosystem** | Unified high-quality branding, styling constraints, and embedded platform visuals. | `/assets` |
 
 ---
 
