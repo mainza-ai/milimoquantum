@@ -1,0 +1,34 @@
+Starting project at /Users/mck/Desktop/milimoquantum/mobile
+Starting Metro Bundler
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Waiting for Watchman `watch-project` (10s)...
+Waiting for Watchman `watch-project` (30s)...
+Waiting for Watchman `watch-project` (50s)...
+Waiting for Watchman `watch-project` (70s)...
+Waiting for Watchman `watch-project` (90s)...
+Waiting for Watchman `watch-project` (110s)...
+Waiting for Watchman `watch-project` (130s)...
+Waiting for Watchman `watch-project` (150s)...
+Waiting for Watchman `watch-project` (170s)...
+Waiting for Watchman `watch-project` (190s)...
+Watchman `watch-project` finished after 195.3s.
+Web Bundled 1766ms (App.js)
+Web Bundled 66ms (App.js)
+Web Bundled 16ms (App.js)
+Web Bundled 18ms (App.js)
+[metro-file-map] Warning: Lost connection to Watchman, reconnecting..
+2026-02-25T18:05:18,034: [cli] unable to talk to your watchman on /Users/mck/.local/state/watchman/mck-state/sock! (Connection refused)
+
+Watchman:  watchman --no-pretty get-sockname returned with exit code=1, signal=null, stderr= 2026-02-25T18:05:18,034: [cli] unable to talk to your watchman on /Users/mck/.local/state/watchman/mck-state/sock! (Connection refused)
+
+
+/Users/mck/Desktop/milimoquantum/mobile/node_modules/fb-watchman/index.js:203
+      spawnError(new Error(
+                 ^
+Error: watchman --no-pretty get-sockname returned with exit code=1, signal=null, stderr= 2026-02-25T18:05:18,034: [cli] unable to talk to your watchman on /Users/mck/.local/state/watchman/mck-state/sock! (Connection refused)
+
+    at ChildProcess.<anonymous> (/Users/mck/Desktop/milimoquantum/mobile/node_modules/fb-watchman/index.js:203:18)
+    at ChildProcess.emit (node:events:507:28)
+    at maybeClose (node:internal/child_process:1101:16)
+    at Process.ChildProcess._handle.onexit (node:internal/child_process:305:5)

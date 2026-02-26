@@ -89,26 +89,63 @@ function CodeView({ content, language, title }: { content: string; language?: st
         setRunning(true);
         setRunResult(null);
         try {
-            const res = await fetch('/api/quantum/execute-code', {
+            // 1. Submit job to Celery task queue
+            const res = await fetch('/api/jobs/execute', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code }),
             });
             const data = await res.json();
-            if (data.success) {
-                setRunResult(`✅ Executed in ${data.execution_time_ms}ms` +
-                    (data.stdout ? `\n${data.stdout}` : ''));
-            } else {
-                setRunResult(`❌ ${data.error || 'Execution failed'}`);
+
+            if (!data.job_id) {
+                setRunResult(`❌ ${data.error || data.detail || 'Execution failed to queue'}`);
+                setRunning(false);
+                return;
             }
+
+            const jobId = data.job_id;
+            setRunResult('⏳ Queued for execution...');
+
+            // 2. Poll for Status
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusRes = await fetch(`/api/jobs/${jobId}/status`);
+                    const statusData = await statusRes.json();
+
+                    if (statusData.status === 'SUCCESS') {
+                        clearInterval(pollInterval);
+                        setRunning(false);
+                        const result = statusData.result;
+                        if (result?.error) {
+                            setRunResult(`❌ ${result.error}`);
+                        } else {
+                            setRunResult(`✅ Executed in ${result?.execution_time_ms || 0}ms` +
+                                (result?.stdout ? `\n${result.stdout}` : ''));
+                        }
+                    } else if (statusData.status === 'FAILURE') {
+                        clearInterval(pollInterval);
+                        setRunning(false);
+                        setRunResult(`❌ ${statusData.error || 'Execution failed'}`);
+                    } else if (statusData.status === 'REVOKED') {
+                        clearInterval(pollInterval);
+                        setRunning(false);
+                        setRunResult('⏹ Cancelled');
+                    } else {
+                        // Update intermediate status
+                        setRunResult(`⏳ ${statusData.message || statusData.status}`);
+                    }
+                } catch (e) {
+                    clearInterval(pollInterval);
+                    setRunning(false);
+                    setRunResult('❌ Polling failed');
+                }
+            }, 1000); // poll every 1s
+
         } catch {
             setRunResult('❌ Connection failed');
-        } finally {
             setRunning(false);
         }
     }, [code]);
-
-
 
     return (
         <div className="animate-fade-in">

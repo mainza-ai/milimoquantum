@@ -20,6 +20,7 @@ from app.routes import ibm as ibm_routes
 from app.routes import export as export_routes
 from app.routes import experiments as experiments_routes
 from app.routes import database as database_routes
+from app.routes import jobs as jobs_routes
 
 logging.basicConfig(
     level=logging.INFO,
@@ -95,6 +96,7 @@ app.include_router(ibm_routes.router)
 app.include_router(export_routes.router)
 app.include_router(experiments_routes.router)
 app.include_router(database_routes.router)
+app.include_router(jobs_routes.router)
 
 
 @app.get("/")

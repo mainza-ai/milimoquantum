@@ -1,6 +1,6 @@
 #!/bin/bash
 # Milimo Quantum — Start Both Services
-DIR="$(dirname "$0")"
+DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "⚛  Starting Milimo Quantum..."
 echo ""

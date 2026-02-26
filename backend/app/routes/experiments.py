@@ -4,15 +4,20 @@ from __future__ import annotations
 import json
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 
 from app.experiments import registry, notebook
 from app import storage
+from app.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/experiments", tags=["experiments"])
+router = APIRouter(
+    prefix="/api/experiments", 
+    tags=["experiments"],
+    dependencies=[Depends(get_current_user)]
+)
 
 
 # ── Run Registry ─────────────────────────────────────────

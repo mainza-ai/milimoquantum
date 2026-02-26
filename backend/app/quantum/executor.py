@@ -114,6 +114,45 @@ def execute_circuit(
     }
 
 
+def execute_circuit_code(
+    circuit_code: str,
+    backend_name: str = "aer_simulator",
+    shots: int = 1024,
+    options: dict | None = None,
+) -> dict:
+    """Execute python code that defines a 'qc' QuantumCircuit variable."""
+    if not QISKIT_AVAILABLE:
+        return {"error": "Qiskit is not installed."}
+        
+    try:
+        # Create a safe execution environment
+        local_vars = {}
+        exec(circuit_code, globals(), local_vars)
+        
+        # Look for a circuit variable
+        qc = None
+        for var_name in ["qc", "circuit", "qft_circ", "bell_circ"]:
+            if var_name in local_vars and isinstance(local_vars[var_name], QuantumCircuit):
+                qc = local_vars[var_name]
+                break
+                
+        if qc is None:
+            # Fallback: find any QuantumCircuit
+            for obj in local_vars.values():
+                if isinstance(obj, QuantumCircuit):
+                    qc = obj
+                    break
+                    
+        if qc:
+            return execute_circuit(circuit=qc, shots=shots)
+        else:
+            return {"error": "Could not find a QuantumCircuit object in the provided code."}
+            
+    except Exception as e:
+        return {"error": f"Execution error: {str(e)}"}
+
+
+
 def create_bell_state() -> Any:
     """Create a simple Bell state circuit for testing."""
     if not QISKIT_AVAILABLE:

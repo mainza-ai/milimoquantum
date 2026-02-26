@@ -15,7 +15,7 @@ import json
 import logging
 import uuid
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import StreamingResponse
 
 from app.audit import log_action
@@ -38,6 +38,7 @@ from app.llm.ollama_client import ollama_client
 from app.llm.cloud_provider import get_current_provider, stream_chat_cloud
 from app.models.schemas import AgentType, ChatRequest
 from app import storage
+from app.auth import get_current_user
 
 # Agent type → human-readable label for artifact titles
 AGENT_LABELS: dict[AgentType, str] = {
@@ -58,7 +59,11 @@ AGENT_LABELS: dict[AgentType, str] = {
 }
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/chat", tags=["chat"])
+router = APIRouter(
+    prefix="/api/chat", 
+    tags=["chat"],
+    dependencies=[Depends(get_current_user)]
+)
 
 # In-memory store (backed by file persistence)
 conversations: dict[str, list[dict]] = {}
