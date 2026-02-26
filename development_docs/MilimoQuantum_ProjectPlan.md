@@ -6,7 +6,7 @@
 
 Project Research, Architecture & Development Blueprint
 
-Version 1.0 \| February 2026 \| Powered by Qiskit SDK v2.2
+Version 1.0 \| February 2026 \| Powered by Qiskit SDK v1.4
 
 **Table of Contents**
 
@@ -73,7 +73,7 @@ Version 1.0 \| February 2026 \| Powered by Qiskit SDK v2.2
 **1. Executive Summary**
 
 Milimo Quantum is a next-generation, AI-powered quantum computing
-platform that brings together the full power of the Qiskit SDK v2.2
+platform that brings together the full power of the Qiskit SDK v1.4
 ecosystem with modern large language model agents. It is designed as the
 world\'s most capable quantum application frontend --- enabling
 researchers, engineers, and domain experts to harness quantum computing
@@ -110,7 +110,7 @@ etc.) are available via API for maximum power.
 
 **2. Qiskit SDK Deep Dive --- Capabilities Research**
 
-Qiskit is IBM\'s open-source quantum SDK, now at version 2.2 (October
+Qiskit is IBM\'s open-source quantum SDK, now at version 1.4 (October
 2025). It is the world\'s most widely used quantum computing framework
 with over 550,000 users, 550+ open-source contributors, and 3 trillion
 quantum circuits executed. Below is a comprehensive breakdown of all
@@ -327,7 +327,7 @@ applied users.
 - **Qiskit-PennyLane Plugin:** Bridge to PennyLane for QML,
   differentiable programming, device agnosticism.
 
-- **Amazon Braket Provider:** Native Qiskit 2.0 primitives on Braket
+- **Amazon Braket Provider:** Native Qiskit 1.4 primitives on Braket
   hardware (superconducting, trapped-ion, neutral-atom).
 
 - **Azure Quantum Integration:** Submit Qiskit circuits to Azure Quantum
@@ -341,7 +341,7 @@ applied users.
 | Milimo Quantum is the world\'s most powerful quantum computing        |
 | application --- a unified platform where                              |
 |                                                                       |
-| natural language AI agents and Qiskit SDK v2.2 combine to make        |
+| natural language AI agents and Qiskit SDK v1.4 combine to make        |
 | quantum computing accessible,                                         |
 |                                                                       |
 | productive, and transformative across every scientific and commercial |
@@ -572,7 +572,7 @@ intermediate state between each other as needed.
   --------------- -------------------------------------------------------
 
 - **Key Capabilities:** Code generation from natural language, code
-  review & optimization, migration from Qiskit v1.x to v2.x, custom
+  review & optimization, Qiskit v1.4 updates, custom
   transpiler pass creation, noise model construction, backend selection
   advice.
 
@@ -865,7 +865,7 @@ shareable.
 |                                  |                                   |
 | - React 18 + TypeScript          | - Python 3.12 + FastAPI           |
 |                                  |                                   |
-| - Vite build system              | - Qiskit SDK v2.2                 |
+| - Vite build system              | - Qiskit SDK v1.4                 |
 |                                  |                                   |
 | - Tailwind CSS + custom design   | - Qiskit Aer v0.17+               |
 |   system                         |                                   |
@@ -1060,7 +1060,7 @@ agents:
   ----------------------------------------------------------------------------
   **Package**               **Version**      **Purpose**
   ------------------------- ---------------- ---------------------------------
-  qiskit                    2.2.x (latest)   Core SDK: circuits, transpiler,
+  qiskit                    1.4.x (latest)   Core SDK: circuits, transpiler,
                                              primitives, C API
 
   qiskit-aer                0.17.x           High-performance simulators
@@ -1132,4 +1132,4 @@ agents:
 
 *⚛ Milimo Quantum --- Built on the Shoulders of Giants ⚛*
 
-Qiskit SDK v2.2 · IBM Quantum · Ollama · Open Source
+Qiskit SDK v1.4 · IBM Quantum · Ollama · Open Source

@@ -36,7 +36,7 @@ graph TB
     end
 
     subgraph L3["Layer 3 · Quantum Execution Engine"]
-        QK["Qiskit SDK v2.2"]
+        QK["Qiskit SDK v1.4"]
         AER["Qiskit Aer v0.17"]
         DW["D-Wave Ocean SDK"]
         SQ["SquidASM / NetSquid"]
@@ -793,7 +793,7 @@ mindmap
       Celery + Redis
       Nginx reverse proxy
     Quantum Execution
-      Qiskit SDK v2.2
+      Qiskit SDK v1.4
       Qiskit Aer v0.17
       qiskit-ibm-runtime
       qiskit-nature

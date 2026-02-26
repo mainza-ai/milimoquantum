@@ -235,7 +235,7 @@ if skipped.
 | \# Install Qiskit v1.4 and Aer (CPU only --- this is correct for      |
 | macOS)                                                                |
 |                                                                       |
-| \$ pip install qiskit==2.2.0                                          |
+| \$ pip install qiskit==1.4.0                                          |
 |                                                                       |
 | \$ pip install qiskit-aer==0.17.0                                     |
 |                                                                       |
@@ -682,7 +682,7 @@ accidentally using the slower generic BLAS.
 | \# ── Quantum Core                                                    |
 | ─────────────────────────────────────────────────────                 |
 |                                                                       |
-| qiskit==2.2.0                                                         |
+| qiskit==1.4.0                                                         |
 |                                                                       |
 | qiskit-aer==0.17.0 \# CPU only on macOS --- correct                   |
 |                                                                       |
@@ -944,7 +944,7 @@ over the default CUDA Thrust backend.
 | \# ── Quantum Core                                                    |
 | ─────────────────────────────────────────────────────                 |
 |                                                                       |
-| qiskit==2.2.0                                                         |
+| qiskit==1.4.0                                                         |
 |                                                                       |
 | \# qiskit-aer: install qiskit-aer-gpu separately (inside WSL2/Linux)  |
 |                                                                       |

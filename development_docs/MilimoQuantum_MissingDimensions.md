@@ -813,7 +813,7 @@ Zenodo. Milimo Quantum should be the hub of this activity, not a silo.
 **The Complete Milimo Quantum Platform: Unified Vision**
 
 With all 12 missing dimensions added to the foundation of the original
-Blueprint (Qiskit SDK v2.2, 8 domain agents, Graph Database layer),
+Blueprint (Qiskit SDK v1.4, 8 domain agents, Graph Database layer),
 Milimo Quantum becomes a genuinely unprecedented platform. No other
 product on earth combines all of these layers.
 

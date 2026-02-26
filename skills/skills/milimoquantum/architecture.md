@@ -10,7 +10,7 @@ description: Milimo Quantum platform architecture — 7-layer system with 14 age
 |-------|---------|----------------|
 | L1 — Presentation | User interface | React 18 + TS, Artifact Panel, Learning Academy, Marketplace |
 | L2 — Agent Orchestration | Intent routing + domain logic | 14 agents: Orchestrator, Planning, Research, Chemistry, Finance, Crypto, QML, Optimization, Climate/Science, Code, QGI, Sensing, Networking, D-Wave Annealing |
-| L3 — Quantum Execution | Circuit compilation + simulation | Qiskit SDK v2.2, Aer v0.17, D-Wave Ocean, SquidASM, Stim, CUDA-Q, pytket |
+| L3 — Quantum Execution | Circuit compilation + simulation | Qiskit SDK v1.4, Aer v0.17, D-Wave Ocean, SquidASM, Stim, CUDA-Q, pytket |
 | L4 — Hardware Backends | QPU access | IBM (120q), Quantinuum (trapped ion), IonQ (36q), QuEra (256q), Rigetti (84q), Google Willow (105q), D-Wave (5000q), CUDA-Q GPU, Local Aer |
 | L5 — Graph Intelligence | Knowledge graph + memory | Neo4j 5.26, FalkorDB (agent memory), Kuzu (embedded), Graphiti 0.11, GraphRAG |
 | L6 — Data & Workflow | Storage + orchestration | PostgreSQL, DuckDB, ChromaDB, S3/MinIO, Live Data Feeds, Celery+Dask+Prefect, QRNG |
