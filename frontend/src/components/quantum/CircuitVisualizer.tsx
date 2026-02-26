@@ -3,7 +3,7 @@
  * Parses QASM-style circuit descriptions and renders them as
  * interactive SVG diagrams with hover tooltips.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 
 /* ── Gate metadata ─────────────────────────────────────── */
 const GATE_INFO: Record<string, { label: string; color: string; desc: string }> = {
@@ -127,75 +127,231 @@ export function CircuitVisualizer({ code }: CircuitVisualizerProps) {
     const wireY = (qubit: number) => WIRE_Y_START + qubit * WIRE_SPACING;
     const gateX = (col: number) => LABEL_WIDTH + (col + 0.5) * COL_WIDTH;
 
+    // ── Zoom / Pan state ─────────────────────────────────
+    const [zoom, setZoom] = useState(1);
+    const [pan, setPan] = useState({ x: 0, y: 0 });
+    const isPanning = useRef(false);
+    const lastMouse = useRef({ x: 0, y: 0 });
+
+    const handleWheel = useCallback((e: React.WheelEvent) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        setZoom(prev => Math.max(0.3, Math.min(3, prev * delta)));
+    }, []);
+
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        if (e.button === 0) {
+            isPanning.current = true;
+            lastMouse.current = { x: e.clientX, y: e.clientY };
+        }
+    }, []);
+
+    const handleMouseMove = useCallback((e: React.MouseEvent) => {
+        if (!isPanning.current) return;
+        const dx = e.clientX - lastMouse.current.x;
+        const dy = e.clientY - lastMouse.current.y;
+        lastMouse.current = { x: e.clientX, y: e.clientY };
+        setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+    }, []);
+
+    const handleMouseUp = useCallback(() => {
+        isPanning.current = false;
+    }, []);
+
+    const resetView = useCallback(() => {
+        setZoom(1);
+        setPan({ x: 0, y: 0 });
+    }, []);
+
     return (
         <div className="relative">
-            <svg
-                width={svgWidth}
-                height={svgHeight}
-                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-                className="w-full h-auto"
-                style={{ maxWidth: `${svgWidth}px` }}
+            {/* Zoom controls */}
+            <div className="absolute top-2 right-2 z-10 flex gap-1">
+                <button onClick={() => setZoom(z => Math.min(3, z * 1.2))}
+                    className="w-6 h-6 rounded bg-white/[0.06] border border-white/[0.08]
+                        text-xs text-gray-400 hover:text-white hover:bg-white/[0.1]
+                        flex items-center justify-center transition-all cursor-pointer"
+                >+</button>
+                <button onClick={() => setZoom(z => Math.max(0.3, z * 0.8))}
+                    className="w-6 h-6 rounded bg-white/[0.06] border border-white/[0.08]
+                        text-xs text-gray-400 hover:text-white hover:bg-white/[0.1]
+                        flex items-center justify-center transition-all cursor-pointer"
+                >−</button>
+                <button onClick={resetView}
+                    className="px-1.5 h-6 rounded bg-white/[0.06] border border-white/[0.08]
+                        text-[9px] text-gray-400 hover:text-white hover:bg-white/[0.1]
+                        flex items-center justify-center transition-all cursor-pointer"
+                >{Math.round(zoom * 100)}%</button>
+            </div>
+
+            <div
+                className="overflow-hidden rounded-lg cursor-grab active:cursor-grabbing"
+                onWheel={handleWheel}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
             >
-                {/* Qubit labels */}
-                {Array.from({ length: numQubits }, (_, i) => (
-                    <text
-                        key={`label-${i}`}
-                        x={8}
-                        y={wireY(i) + 4}
-                        fill="var(--color-mq-text-tertiary)"
-                        fontSize="11"
-                        fontFamily="var(--font-mono)"
-                    >
-                        q{i}
-                    </text>
-                ))}
+                <svg
+                    width={svgWidth}
+                    height={svgHeight}
+                    viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                    className="w-full h-auto"
+                    style={{
+                        maxWidth: `${svgWidth}px`,
+                        transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+                        transformOrigin: 'top left',
+                        transition: isPanning.current ? 'none' : 'transform 0.1s ease-out',
+                    }}
+                >
+                    {/* Qubit labels */}
+                    {Array.from({ length: numQubits }, (_, i) => (
+                        <text
+                            key={`label-${i}`}
+                            x={8}
+                            y={wireY(i) + 4}
+                            fill="var(--color-mq-text-tertiary)"
+                            fontSize="11"
+                            fontFamily="var(--font-mono)"
+                        >
+                            q{i}
+                        </text>
+                    ))}
 
-                {/* Qubit wires */}
-                {Array.from({ length: numQubits }, (_, i) => (
-                    <line
-                        key={`wire-${i}`}
-                        x1={LABEL_WIDTH}
-                        y1={wireY(i)}
-                        x2={svgWidth - 10}
-                        y2={wireY(i)}
-                        stroke="var(--color-mq-border-light)"
-                        strokeWidth="1.5"
-                    />
-                ))}
+                    {/* Qubit wires */}
+                    {Array.from({ length: numQubits }, (_, i) => (
+                        <line
+                            key={`wire-${i}`}
+                            x1={LABEL_WIDTH}
+                            y1={wireY(i)}
+                            x2={svgWidth - 10}
+                            y2={wireY(i)}
+                            stroke="var(--color-mq-border-light)"
+                            strokeWidth="1.5"
+                        />
+                    ))}
 
-                {/* Gates */}
-                {gates.map((gate, idx) => {
-                    const info = GATE_INFO[gate.name] || { label: gate.name, color: '#636370', desc: '' };
-                    const x = gateX(gate.col);
+                    {/* Gates */}
+                    {gates.map((gate, idx) => {
+                        const info = GATE_INFO[gate.name] || { label: gate.name, color: '#636370', desc: '' };
+                        const x = gateX(gate.col);
 
-                    // CNOT: draw dot on control, ⊕ on target
-                    if ((gate.name === 'cx' || gate.name === 'cnot') && gate.qubits.length >= 2) {
-                        const [control, target] = gate.qubits;
-                        return (
-                            <g
-                                key={idx}
-                                onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, gate })}
-                                onMouseLeave={() => setTooltip(null)}
-                                style={{ cursor: 'pointer' }}
-                            >
-                                {/* Vertical line between control and target */}
-                                <line
-                                    x1={x} y1={wireY(control)}
-                                    x2={x} y2={wireY(target)}
-                                    stroke={info.color} strokeWidth="2"
-                                />
-                                {/* Control dot */}
-                                <circle cx={x} cy={wireY(control)} r={5} fill={info.color} />
-                                {/* Target ⊕ */}
-                                <circle cx={x} cy={wireY(target)} r={12} fill="none" stroke={info.color} strokeWidth="2" />
-                                <line x1={x - 8} y1={wireY(target)} x2={x + 8} y2={wireY(target)} stroke={info.color} strokeWidth="2" />
-                                <line x1={x} y1={wireY(target) - 8} x2={x} y2={wireY(target) + 8} stroke={info.color} strokeWidth="2" />
-                            </g>
-                        );
-                    }
+                        // CNOT: draw dot on control, ⊕ on target
+                        if ((gate.name === 'cx' || gate.name === 'cnot') && gate.qubits.length >= 2) {
+                            const [control, target] = gate.qubits;
+                            return (
+                                <g
+                                    key={idx}
+                                    onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, gate })}
+                                    onMouseLeave={() => setTooltip(null)}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    {/* Vertical line between control and target */}
+                                    <line
+                                        x1={x} y1={wireY(control)}
+                                        x2={x} y2={wireY(target)}
+                                        stroke={info.color} strokeWidth="2"
+                                    />
+                                    {/* Control dot */}
+                                    <circle cx={x} cy={wireY(control)} r={5} fill={info.color} />
+                                    {/* Target ⊕ */}
+                                    <circle cx={x} cy={wireY(target)} r={12} fill="none" stroke={info.color} strokeWidth="2" />
+                                    <line x1={x - 8} y1={wireY(target)} x2={x + 8} y2={wireY(target)} stroke={info.color} strokeWidth="2" />
+                                    <line x1={x} y1={wireY(target) - 8} x2={x} y2={wireY(target) + 8} stroke={info.color} strokeWidth="2" />
+                                </g>
+                            );
+                        }
 
-                    // Measurement: meter icon
-                    if (gate.name === 'measure') {
+                        // SWAP: two X marks connected by a vertical line
+                        if (gate.name === 'swap' && gate.qubits.length >= 2) {
+                            const [q0, q1] = gate.qubits;
+                            return (
+                                <g
+                                    key={idx}
+                                    onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, gate })}
+                                    onMouseLeave={() => setTooltip(null)}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <line x1={x} y1={wireY(q0)} x2={x} y2={wireY(q1)} stroke={info.color} strokeWidth="2" />
+                                    {/* X on q0 */}
+                                    <line x1={x - 6} y1={wireY(q0) - 6} x2={x + 6} y2={wireY(q0) + 6} stroke={info.color} strokeWidth="2" />
+                                    <line x1={x + 6} y1={wireY(q0) - 6} x2={x - 6} y2={wireY(q0) + 6} stroke={info.color} strokeWidth="2" />
+                                    {/* X on q1 */}
+                                    <line x1={x - 6} y1={wireY(q1) - 6} x2={x + 6} y2={wireY(q1) + 6} stroke={info.color} strokeWidth="2" />
+                                    <line x1={x + 6} y1={wireY(q1) - 6} x2={x - 6} y2={wireY(q1) + 6} stroke={info.color} strokeWidth="2" />
+                                </g>
+                            );
+                        }
+
+                        // CCX (Toffoli): two control dots + target ⊕
+                        if (gate.name === 'ccx' && gate.qubits.length >= 3) {
+                            const [c0, c1, target] = gate.qubits;
+                            const minY = Math.min(wireY(c0), wireY(c1), wireY(target));
+                            const maxY = Math.max(wireY(c0), wireY(c1), wireY(target));
+                            return (
+                                <g
+                                    key={idx}
+                                    onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, gate })}
+                                    onMouseLeave={() => setTooltip(null)}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <line x1={x} y1={minY} x2={x} y2={maxY} stroke={info.color} strokeWidth="2" />
+                                    <circle cx={x} cy={wireY(c0)} r={5} fill={info.color} />
+                                    <circle cx={x} cy={wireY(c1)} r={5} fill={info.color} />
+                                    <circle cx={x} cy={wireY(target)} r={12} fill="none" stroke={info.color} strokeWidth="2" />
+                                    <line x1={x - 8} y1={wireY(target)} x2={x + 8} y2={wireY(target)} stroke={info.color} strokeWidth="2" />
+                                    <line x1={x} y1={wireY(target) - 8} x2={x} y2={wireY(target) + 8} stroke={info.color} strokeWidth="2" />
+                                </g>
+                            );
+                        }
+
+                        // CZ: two dots connected by a line
+                        if (gate.name === 'cz' && gate.qubits.length >= 2) {
+                            const [q0, q1] = gate.qubits;
+                            return (
+                                <g
+                                    key={idx}
+                                    onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, gate })}
+                                    onMouseLeave={() => setTooltip(null)}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <line x1={x} y1={wireY(q0)} x2={x} y2={wireY(q1)} stroke={info.color} strokeWidth="2" />
+                                    <circle cx={x} cy={wireY(q0)} r={5} fill={info.color} />
+                                    <circle cx={x} cy={wireY(q1)} r={5} fill={info.color} />
+                                </g>
+                            );
+                        }
+
+                        // Measurement: meter icon
+                        if (gate.name === 'measure') {
+                            const y = wireY(gate.qubits[0]);
+                            return (
+                                <g
+                                    key={idx}
+                                    onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, gate })}
+                                    onMouseLeave={() => setTooltip(null)}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <rect
+                                        x={x - GATE_WIDTH / 2} y={y - 16}
+                                        width={GATE_WIDTH} height={32}
+                                        rx={4}
+                                        fill="rgba(161,161,170,0.1)"
+                                        stroke={info.color}
+                                        strokeWidth="1.5"
+                                    />
+                                    {/* Meter arc */}
+                                    <path
+                                        d={`M ${x - 8} ${y + 4} A 8 8 0 0 1 ${x + 8} ${y + 4}`}
+                                        fill="none" stroke={info.color} strokeWidth="1.5"
+                                    />
+                                    {/* Meter needle */}
+                                    <line x1={x} y1={y + 4} x2={x + 6} y2={y - 8} stroke={info.color} strokeWidth="1.5" />
+                                </g>
+                            );
+                        }
+
+                        // Standard single-qubit gate box
                         const y = wireY(gate.qubits[0]);
                         return (
                             <g
@@ -207,53 +363,26 @@ export function CircuitVisualizer({ code }: CircuitVisualizerProps) {
                                 <rect
                                     x={x - GATE_WIDTH / 2} y={y - 16}
                                     width={GATE_WIDTH} height={32}
-                                    rx={4}
-                                    fill="rgba(161,161,170,0.1)"
+                                    rx={6}
+                                    fill={`${info.color}15`}
                                     stroke={info.color}
                                     strokeWidth="1.5"
                                 />
-                                {/* Meter arc */}
-                                <path
-                                    d={`M ${x - 8} ${y + 4} A 8 8 0 0 1 ${x + 8} ${y + 4}`}
-                                    fill="none" stroke={info.color} strokeWidth="1.5"
-                                />
-                                {/* Meter needle */}
-                                <line x1={x} y1={y + 4} x2={x + 6} y2={y - 8} stroke={info.color} strokeWidth="1.5" />
+                                <text
+                                    x={x} y={y + 4}
+                                    textAnchor="middle"
+                                    fill={info.color}
+                                    fontSize="12"
+                                    fontWeight="600"
+                                    fontFamily="var(--font-mono)"
+                                >
+                                    {info.label}
+                                </text>
                             </g>
                         );
-                    }
-
-                    // Standard single-qubit gate box
-                    const y = wireY(gate.qubits[0]);
-                    return (
-                        <g
-                            key={idx}
-                            onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, gate })}
-                            onMouseLeave={() => setTooltip(null)}
-                            style={{ cursor: 'pointer' }}
-                        >
-                            <rect
-                                x={x - GATE_WIDTH / 2} y={y - 16}
-                                width={GATE_WIDTH} height={32}
-                                rx={6}
-                                fill={`${info.color}15`}
-                                stroke={info.color}
-                                strokeWidth="1.5"
-                            />
-                            <text
-                                x={x} y={y + 4}
-                                textAnchor="middle"
-                                fill={info.color}
-                                fontSize="12"
-                                fontWeight="600"
-                                fontFamily="var(--font-mono)"
-                            >
-                                {info.label}
-                            </text>
-                        </g>
-                    );
-                })}
-            </svg>
+                    })}
+                </svg>
+            </div>
 
             {/* Tooltip */}
             {tooltip && (

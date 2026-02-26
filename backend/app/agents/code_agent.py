@@ -217,7 +217,12 @@ def _build_artifacts(name: str, code: str, result: dict) -> tuple[list[Artifact]
         artifacts.append(Artifact(
             type=ArtifactType.CIRCUIT,
             title=f"{name} — Circuit Diagram",
-            content=result["circuit_svg"],
+            content=code,
+            metadata={
+                "ascii_diagram": result["circuit_svg"],
+                "num_qubits": result.get("num_qubits"),
+                "depth": result.get("depth"),
+            }
         ))
 
     if result.get("counts"):

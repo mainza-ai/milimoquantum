@@ -112,11 +112,11 @@ export async function fetchCloudProviders() {
     return res.json();
 }
 
-export async function setCloudProvider(provider: string, model?: string) {
+export async function setCloudProvider(provider: string, model?: string, api_key?: string) {
     const res = await fetch(`${API_BASE}/settings/cloud-provider`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider, model }),
+        body: JSON.stringify({ provider, model, api_key }),
     });
     return res.json();
 }
@@ -165,6 +165,7 @@ export function streamChat(
     message: string,
     conversationId?: string,
     agent?: string,
+    fileId?: string,
     onToken: (token: string) => void = () => { },
     onArtifact: (artifact: unknown) => void = () => { },
     onDone: (data: unknown) => void = () => { },
@@ -174,6 +175,7 @@ export function streamChat(
         message,
         conversation_id: conversationId,
         agent: agent || null,
+        attached_file_id: fileId || null,
     });
 
     fetch(`${API_BASE}/chat/send`, {

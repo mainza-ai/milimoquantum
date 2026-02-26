@@ -116,6 +116,7 @@ function App() {
       <SearchPanel
         isOpen={searchOpen}
         onClose={() => setSearchOpen(false)}
+        onLoadConversation={loadConversation}
       />
 
       {/* Marketplace Modal */}

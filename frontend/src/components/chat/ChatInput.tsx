@@ -4,7 +4,7 @@ import type { AgentType } from '../../types';
 import { AGENTS } from '../../types';
 
 interface ChatInputProps {
-    onSend: (message: string) => void;
+    onSend: (message: string, fileId?: string) => void;
     isStreaming: boolean;
     activeAgent: AgentType;
 }
@@ -29,9 +29,11 @@ export function ChatInput({ onSend, isStreaming, activeAgent }: ChatInputProps) 
     const handleSubmit = () => {
         if (!value.trim() || isStreaming) return;
         setShowCommands(false);
+        const fileId = textareaRef.current?.getAttribute('data-file-id') || undefined;
+        onSend(value, fileId);
         setFileName(null);
-        onSend(value);
         setValue('');
+        textareaRef.current?.removeAttribute('data-file-id');
         if (textareaRef.current) textareaRef.current.style.height = 'auto';
     };
 
@@ -48,22 +50,40 @@ export function ChatInput({ onSend, isStreaming, activeAgent }: ChatInputProps) 
     };
 
     // ── File upload handling ─────────────────────────
-    const handleFile = useCallback((file: File) => {
+    const handleFile = useCallback(async (file: File) => {
         const ext = file.name.split('.').pop()?.toLowerCase();
-        if (!['qasm', 'py', 'qpy', 'txt'].includes(ext || '')) {
+        if (!['qasm', 'py', 'qpy', 'txt', 'csv', 'pdf', 'json'].includes(ext || '')) {
             return; // unsupported file type
         }
         setFileName(file.name);
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const content = e.target?.result as string;
-            const prefix = ext === 'qasm'
-                ? `/code Execute this QASM circuit:\n\n`
-                : `/code Run this code:\n\n`;
-            setValue(prefix + '```' + (ext === 'py' ? 'python' : 'qasm') + '\n' + content + '\n```');
-            textareaRef.current?.focus();
-        };
-        reader.readAsText(file);
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/api/chat/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data.id) {
+                // Attach to context
+                const prefix = ext === 'qasm'
+                    ? `Execute this QASM circuit:\n\n`
+                    : `Analyze this file:\n\n`;
+                setValue(prev => {
+                    const spacer = prev ? prev + '\n\n' : '';
+                    return spacer + prefix + '[Attached File: ' + file.name + ']';
+                });
+                // We store the file ID on the element or in state temporarily so it can be sent
+                textareaRef.current?.setAttribute('data-file-id', data.id);
+                textareaRef.current?.focus();
+            }
+        } catch (e) {
+            console.error("Upload failed", e);
+            setFileName(null);
+        }
     }, []);
 
     const handleDrop = useCallback((e: React.DragEvent) => {

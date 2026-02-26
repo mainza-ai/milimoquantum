@@ -15,6 +15,7 @@ export function QuantumDashboard({ isOpen, onClose }: DashboardProps) {
     const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
     const [circuits, setCircuits] = useState<Record<string, unknown> | null>(null);
     const [loading, setLoading] = useState(true);
+    const [latestResult, setLatestResult] = useState<any>(null);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -136,19 +137,7 @@ export function QuantumDashboard({ isOpen, onClose }: DashboardProps) {
 
                         {/* Available Circuits */}
                         {circuitNames.length > 0 && (
-                            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5">
-                                <h3 className="text-sm font-medium text-gray-300 mb-4">Available Circuit Templates</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                    {circuitNames.map(name => (
-                                        <div key={name}
-                                            className="px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06]
-                                                text-sm text-gray-300 font-mono hover:border-cyan-500/20 transition-all"
-                                        >
-                                            ⚛️ {simulators[name]}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                            <CircuitTemplates circuitNames={circuitNames} simulators={simulators} onSimulationResult={setLatestResult} />
                         )}
 
                         {/* Top Agents */}
@@ -190,12 +179,98 @@ export function QuantumDashboard({ isOpen, onClose }: DashboardProps) {
                             {/* Bloch Sphere */}
                             <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5 flex flex-col items-center">
                                 <h3 className="text-sm font-medium text-gray-300 mb-4 self-start">🌐 Bloch Sphere</h3>
-                                <BlochSphereInteractive />
+                                <BlochSphereInteractive
+                                    externalTheta={latestResult?.statevector?.theta}
+                                    externalPhi={latestResult?.statevector?.phi}
+                                    externalLabel={latestResult ? `Result from ${latestResult.circuitName}` : undefined}
+                                />
                             </div>
                         </div>
                     </div>
                 )}
             </div>
+        </div>
+    );
+}
+
+/* ── Executable Circuit Templates ────────────────────── */
+function CircuitTemplates({ circuitNames, simulators, onSimulationResult }: { circuitNames: string[]; simulators: Record<string, unknown>; onSimulationResult?: (data: any) => void; }) {
+    const [running, setRunning] = useState<string | null>(null);
+    const [result, setResult] = useState<{ counts?: Record<string, number>; statevector?: { theta: number, phi: number };[key: string]: unknown } | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleRun = async (name: string) => {
+        setRunning(name);
+        setResult(null);
+        setError(null);
+        try {
+            const res = await fetch(`/api/quantum/execute/${name}?shots=1024`);
+            const data = await res.json();
+            if (data.error) {
+                setError(data.error);
+            } else {
+                const resData = { ...data, circuitName: String(simulators[name]) };
+                setResult(resData);
+                onSimulationResult?.(resData);
+            }
+        } catch {
+            setError('Execution failed');
+        } finally {
+            setRunning(null);
+        }
+    };
+
+    return (
+        <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5">
+            <h3 className="text-sm font-medium text-gray-300 mb-4">Available Circuit Templates</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {circuitNames.map(name => (
+                    <button key={name}
+                        onClick={() => handleRun(name)}
+                        disabled={running !== null}
+                        className={`px-3 py-2 rounded-lg bg-white/[0.03] border text-left
+                            text-sm text-gray-300 font-mono transition-all cursor-pointer
+                            ${running === name
+                                ? 'border-cyan-500/40 bg-cyan-500/5'
+                                : 'border-white/[0.06] hover:border-cyan-500/20 hover:bg-white/[0.05]'
+                            } disabled:opacity-60`}
+                    >
+                        {running === name ? '⏳' : '⚛️'} {String(simulators[name])}
+                    </button>
+                ))}
+            </div>
+            {error && (
+                <div className="mt-3 text-xs text-red-400 bg-red-500/5 border border-red-500/10 rounded-lg p-3">
+                    ❌ {error}
+                </div>
+            )}
+            {result?.counts && (
+                <div className="mt-3 bg-black/30 border border-cyan-500/10 rounded-lg p-3">
+                    <div className="flex justify-between items-center mb-2">
+                        <div className="text-[10px] text-gray-500 uppercase tracking-wider">Execution Result</div>
+                        {result.statevector && (
+                            <div className="text-[10px] text-purple-400 font-mono">
+                                θ: {(result.statevector.theta / Math.PI).toFixed(2)}π, φ: {(result.statevector.phi / Math.PI).toFixed(2)}π
+                            </div>
+                        )}
+                    </div>
+                    <div className="space-y-1">
+                        {Object.entries(result.counts)
+                            .sort(([, a], [, b]) => b - a)
+                            .slice(0, 8)
+                            .map(([state, count]) => (
+                                <div key={state} className="flex items-center gap-2 text-xs">
+                                    <span className="font-mono text-cyan-400">|{state}⟩</span>
+                                    <div className="flex-1 h-3 bg-white/[0.03] rounded-full overflow-hidden">
+                                        <div className="h-full bg-cyan-500/50 rounded-full"
+                                            style={{ width: `${(count / 1024) * 100}%` }} />
+                                    </div>
+                                    <span className="text-gray-500 tabular-nums w-10 text-right">{count}</span>
+                                </div>
+                            ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

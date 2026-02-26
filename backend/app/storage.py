@@ -72,6 +72,7 @@ def save_conversation(conversation_id: str, messages: list[dict], title: str | N
                     title=art.get("title"),
                     content=art.get("content"),
                     language=art.get("language"),
+                    metadata_=art.get("metadata", {}),
                 )
                 session.add(db_art)
 
@@ -113,8 +114,9 @@ def load_conversation(conversation_id: str) -> dict | None:
                         "title": art.title,
                         "content": art.content,
                         "language": art.language,
+                        "metadata": dict(art.metadata_ or {}),
                     }
-                    for art in art.artifacts
+                    for art in msg.artifacts
                 ]
             messages.append(msg_dict)
 

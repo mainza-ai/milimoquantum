@@ -93,6 +93,30 @@ def execute_circuit(
 
     counts = result.get_counts()
 
+    # Extract statevector for 1-qubit circuits to render on Bloch Sphere
+    statevector = None
+    if num_qubits == 1:
+        try:
+            from qiskit.quantum_info import Statevector
+            import numpy as np
+            import cmath
+            
+            sv_circ = circuit.remove_final_measurements(inplace=False)
+            sv = Statevector(sv_circ)
+            
+            alpha, beta = sv.data[0], sv.data[1]
+            p0 = abs(alpha)**2
+            # Handle float precision issues
+            p0 = min(1.0, max(0.0, p0))
+            theta = 2 * np.arccos(np.sqrt(p0))
+            phi = cmath.phase(beta) - cmath.phase(alpha)
+            if phi < 0:
+                phi += 2 * np.pi
+                
+            statevector = {"theta": float(theta), "phi": float(phi)}
+        except Exception as e:
+            logger.warning(f"Could not compute statevector: {e}")
+
     # Generate circuit SVG
     svg_str = ""
     try:
@@ -105,11 +129,12 @@ def execute_circuit(
 
     return {
         "counts": counts,
+        "statevector": statevector,
         "circuit_svg": svg_str,
         "num_qubits": num_qubits,
         "depth": circuit.depth(),
         "shots": shots,
-        "execution_time_ms": round(elapsed, 2),
+        "execution_time_ms": round(float(elapsed), 2),
         "backend": f"aer_{backend_opts.get('method', 'auto')}",
     }
 
@@ -126,7 +151,7 @@ def execute_circuit_code(
         
     try:
         # Create a safe execution environment
-        local_vars = {}
+        local_vars: dict[str, Any] = {}
         exec(circuit_code, globals(), local_vars)
         
         # Look for a circuit variable
@@ -187,8 +212,26 @@ def create_qft_circuit(n: int = 3) -> Any:
     return qc
 
 
+def create_1q_state(gate: str = 'h') -> Any:
+    """Create a basic 1-qubit state circuit."""
+    if not QISKIT_AVAILABLE:
+        return None
+    qc = QuantumCircuit(1, 1)
+    if gate == 'h':
+        qc.h(0)
+    elif gate == 'x':
+        qc.x(0)
+    elif gate == 'y':
+        qc.y(0)
+    qc.measure(0, 0)
+    return qc
+
+
 # Named circuit library
 CIRCUIT_LIBRARY = {
+    "superposition": ("Superposition (1 qubit)", lambda: create_1q_state('h')),
+    "xgate": ("X Gate (1 qubit)", lambda: create_1q_state('x')),
+    "ygate": ("Y Gate (1 qubit)", lambda: create_1q_state('y')),
     "bell": ("Bell State (2 qubits)", create_bell_state),
     "ghz": ("GHZ State (3 qubits)", lambda: create_ghz_state(3)),
     "ghz5": ("GHZ State (5 qubits)", lambda: create_ghz_state(5)),

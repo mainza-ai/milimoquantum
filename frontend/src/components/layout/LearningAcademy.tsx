@@ -64,14 +64,25 @@ export function LearningAcademy({ isOpen, onClose }: { isOpen: boolean; onClose:
 
     const markComplete = useCallback(async () => {
         if (!activeLesson) return;
-        await fetch(`/api/academy/progress?lesson_id=${activeLesson.id}&completed=true`, {
+
+        // Calculate quiz score from answers
+        const quizSections = activeLesson.sections
+            .map((s, idx) => ({ ...s, idx }))
+            .filter(s => s.type === 'quiz');
+        let quizScore: number | undefined;
+        if (quizSections.length > 0) {
+            const correct = quizSections.filter(s => quizAnswers[s.idx] === s.correct).length;
+            quizScore = Math.round((correct / quizSections.length) * 100);
+        }
+
+        await fetch(`/api/academy/progress?lesson_id=${activeLesson.id}&completed=true${quizScore !== undefined ? `&quiz_score=${quizScore}` : ''}`, {
             method: 'POST',
         });
         setLessons(prev => prev.map(l =>
-            l.id === activeLesson.id ? { ...l, completed: true } : l
+            l.id === activeLesson.id ? { ...l, completed: true, quiz_score: quizScore ?? null } : l
         ));
-        setActiveLesson(prev => prev ? { ...prev, completed: true } : null);
-    }, [activeLesson]);
+        setActiveLesson(prev => prev ? { ...prev, completed: true, quiz_score: quizScore ?? null } : null);
+    }, [activeLesson, quizAnswers]);
 
     const runCode = useCallback((code: string) => {
         // Send code to chat as a message that triggers sandbox execution

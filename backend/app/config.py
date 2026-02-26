@@ -16,7 +16,9 @@ class Settings:
     debug: bool = True
 
     # Ollama
-    ollama_base_url: str = "http://localhost:11434"
+    ollama_base_url: str = field(
+        default_factory=lambda: os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+    )
     ollama_model: str = ""  # Auto-detected from Ollama at startup
 
     # Quantum

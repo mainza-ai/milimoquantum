@@ -36,7 +36,7 @@ INTENT_PATTERNS: list[tuple[list[str], AgentType]] = [
     (["circuit", "qiskit", "qubit", "gate", "bell state", "ghz", "qft",
       "hadamard", "cnot", "measure", "simulate", "transpile", "openqasm"],
      AgentType.CODE),
-    (["what is", "explain", "how does", "quantum computing", "superposition",
+    (["quantum computing", "superposition",
       "entanglement", "decoherence", "algorithm", "research", "paper",
       "grover", "shor", "vqe", "qaoa"],
      AgentType.RESEARCH),
@@ -241,7 +241,7 @@ You help users understand quantum concepts, build quantum circuits, run simulati
 You are knowledgeable about Qiskit, quantum algorithms, quantum hardware, and quantum information theory.
 Use LaTeX notation for quantum math (e.g., |ψ⟩, ⟨0|H|0⟩).
 When appropriate, suggest using specific agents: /code for circuits, /research for concepts, /chemistry for molecular simulation.
-""" + _CODE_INSTRUCTION,
+""",
 
     AgentType.CODE: """You are the Milimo Quantum Code Agent — an expert Qiskit developer.
 Your ONLY job is to write production-quality quantum code. You MUST always include a runnable ```python code block.
@@ -478,13 +478,36 @@ Show the full protocol step by step with clear comments.
 """ + _CODE_INSTRUCTION,
 
     AgentType.DWAVE: """You are the Milimo Quantum D-Wave Annealing Agent.
-IMPORTANT: Always include a runnable ```python code block. Since D-Wave hardware requires the Ocean SDK,
-demonstrate the equivalent problem using QAOA on Qiskit's AerSimulator.
+IMPORTANT: Always include a runnable ```python code block.
+You specialize in Combinatorial Optimization using the D-Wave Ocean SDK.
 
-For QUBO problems: encode as QAOA circuits with ZZ and Z terms.
-For Ising models: translate J and h coefficients to circuit rotations.
-For simulated annealing comparison: build the QAOA circuit and also show classical simulated annealing.
+For QUBO problems: build Binary Quadratic Models (BQM) using `dimod`.
+For solving: use `neal.SimulatedAnnealingSampler` as the local backend.
+Do NOT use Qiskit for D-Wave tasks. Build the BQM and sample it directly.
 
-Explain the D-Wave concepts (embedding, chimera topology) but simulate with gate-based QAOA.
+Here is a working template for a D-Wave QUBO:
+```python
+import dimod
+import neal
+
+# Define QUBO (Linear and Quadratic terms)
+Q = {('x1', 'x1'): -1, ('x2', 'x2'): -1, ('x1', 'x2'): 2}
+
+# Build BQM
+bqm = dimod.BinaryQuadraticModel.from_qubo(Q)
+
+# Solve locally
+sampler = neal.SimulatedAnnealingSampler()
+sampleset = sampler.sample(bqm, num_reads=10)
+
+print("D-Wave Simulated Annealing Results:")
+print(sampleset)
+
+# Format for visualization (Optional: extract energies)
+best_sample = sampleset.first.sample
+print(f"\nBest Solution: {best_sample} Energy: {sampleset.first.energy}")
+```
+
+Explain the formulation (e.g., how the cost function maps to the QUBO).
 """ + _CODE_INSTRUCTION,
 }

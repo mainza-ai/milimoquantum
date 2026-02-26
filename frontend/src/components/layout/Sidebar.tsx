@@ -1,5 +1,5 @@
 /* Milimo Quantum — Sidebar (Claude-inspired minimal design) */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { AGENTS } from '../../types';
 import type { AgentType, HealthStatus } from '../../types';
 import { fetchHealth, fetchConversations, deleteConversation } from '../../services/api';
@@ -88,11 +88,11 @@ export function Sidebar({
         return () => document.removeEventListener('mousedown', handleClick);
     }, [agentPickerOpen]);
 
-    function refreshConversations() {
+    const refreshConversations = useCallback(() => {
         fetchConversations()
             .then((data) => setConversations(data.conversations || []))
             .catch(() => { });
-    }
+    }, []);
 
     async function handleDelete(id: string, e: React.MouseEvent) {
         e.stopPropagation();

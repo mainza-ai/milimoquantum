@@ -73,6 +73,7 @@ def get_session() -> Session:
 
 def init_db():
     """Create all tables (for development). In production, use Alembic."""
+    from app.db import models  # Force SQLAlchemy to evaluate schema metadata
     engine = get_engine()
     Base.metadata.create_all(engine)
     logger.info("Database tables created/verified")

@@ -29,6 +29,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     const [cloudModel, setCloudModel] = useState('');
     const [cloudSaving, setCloudSaving] = useState(false);
     const [cloudSaved, setCloudSaved] = useState(false);
+    const [savedProvider, setSavedProvider] = useState<string>('ollama');
     const [activeTab, setActiveTab] = useState<'local' | 'cloud'>('local');
 
     // New features state
@@ -47,9 +48,12 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             setPlatform(data.platform || {});
             if (data.explain_level) setExplainLevel(data.explain_level);
             if (data.agent_models) setAgentModels(data.agent_models);
-            if (data.cloud_provider?.provider && data.cloud_provider.provider !== 'ollama') {
-                setActiveProvider(data.cloud_provider.provider);
-                setCloudModel(data.cloud_provider.model || '');
+            if (data.cloud_provider?.provider) {
+                setSavedProvider(data.cloud_provider.provider);
+                if (data.cloud_provider.provider !== 'ollama') {
+                    setActiveProvider(data.cloud_provider.provider);
+                    setCloudModel(data.cloud_provider.model || '');
+                }
             }
         }).catch(() => { });
 
@@ -86,7 +90,19 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
     const handleCloudSave = async () => {
         setCloudSaving(true);
-        await setCloudProvider(activeProvider, cloudModel || undefined);
+
+        // Extract API key if user typed it before hitting Save
+        const input = document.getElementById('cloud-api-key-input') as HTMLInputElement;
+        const apiKey = input?.value || undefined;
+
+        await setCloudProvider(activeProvider, cloudModel || undefined, apiKey);
+
+        if (apiKey && input) {
+            input.value = '';
+            fetchCloudProviders().then((data) => setProviders(data.providers || []));
+        }
+
+        setSavedProvider(activeProvider);
         setCloudSaving(false);
         setCloudSaved(true);
         setTimeout(() => setCloudSaved(false), 2000);
@@ -302,7 +318,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                     >
                                         <div className="text-sm font-medium text-white">🖥️ Ollama</div>
                                         <div className="text-[10px] text-[#636370] mt-0.5">Local, free, private</div>
-                                        <div className="text-[10px] text-green-400 mt-1">● Active</div>
+                                        {savedProvider === 'ollama' && <div className="text-[10px] text-green-400 mt-1">● Active</div>}
                                     </button>
                                     {providers.map(p => (
                                         <button
@@ -319,8 +335,8 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                             <div className="text-[10px] text-[#636370] mt-0.5">
                                                 {p.models.length} models
                                             </div>
-                                            <div className={`text-[10px] mt-1 ${p.configured ? 'text-green-400' : 'text-[#636370]'}`}>
-                                                {p.configured ? '● Key set' : '○ Not configured'}
+                                            <div className={`text-[10px] mt-1 ${savedProvider === p.id ? 'text-green-400' : p.configured ? 'text-[#3ecfef]' : 'text-[#636370]'}`}>
+                                                {savedProvider === p.id ? '● Active' : p.configured ? '✓ Key set' : '○ Not configured'}
                                             </div>
                                         </button>
                                     ))}

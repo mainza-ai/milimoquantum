@@ -14,8 +14,11 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+import shutil
+from typing import Any
+from pathlib import Path
 
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, UploadFile, File
 from fastapi.responses import StreamingResponse
 
 from app.audit import log_action
@@ -58,6 +61,9 @@ AGENT_LABELS: dict[AgentType, str] = {
     AgentType.ORCHESTRATOR: "Milimo Quantum",
 }
 
+UPLOAD_DIR = Path.home() / ".milimoquantum" / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
 logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/api/chat", 
@@ -66,10 +72,10 @@ router = APIRouter(
 )
 
 # In-memory store (backed by file persistence)
-conversations: dict[str, list[dict]] = {}
+conversations: dict[str, list[dict[str, Any]]] = {}
 
 
-def _load_or_init(conversation_id: str) -> list[dict]:
+def _load_or_init(conversation_id: str) -> list[dict[str, Any]]:
     """Load conversation from memory or disk."""
     if conversation_id in conversations:
         return conversations[conversation_id]
@@ -80,6 +86,26 @@ def _load_or_init(conversation_id: str) -> list[dict]:
     conversations[conversation_id] = []
     return conversations[conversation_id]
 
+
+@router.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """Upload a file to attach to a chat message."""
+    file_id = str(uuid.uuid4())
+    ext = file.filename.split('.')[-1] if '.' in file.filename else ''
+    safe_name = f"{file_id}.{ext}" if ext else file_id
+    file_path = UPLOAD_DIR / safe_name
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    import os
+    return {
+        "id": file_id,
+        "filename": file.filename,
+        "path": str(file_path),
+        "content_type": file.content_type,
+        "size": os.path.getsize(file_path)
+    }
 
 @router.post("/send")
 async def send_message(request: ChatRequest):
@@ -95,6 +121,17 @@ async def send_message(request: ChatRequest):
     if 'OPENQASM' in request.message or 'qreg' in request.message:
         agent_type = AgentType.CODE
 
+    if getattr(request, "attached_file_id", None):
+        found = list(UPLOAD_DIR.glob(f"{request.attached_file_id}.*"))
+        if found:
+            file_path = found[0]
+            try:
+                content = file_path.read_text(errors='replace')
+                request.message = f"[Attached File: {file_path.name}]\n\n{content}\n\n---\n\n{request.message}"
+                clean_message = f"[Attached File: {file_path.name}]\n\n{content}\n\n---\n\n{clean_message}"
+            except Exception as e:
+                logger.error(f"Failed to read attached file: {e}")
+
     # Store user message
     msgs.append({"role": "user", "content": request.message})
 
@@ -104,6 +141,7 @@ async def send_message(request: ChatRequest):
 
     async def event_stream():
         """Generate SSE events."""
+        all_message_artifacts = []
 
         # ── Step 0: Multi-agent planning (if needed) ──────────
         multi_agent_context = ""
@@ -121,13 +159,15 @@ async def send_message(request: ChatRequest):
                 step_header = f"\n### Step {r['step']} — {r['agent']}\n"
                 yield f"event: token\ndata: {json.dumps({'content': step_header})}\n\n"
 
-                step_body = r.get('response', '')
+                step_body = str(r.get('response', ''))
                 for chunk in _chunk_text(step_body, 12):
                     yield f"event: token\ndata: {json.dumps({'content': chunk})}\n\n"
 
                 # Send any artifacts from the step
                 for art in r.get('artifacts', []):
-                    yield f"event: artifact\ndata: {json.dumps(art.model_dump() if hasattr(art, 'model_dump') else art, default=str)}\n\n"
+                    art_dict = art.model_dump() if hasattr(art, 'model_dump') else art
+                    all_message_artifacts.append(art_dict)
+                    yield f"event: artifact\ndata: {json.dumps(art_dict, default=str)}\n\n"
 
                 multi_agent_context += f"\n[Step {r['step']} - {r['agent']}]: {step_body[:400]}"
 
@@ -165,7 +205,7 @@ async def send_message(request: ChatRequest):
         if cloud.get("provider") != "ollama" and cloud.get("provider"):
             # ── Cloud AI provider active (Anthropic / OpenAI / Gemini)
             async for token in stream_chat_cloud(messages=history, system_prompt=system_prompt):
-                full_response += token
+                full_response += str(token)
                 yield f"event: token\ndata: {json.dumps({'content': token})}\n\n"
         else:
             # ── Default: local Ollama
@@ -173,97 +213,148 @@ async def send_message(request: ChatRequest):
             async for token in ollama_client.stream_chat(
                 messages=history, system_prompt=system_prompt, model=model_override
             ):
-                full_response += token
+                full_response += str(token)
                 yield f"event: token\ndata: {json.dumps({'content': token})}\n\n"
 
         msgs.append({"role": "assistant", "content": full_response})
 
-        # ── Step 2: Sandbox — Execute with auto-retry ──────────
-        # Extract code from the LLM response, execute it safely,
-        # and if it fails, ask the LLM to fix the code (up to 2 retries).
+        # ── Step 2: Sandbox — Execute via Celery Cluster ────────
+        # Extract code from the LLM response, submit to Celery queue,
+        # poll for completion, and stream status/artifacts back over SSE.
         agent_label = AGENT_LABELS.get(agent_type, "Milimo Quantum")
         MAX_RETRIES = 2
 
-        async def _llm_generate(prompt: str, sys_prompt: str) -> str:
-            """Non-streaming LLM generation for retry loop."""
+        async def _stream_llm_generate(prompt: str, sys_prompt: str):
+            """Streaming LLM generation for retry loop."""
             cloud = get_current_provider()
             if cloud.get("provider") != "ollama" and cloud.get("provider"):
-                result_text = ""
                 async for t in stream_chat_cloud(
                     messages=[{"role": "user", "content": prompt}],
                     system_prompt=sys_prompt,
                 ):
-                    result_text += t
-                return result_text
+                    yield t
             else:
-                return await ollama_client.generate(prompt=prompt, system_prompt=sys_prompt)
+                async for t in ollama_client.stream_chat(
+                    messages=[{"role": "user", "content": prompt}],
+                    system_prompt=sys_prompt
+                ):
+                    yield t
 
         try:
-            sandbox_artifacts, sandbox_error = execute_and_build_artifacts(
-                full_response, agent_label=agent_label
-            )
-
-            # ── Auto-retry: if code failed, ask the LLM to fix it
-            if sandbox_error and not sandbox_artifacts:
-                code_blocks = extract_code_blocks(full_response)
-                failed_code = code_blocks[0] if code_blocks else ""
-
-                for attempt in range(1, MAX_RETRIES + 1):
-                    yield f"event: retry\ndata: {json.dumps({'attempt': attempt, 'max': MAX_RETRIES, 'error': sandbox_error[:300]})}\n\n"
-                    logger.info(f"Auto-retry attempt {attempt}/{MAX_RETRIES}")
-
-                    fix_prompt = (
-                        f"The following Qiskit code failed with an error. "
-                        f"Fix the code and return ONLY the corrected Python code in a ```python block.\n\n"
-                        f"**Failed Code:**\n```python\n{failed_code}\n```\n\n"
-                        f"**Error:**\n{sandbox_error[:500]}\n\n"
-                        f"Return ONLY the fixed ```python code block, no explanation."
-                    )
-                    fix_sys = "You are a Qiskit code debugger. Fix the code. Use Qiskit v1.4 API with qiskit_aer.AerSimulator. Return only the corrected code."
-
-                    fixed_response = await _llm_generate(fix_prompt, fix_sys)
-                    fixed_blocks = extract_code_blocks(fixed_response)
-
-                    if fixed_blocks:
-                        fixed_code = fixed_blocks[0]
-                        result = execute_code(fixed_code)
-                        if not result.error:
-                            # Success! Build artifacts from the fixed code
-                            sandbox_artifacts = build_artifacts_from_result(result, fixed_code, agent_label)
-                            sandbox_error = None
-                            # Stream a notice about the fix
-                            fix_notice = f"\n\n✅ *Code auto-corrected on attempt {attempt}.*\n"
-                            yield f"event: token\ndata: {json.dumps({'content': fix_notice})}\n\n"
-                            full_response += fix_notice
+            import asyncio
+            from app.quantum.sandbox import extract_code_blocks, build_artifacts_from_result
+            from app.worker.tasks import run_code_sandbox
+            
+            code_blocks = extract_code_blocks(full_response)
+            sandbox_error = None
+            sandbox_artifacts = []
+            
+            if code_blocks:
+                code_to_run = code_blocks[0]
+                
+                for attempt in range(1, MAX_RETRIES + 2):
+                    if attempt > 1:
+                        yield f"event: retry\ndata: {json.dumps({'attempt': attempt-1, 'max': MAX_RETRIES, 'error': str(sandbox_error)[:300]})}\n\n"
+                        logger.info(f"Auto-retry attempt {attempt-1}/{MAX_RETRIES}")
+                        
+                        fix_prompt = (
+                            f"The following code failed with an error. "
+                            f"Fix the code and return ONLY the corrected Python code in a ```python block.\n\n"
+                            f"**Failed Code:**\n```python\n{code_to_run}\n```\n\n"
+                            f"**Error:**\n{str(sandbox_error)[:500]}\n\n"
+                            f"Return ONLY the fixed ```python code block."
+                        )
+                        fix_sys = "You are a Qiskit code debugger. Fix the code. Use Qiskit v1.4 API with qiskit_aer.AerSimulator. Return only the corrected code."
+                        
+                        fixed_response = ""
+                        async for token_chunk in _stream_llm_generate(fix_prompt, fix_sys):
+                            fixed_response += str(token_chunk)
+                            yield f"event: token\ndata: {json.dumps({'content': token_chunk})}\n\n"
+                        
+                        fixed_blocks = extract_code_blocks(fixed_response)
+                        if fixed_blocks:
+                            code_to_run = fixed_blocks[0]
+                        else:
+                            failure_notice = "\n\n⚠️ *Auto-correction failed to return a code block.*\n"
+                            yield f"event: token\ndata: {json.dumps({'content': failure_notice})}\n\n"
+                            full_response += failure_notice
                             msgs[-1]["content"] = full_response
+                            break # stop retrying
+
+                    # Dispatch to Celery
+                    yield f"event: token\ndata: {json.dumps({'content': chr(10) + chr(10) + '🚀 *Dispatching job ' + ('(Retry)' if attempt > 1 else '') + ' to Celery Orchestration Cluster...*' + chr(10)})}\n\n"
+                    
+                    task = run_code_sandbox.delay(code=code_to_run)
+                    
+                    # Async Polling Loop
+                    last_status = ""
+                    while not task.ready():
+                        await asyncio.sleep(0.5)
+                        info = task.info
+                        status_msg = info.get("status", "Executing Sandbox Code...") if isinstance(info, dict) else "Executing Sandbox Code..."
+                        if status_msg != last_status:
+                            status_stream = f"⏳ *Worker Status:* {status_msg}\n"
+                            yield f"event: token\ndata: {json.dumps({'content': status_stream})}\n\n"
+                            last_status = status_msg
+
+                    # Task Finished
+                    if task.successful():
+                        result_data = task.get()
+                        if result_data.get("success"):
+                            # Map dict artifacts back to Artifact
+                            from app.models.schemas import Artifact
+                            sandbox_artifacts = []
+                            for art_dict in result_data.get("artifacts", []):
+                                sandbox_artifacts.append(Artifact(**art_dict))
+                            
+                            sandbox_error = None
+                            if attempt > 1:
+                                fix_notice = f"\n✅ *Code auto-corrected on attempt {attempt-1}.*\n"
+                                yield f"event: token\ndata: {json.dumps({'content': fix_notice})}\n\n"
+                                full_response += fix_notice
+                                msgs[-1]["content"] = full_response
                             break
                         else:
-                            failed_code = fixed_code
-                            sandbox_error = result.error
+                            sandbox_error = result_data.get("error", "Unknown execution error")
                     else:
-                        break  # LLM didn't return code, stop retrying
-
+                        sandbox_error = str(task.info)
+                        
                 if sandbox_error:
-                    logger.warning(f"Auto-retry exhausted. Final error: {sandbox_error[:200]}")
+                    logger.warning(f"Celery Execution failed/exhausted. Final error: {str(sandbox_error)[:200]}")
+
+                # No trailing code here since the logic is handled in the retry block above
 
             for artifact in sandbox_artifacts:
-                yield f"event: artifact\ndata: {json.dumps(artifact.model_dump(), default=str)}\n\n"
+                art_dict = artifact.model_dump()
+                all_message_artifacts.append(art_dict)
+                yield f"event: artifact\ndata: {json.dumps(art_dict, default=str)}\n\n"
 
         except Exception as e:
             logger.error(f"Sandbox execution failed: {e}")
+
+        # Attach all generated artifacts to the assistant's message before saving
+        if all_message_artifacts:
+            msgs[-1]["artifacts"] = all_message_artifacts
 
         storage.save_conversation(conversation_id, msgs)
 
         # ── Step 3: Auto-index for search ──
         try:
             from app.vector_store import index_conversation
-            await index_conversation(conversation_id, msgs)
-        except Exception:
-            pass  # Search indexing is best-effort
+            # Extract title for search indexing
+            title = ""
+            for m in msgs:
+                if m.get("role") == "user":
+                    val = m.get("content", "")
+                    title = str(val)[:60] if val else ""
+                    break
+            await index_conversation(conversation_id, msgs, title=title)
+        except Exception as e:
+            logger.warning(f"Search indexing failed (non-critical): {e}")
 
         # ── Step 4: Save to agent memory ──
         try:
-            summary_text = full_response[:300] if full_response else ""
+            summary_text = str(full_response)[:300] if full_response else ""
             await save_interaction_memory(
                 agent_type, conversation_id, clean_message, summary_text
             )
@@ -298,11 +389,11 @@ async def get_conversation(conversation_id: str):
 async def delete_conversation(conversation_id: str):
     """Delete a conversation."""
     if conversation_id in conversations:
-        del conversations[conversation_id]
+        conversations.pop(conversation_id, None)
     success = storage.delete_conversation(conversation_id)
     return {"deleted": success}
 
 
 def _chunk_text(text: str, chunk_size: int = 4) -> list[str]:
     """Split text into small chunks for simulated streaming."""
-    return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+    return [str(text)[i:i + chunk_size] for i in range(0, len(text), chunk_size)]

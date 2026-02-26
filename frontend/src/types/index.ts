@@ -2,7 +2,7 @@
 
 export type AgentType = 'orchestrator' | 'code' | 'research' | 'chemistry' | 'finance' | 'optimization' | 'crypto' | 'qml' | 'climate' | 'planning' | 'qgi' | 'sensing' | 'networking' | 'dwave';
 
-export type ArtifactType = 'code' | 'circuit' | 'results' | 'notebook' | 'report';
+export type ArtifactType = 'code' | 'circuit' | 'results' | 'notebook' | 'report' | 'dataset';
 
 export interface Artifact {
     id: string;

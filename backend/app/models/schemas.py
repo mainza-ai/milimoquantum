@@ -66,6 +66,7 @@ class ChatRequest(BaseModel):
     message: str
     conversation_id: str | None = None
     agent: AgentType | None = None
+    attached_file_id: str | None = None
 
 
 class ChatResponse(BaseModel):

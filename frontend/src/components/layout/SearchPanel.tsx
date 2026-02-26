@@ -9,7 +9,7 @@ interface SearchResult {
     preview: string;
 }
 
-export function SearchPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export function SearchPanel({ isOpen, onClose, onLoadConversation }: { isOpen: boolean; onClose: () => void; onLoadConversation?: (id: string) => void }) {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
@@ -87,8 +87,15 @@ export function SearchPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () 
                         <div className="space-y-3">
                             {results.map((result, idx) => (
                                 <div key={result.id}
-                                    className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4
-                    hover:border-cyan-500/20 transition-all">
+                                    onClick={() => {
+                                        if (result.type === 'conversation' && onLoadConversation) {
+                                            onLoadConversation(result.id);
+                                            onClose();
+                                        }
+                                    }}
+                                    className={`bg-white/[0.02] border border-white/[0.06] rounded-xl p-4
+                                        hover:border-cyan-500/20 transition-all
+                                        ${result.type === 'conversation' ? 'cursor-pointer' : ''}`}>
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                                             {result.type}

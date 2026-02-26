@@ -218,6 +218,14 @@ def execute_code(code: str) -> SandboxResult:
     except ImportError:
         pass
 
+    try:
+        import dimod
+        import neal
+        namespace["dimod"] = dimod
+        namespace["neal"] = neal
+    except ImportError:
+        pass
+
     # Capture stdout/stderr
     stdout_capture = io.StringIO()
     stderr_capture = io.StringIO()
@@ -261,7 +269,7 @@ def execute_code(code: str) -> SandboxResult:
     # Names we pre-injected — skip these to avoid capturing the class itself
     _SKIP_NAMES = {
         "QuantumCircuit", "transpile", "AerSimulator",
-        "np", "numpy", "math", "random",
+        "np", "numpy", "math", "random", "dimod", "neal"
     }
 
     if QISKIT_AVAILABLE:
@@ -309,6 +317,33 @@ def execute_code(code: str) -> SandboxResult:
 
             except (TypeError, Exception):
                 continue
+                
+        # Capture D-Wave SampleSets
+        try:
+            import dimod
+            for name, obj in namespace.items():
+                if name.startswith("_") or name in _SKIP_NAMES:
+                    continue
+                if isinstance(obj, dimod.SampleSet):
+                    # Convert sampleset to dict so the UI can render it as a histogram/ResultsView
+                    # e.g., {'[0, 1]': 5.0, '[1, 0]': 5.0}  (states -> occurrences/energy)
+                    df = obj.to_pandas_dataframe()
+                    counts_dict = {}
+                    for _, row in df.iterrows():
+                        # Use the sample as a string key and num_occurrences as value
+                        # Fallback to energy if num_occurrences is missing
+                        sample_str = str(dict(row.drop(['energy', 'num_occurrences', 'chain_break_fraction'], errors='ignore')))
+                        val = row.get('num_occurrences', row.get('energy', 1))
+                        # The UI expects integer counts, but we'll cast to float to be safe if it's energy
+                        counts_dict[sample_str] = float(val) if 'energy' in row and 'num_occurrences' not in row else int(val)
+                        
+                    if counts_dict:
+                        fp = str(sorted(counts_dict.items()))
+                        if fp not in counts_fingerprints:
+                            result.counts.append(counts_dict)
+                            counts_fingerprints.add(fp)
+        except ImportError:
+            pass
 
         # Fallback: try to parse counts from stdout (printed dicts)
         if not result.counts and result.stdout:
@@ -357,8 +392,9 @@ def build_artifacts_from_result(
             artifacts.append(Artifact(
                 type=ArtifactType.CIRCUIT,
                 title=f"{agent_label} — Circuit Diagram{suffix}",
-                content=diagram,
+                content=code.strip(),
                 metadata={
+                    "ascii_diagram": diagram,
                     "num_qubits": circuit.num_qubits,
                     "depth": circuit.depth(),
                 },

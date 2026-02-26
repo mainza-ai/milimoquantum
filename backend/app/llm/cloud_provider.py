@@ -5,8 +5,10 @@ as alternative LLM backends. Falls back to Ollama if no API keys are configured.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
+from pathlib import Path
 from typing import AsyncIterator
 
 logger = logging.getLogger(__name__)
@@ -49,9 +51,75 @@ CLOUD_PROVIDERS = {
 _active_provider: str | None = None
 _active_model: str | None = None
 
+_CLOUD_SETTINGS_FILE = Path.home() / ".milimoquantum" / "cloud_settings.json"
+
+
+def _load_cloud_settings() -> None:
+    """Load the saved cloud configurations from disk to os.environ and memory."""
+    global _active_provider, _active_model
+
+    if not _CLOUD_SETTINGS_FILE.exists():
+        return
+
+    try:
+        data = json.loads(_CLOUD_SETTINGS_FILE.read_text(encoding="utf-8"))
+        
+        # Load keys into env
+        keys = data.get("api_keys", {})
+        for provider_id, key in keys.items():
+            if provider_id in CLOUD_PROVIDERS and key:
+                os.environ[CLOUD_PROVIDERS[provider_id]["env_key"]] = key
+
+        # Load active provider selection
+        saved_provider = data.get("active_provider")
+        saved_model = data.get("active_model")
+        
+        if saved_provider == "ollama" or not saved_provider:
+            _active_provider = None
+            _active_model = None
+        else:
+            _active_provider = saved_provider
+            _active_model = saved_model
+            
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning(f"Failed to load cloud settings: {e}")
+
+
+def _save_cloud_settings() -> None:
+    """Persist current cloud configuration to disk."""
+    _CLOUD_SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Load latest state from disk first to avoid overwriting other workers' keys
+    if _CLOUD_SETTINGS_FILE.exists():
+        try:
+            existing = json.loads(_CLOUD_SETTINGS_FILE.read_text(encoding="utf-8"))
+        except:
+            existing = {}
+    else:
+        existing = {}
+        
+    current_keys = existing.get("api_keys", {})
+    for provider_id, info in CLOUD_PROVIDERS.items():
+        key = os.environ.get(info["env_key"])
+        if key:
+            current_keys[provider_id] = key
+
+    data = {
+        "active_provider": _active_provider or "ollama",
+        "active_model": _active_model,
+        "api_keys": current_keys
+    }
+    
+    _CLOUD_SETTINGS_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+# Execute load upon startup
+_load_cloud_settings()
+
 
 def get_available_providers() -> list[dict]:
     """Return list of available cloud providers (those with API keys set)."""
+    _load_cloud_settings()
     available = []
     for provider_id, info in CLOUD_PROVIDERS.items():
         key = os.environ.get(info["env_key"], "")
@@ -64,31 +132,40 @@ def get_available_providers() -> list[dict]:
     return available
 
 
-def set_provider(provider: str, model: str | None = None) -> dict:
-    """Set the active cloud provider and model."""
+def set_provider(provider: str, model: str | None = None, api_key: str | None = None) -> dict:
+    """Set the active cloud provider, model, and optionally API key."""
     global _active_provider, _active_model
+    _load_cloud_settings()
 
     if provider == "ollama":
         _active_provider = None
         _active_model = None
+        _save_cloud_settings()
         return {"provider": "ollama", "model": None, "status": "Using local Ollama"}
 
     if provider not in CLOUD_PROVIDERS:
         return {"error": f"Unknown provider: {provider}"}
 
     info = CLOUD_PROVIDERS[provider]
+    
+    if api_key:
+        os.environ[info["env_key"]] = api_key
+
     key = os.environ.get(info["env_key"], "")
     if not key:
-        return {"error": f"API key not set. Set {info['env_key']} environment variable."}
+        return {"error": f"API key not set. Set {info['env_key']} environment variable.", "missing_key": True}
 
     _active_provider = provider
     _active_model = model or info["models"][0]
+    
+    _save_cloud_settings()
     logger.info(f"Cloud AI provider set to {provider}/{_active_model}")
     return {"provider": provider, "model": _active_model, "status": "active"}
 
 
 def get_current_provider() -> dict:
     """Get the currently active provider."""
+    _load_cloud_settings()
     if _active_provider is None:
         return {"provider": "ollama", "model": None}
     return {"provider": _active_provider, "model": _active_model}
@@ -99,6 +176,7 @@ async def stream_chat_cloud(
     system_prompt: str = "",
 ) -> AsyncIterator[str]:
     """Stream chat via the active cloud provider."""
+    _load_cloud_settings()
     if _active_provider is None:
         yield "[Cloud AI not configured — using Ollama]"
         return

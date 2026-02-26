@@ -9,7 +9,7 @@ interface ChatAreaProps {
     messages: ChatMessage[];
     isStreaming: boolean;
     activeAgent: AgentType;
-    onSend: (message: string) => void;
+    onSend: (message: string, fileId?: string) => void;
     onArtifactClick: (artifact: Artifact) => void;
 }
 
@@ -61,7 +61,7 @@ export function ChatArea({
     );
 }
 
-function WelcomeScreen({ onSend }: { onSend: (msg: string) => void }) {
+function WelcomeScreen({ onSend }: { onSend: (msg: string, fileId?: string) => void }) {
     const suggestions = [
         { icon: '⚛', text: 'What is quantum computing?', gradient: 'from-mq-cyan/8 to-mq-teal/8' },
         { icon: '💻', text: '/code Create a Bell state circuit', gradient: 'from-mq-cyan/6 to-mq-ice/8' },

@@ -9,6 +9,7 @@ import json
 import logging
 from pathlib import Path
 from collections import Counter
+from typing import Counter as TypingCounter
 
 from fastapi import APIRouter
 
@@ -24,10 +25,46 @@ PROJECTS_DIR = STORAGE_DIR / "projects"
 @router.get("/summary")
 async def analytics_summary():
     """Overall platform usage statistics."""
-    # Count conversations
+    # Try database first (PostgreSQL)
+    try:
+        from app.db import get_session
+        from app.db.models import Conversation, Message, Artifact
+        session = get_session()
+        try:
+            conv_count = session.query(Conversation).count()
+            message_count = session.query(Message).count()
+            circuit_count = session.query(Artifact).filter(
+                Artifact.type.in_(["circuit", "code", "results"])
+            ).count()
+
+            # Agent usage from messages
+            agent_counter: TypingCounter[str] = Counter()
+            agents = session.query(Message.agent).filter(Message.agent.isnot(None)).all()
+            for (agent,) in agents:
+                agent_counter[agent] += 1
+
+            # Project count
+            project_count = 0
+            if PROJECTS_DIR.exists():
+                project_count = len(list(PROJECTS_DIR.glob("*.json")))
+
+            return {
+                "conversations": conv_count,
+                "messages": message_count,
+                "projects": project_count,
+                "circuits_generated": circuit_count,
+                "agents_used": dict(agent_counter.most_common()),
+                "top_agent": agent_counter.most_common(1)[0][0] if agent_counter else None,
+            }
+        finally:
+            session.close()
+    except Exception as e:
+        logger.debug(f"DB analytics fallback: {e}")
+
+    # Fallback: JSON files
     conv_count = 0
     message_count = 0
-    agent_counter: Counter = Counter()
+    agent_counter: TypingCounter[str] = Counter()
     circuit_count = 0
 
     if CONVERSATIONS_DIR.exists():
@@ -38,13 +75,10 @@ async def analytics_summary():
                 messages = data.get("messages", [])
                 message_count += len(messages)
 
-                # Count agent mentions
                 for msg in messages:
                     agent = msg.get("agent")
                     if agent:
                         agent_counter[agent] += 1
-
-                    # Count circuit artifacts
                     artifacts = msg.get("artifacts", [])
                     for art in artifacts:
                         if art.get("type") in ("circuit", "code"):
@@ -52,7 +86,6 @@ async def analytics_summary():
             except (json.JSONDecodeError, OSError):
                 continue
 
-    # Count projects
     project_count = 0
     if PROJECTS_DIR.exists():
         project_count = len(list(PROJECTS_DIR.glob("*.json")))
@@ -71,7 +104,7 @@ async def analytics_summary():
 @router.get("/agents")
 async def agent_usage():
     """Per-agent usage breakdown."""
-    agent_counter: Counter = Counter()
+    agent_counter: TypingCounter[str] = Counter()
     agent_msgs: dict[str, int] = {}
 
     if CONVERSATIONS_DIR.exists():
@@ -95,7 +128,7 @@ async def agent_usage():
         agents.append({
             "agent": agent,
             "messages": count,
-            "percentage": round((count / total) * 100, 1),
+            "percentage": round(float(count) / float(total) * 100.0, 1),
             "total_chars": agent_msgs.get(agent, 0),
         })
 
@@ -108,7 +141,7 @@ async def circuit_stats():
     """Circuit metadata collected from conversation artifacts."""
     qubit_counts: list[int] = []
     depth_counts: list[int] = []
-    circuit_types: Counter = Counter()
+    circuit_types: TypingCounter[str] = Counter()
 
     if CONVERSATIONS_DIR.exists():
         for filepath in CONVERSATIONS_DIR.glob("*.json"):
@@ -131,12 +164,12 @@ async def circuit_stats():
         "qubit_distribution": {
             "min": min(qubit_counts) if qubit_counts else 0,
             "max": max(qubit_counts) if qubit_counts else 0,
-            "avg": round(sum(qubit_counts) / len(qubit_counts), 1) if qubit_counts else 0,
+            "avg": round(float(sum(qubit_counts)) / len(qubit_counts), 1) if qubit_counts else 0,
         },
         "depth_distribution": {
             "min": min(depth_counts) if depth_counts else 0,
             "max": max(depth_counts) if depth_counts else 0,
-            "avg": round(sum(depth_counts) / len(depth_counts), 1) if depth_counts else 0,
+            "avg": round(float(sum(depth_counts)) / len(depth_counts), 1) if depth_counts else 0,
         },
         "artifact_types": dict(circuit_types.most_common()),
     }
@@ -149,11 +182,9 @@ async def recent_activity(limit: int = 20):
     activities = []
 
     if CONVERSATIONS_DIR.exists():
-        files = sorted(
-            CONVERSATIONS_DIR.glob("*.json"),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        )[:limit]
+        files = list(CONVERSATIONS_DIR.glob("*.json"))
+        files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        files = files[:limit]
 
         for filepath in files:
             try:

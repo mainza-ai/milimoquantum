@@ -1,4 +1,4 @@
-version: "3.9"
+
 
 services:
   postgres:
@@ -99,8 +99,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: ../Dockerfile
+      context: .
+      dockerfile: Dockerfile
       target: frontend-build
     command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
     ports:
@@ -108,7 +108,7 @@ services:
     volumes:
       - ./frontend/src:/app/frontend/src
     environment:
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=http://backend:8000
     profiles:
       - dev
 
@@ -127,8 +127,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    profiles:
-      - graph
 
 volumes:
   milimo-data:

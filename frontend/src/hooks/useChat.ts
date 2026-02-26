@@ -14,7 +14,7 @@ export function useChat() {
     const streamingRef = useRef('');
 
     const sendMessage = useCallback(
-        (content: string) => {
+        (content: string, fileId?: string) => {
             if (!content.trim() || isStreaming) return;
 
             // Detect agent from slash command
@@ -51,6 +51,7 @@ export function useChat() {
                 content,
                 conversationId,
                 agent,
+                fileId,
                 // onToken
                 (token: string) => {
                     streamingRef.current += token;
@@ -119,14 +120,18 @@ export function useChat() {
         try {
             const data = await fetchConversation(id);
             if (data.messages && data.messages.length > 0) {
-                const loaded: ChatMessage[] = data.messages.map((m: { role: string; content: string }) => ({
+                const loaded: ChatMessage[] = data.messages.map((m: { role: string; content: string; artifacts?: Artifact[] }) => ({
                     id: `loaded-${++msgCounter}`,
                     role: m.role as 'user' | 'assistant',
                     content: m.content,
+                    artifacts: m.artifacts,
                 }));
                 setMessages(loaded);
                 setConversationId(id);
-                setArtifacts([]);
+
+                // Harvest all historical artifacts to render in the right panel
+                const allLoadedArtifacts = loaded.flatMap((m) => m.artifacts || []);
+                setArtifacts(allLoadedArtifacts);
             }
         } catch {
             // silently fail

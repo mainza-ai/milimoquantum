@@ -33,6 +33,13 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Startup / shutdown."""
     logger.info("⚛  Milimo Quantum starting up...")
+    
+    # Initialize SQL Database schemas inside Docker
+    from app.db import init_db
+    try:
+        init_db()
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
 
     # Check Ollama
     if await ollama_client.is_available():
@@ -52,10 +59,19 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️  Qiskit not installed — quantum features disabled")
 
+    # Connect to Neo4j (non-blocking, graceful degradation)
+    from app.graph.neo4j_client import neo4j_client
+    if await neo4j_client.connect():
+        await neo4j_client.ensure_schema()
+        logger.info("✅ Neo4j connected — knowledge graph ready")
+    else:
+        logger.info("ℹ️  Neo4j not available — graph features disabled (non-critical)")
+
     logger.info(f"⚛  Milimo Quantum ready on http://{settings.host}:{settings.port}")
     yield
 
     # Shutdown
+    await neo4j_client.close()
     await ollama_client.close()
     logger.info("⚛  Milimo Quantum shut down")
 

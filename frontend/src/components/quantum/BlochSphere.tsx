@@ -180,9 +180,28 @@ export function BlochSphere({
 
 
 /* ── Interactive Bloch Sphere with Controls ───────────── */
-export function BlochSphereInteractive() {
-    const [theta, setTheta] = useState(Math.PI / 4);
-    const [phi, setPhi] = useState(Math.PI / 6);
+interface BlochSphereInteractiveProps {
+    /** External theta from circuit results — overrides slider when set */
+    externalTheta?: number;
+    /** External phi from circuit results — overrides slider when set */
+    externalPhi?: number;
+    /** Label to show when external state is received */
+    externalLabel?: string;
+}
+
+export function BlochSphereInteractive({ externalTheta, externalPhi, externalLabel }: BlochSphereInteractiveProps = {}) {
+    const [theta, setTheta] = useState(externalTheta ?? Math.PI / 4);
+    const [phi, setPhi] = useState(externalPhi ?? Math.PI / 6);
+    const [isExternal, setIsExternal] = useState(false);
+
+    // Auto-update when external state is received
+    useMemo(() => {
+        if (externalTheta !== undefined && externalPhi !== undefined) {
+            setTheta(externalTheta);
+            setPhi(externalPhi);
+            setIsExternal(true);
+        }
+    }, [externalTheta, externalPhi]);
 
     // Preset states
     const presets = [
@@ -196,12 +215,23 @@ export function BlochSphereInteractive() {
 
     return (
         <div className="space-y-4">
+            {/* External state indicator */}
+            {isExternal && externalLabel && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg
+                    bg-purple-500/5 border border-purple-500/10 text-[10px]">
+                    <span className="text-purple-400">🔗</span>
+                    <span className="text-purple-300">{externalLabel}</span>
+                    <button onClick={() => setIsExternal(false)}
+                        className="ml-auto text-gray-500 hover:text-gray-300 cursor-pointer">✕</button>
+                </div>
+            )}
+
             {/* Preset buttons */}
             <div className="flex flex-wrap gap-1.5">
                 {presets.map(p => (
                     <button
                         key={p.label}
-                        onClick={() => { setTheta(p.theta); setPhi(p.phi); }}
+                        onClick={() => { setTheta(p.theta); setPhi(p.phi); setIsExternal(false); }}
                         className="px-2.5 py-1 rounded-lg text-[10px] font-mono font-semibold
                             border border-white/[0.06] bg-white/[0.02]
                             text-mq-text-secondary hover:text-mq-cyan hover:border-[#3ecfef]/30
@@ -212,7 +242,7 @@ export function BlochSphereInteractive() {
                 ))}
             </div>
 
-            <BlochSphere theta={theta} phi={phi} />
+            <BlochSphere theta={theta} phi={phi} label={isExternal ? externalLabel : undefined} />
 
             {/* Sliders */}
             <div className="space-y-2">
@@ -221,7 +251,7 @@ export function BlochSphereInteractive() {
                     <input
                         type="range" min="0" max={Math.PI} step="0.01"
                         value={theta}
-                        onChange={e => setTheta(Number(e.target.value))}
+                        onChange={e => { setTheta(Number(e.target.value)); setIsExternal(false); }}
                         className="flex-1 accent-[#e879f9]"
                     />
                     <span className="text-[10px] font-mono text-mq-text-tertiary w-14 text-right">
@@ -233,7 +263,7 @@ export function BlochSphereInteractive() {
                     <input
                         type="range" min="0" max={2 * Math.PI} step="0.01"
                         value={phi}
-                        onChange={e => setPhi(Number(e.target.value))}
+                        onChange={e => { setPhi(Number(e.target.value)); setIsExternal(false); }}
                         className="flex-1 accent-[#e879f9]"
                     />
                     <span className="text-[10px] font-mono text-mq-text-tertiary w-14 text-right">

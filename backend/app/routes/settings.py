@@ -7,7 +7,7 @@ from fastapi import APIRouter
 
 from app.config import settings
 from app.llm.ollama_client import ollama_client
-from app.llm.cloud_provider import get_available_providers, set_provider, get_current_provider
+from app.llm.cloud_provider import get_available_providers, set_provider, get_current_provider, _save_cloud_settings
 from app.quantum.hal import detect_platform
 from app.quantum import ibm_runtime
 
@@ -23,7 +23,7 @@ async def get_settings():
     ibm_status = ibm_runtime.get_status()
     return {
         "ollama_url": settings.OLLAMA_BASE_URL,
-        "ollama_model": settings.DEFAULT_MODEL,
+        "ollama_model": ollama_client.model,
         "default_shots": settings.DEFAULT_SHOTS,
         "cloud_provider": cloud,
         "ibm_quantum": ibm_status,
@@ -46,10 +46,10 @@ async def list_models():
     """List available Ollama models."""
     try:
         models = await ollama_client.list_models()
-        return {"models": models, "current": settings.DEFAULT_MODEL}
+        return {"models": models, "current": ollama_client.model}
     except Exception as e:
         logger.warning(f"Failed to list Ollama models: {e}")
-        return {"models": [], "current": settings.DEFAULT_MODEL, "error": "Ollama not available"}
+        return {"models": [], "current": ollama_client.model, "error": "Ollama not available"}
 
 
 @router.get("/cloud-providers")
@@ -63,13 +63,15 @@ async def set_cloud_provider(data: dict):
     """Set the active cloud AI provider."""
     provider = data.get("provider", "ollama")
     model = data.get("model")
-    result = set_provider(provider, model)
+    api_key = data.get("api_key")
+    result = set_provider(provider, model, api_key=api_key)
     return result
 
 
 @router.put("/")
 async def update_settings(data: dict):
     """Update runtime settings."""
+    _load_cloud_settings()
     updated = {}
     if "ollama_model" in data:
         settings.DEFAULT_MODEL = data["ollama_model"]
@@ -89,6 +91,7 @@ async def update_settings(data: dict):
 
     # Cloud AI API keys — stored as environment variables
     import os
+    saved_any_keys = False
     for key_name in ("anthropic_api_key", "openai_api_key", "gemini_api_key",
                       "cohere_api_key", "mistral_api_key", "deepseek_api_key"):
         if key_name in data and data[key_name]:
@@ -103,6 +106,10 @@ async def update_settings(data: dict):
             env_var = env_map[key_name]
             os.environ[env_var] = data[key_name]
             updated[key_name] = "***configured***"
+            saved_any_keys = True
+
+    if saved_any_keys:
+        _save_cloud_settings()
 
     return {"updated": updated, "status": "ok"}
 
