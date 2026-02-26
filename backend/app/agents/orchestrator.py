@@ -202,6 +202,7 @@ CRITICAL INSTRUCTIONS — ALWAYS FOLLOW:
 7. Keep explanations concise — the code IS the answer.
 8. Do NOT use deprecated APIs (no `execute()`, no `Aer.get_backend()`).
 9. For multi-qubit circuits, always include `qc.measure_all()` or explicit measurements.
+10. DO NOT use `matplotlib`, `plt.show()`, or `qc.draw(output='mpl')`. The platform handles visualizations natively by introspecting your variables. Just build the `QuantumCircuit` and run it.
 """
 
 # ── Explain level modifiers ──────────────────────────

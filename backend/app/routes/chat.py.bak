@@ -307,9 +307,6 @@ async def send_message(request: ChatRequest):
                             for art_dict in result_data.get("artifacts", []):
                                 sandbox_artifacts.append(Artifact(**art_dict))
                             
-                            logger.info(f"CELERY RETURNED ARTIFACTS: {[a.type for a in sandbox_artifacts]}")
-                            logger.info(f"CELERY SUCCESS RESULT_DATA ATTRS: {list(result_data.keys())}")
-                            
                             sandbox_error = None
                             if attempt > 1:
                                 fix_notice = f"\n✅ *Code auto-corrected on attempt {attempt-1}.*\n"

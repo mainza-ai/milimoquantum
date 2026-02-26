@@ -7,7 +7,7 @@ from fastapi import APIRouter
 
 from app.config import settings
 from app.llm.ollama_client import ollama_client
-from app.llm.cloud_provider import get_available_providers, set_provider, get_current_provider, _save_cloud_settings
+from app.llm.cloud_provider import get_available_providers, set_provider, get_current_provider, _save_cloud_settings, _load_cloud_settings
 from app.quantum.hal import detect_platform
 from app.quantum import ibm_runtime
 

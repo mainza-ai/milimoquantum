@@ -215,6 +215,13 @@ def execute_code(code: str) -> SandboxResult:
         namespace["numpy"] = np
         namespace["math"] = math
         namespace["random"] = random
+        
+        # Configure matplotlib to be non-interactive so it doesn't hang headless
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        namespace["matplotlib"] = matplotlib
+        namespace["plt"] = plt
     except ImportError:
         pass
 
@@ -256,8 +263,8 @@ def execute_code(code: str) -> SandboxResult:
                 signal.signal(signal.SIGALRM, old_handler)
 
     result.execution_time_ms = round((time.time() - start) * 1000, 2)
-    result.stdout = stdout_capture.getvalue()
     result.stderr = stderr_capture.getvalue()
+    stdout_text = stdout_capture.getvalue()
 
     # Scan namespace for quantum objects
     try:
@@ -282,11 +289,11 @@ def execute_code(code: str) -> SandboxResult:
         for name, obj in namespace.items():
             if name.startswith("_") or name in _SKIP_NAMES:
                 continue
-
+            
             try:
                 # Capture QuantumCircuit objects (dedupe by qubit shape)
-                if isinstance(obj, QuantumCircuit):
-                    fp = f"{obj.num_qubits}:{obj.num_clbits}"
+                if type(obj).__name__ == "QuantumCircuit" or (QISKIT_AVAILABLE and isinstance(obj, QuantumCircuit)):
+                    fp = f"{getattr(obj, 'num_qubits', 0)}:{getattr(obj, 'num_clbits', 0)}"
                     if fp not in circuit_fingerprints:
                         result.circuits.append(obj)
                         circuit_fingerprints.add(fp)
@@ -364,6 +371,7 @@ def execute_code(code: str) -> SandboxResult:
             except Exception:
                 pass
 
+    result.stdout = stdout_text
     return result
 
 
@@ -384,10 +392,24 @@ def build_artifacts_from_result(
             language="python",
         ))
 
+    import sys
+    import io
+    from contextlib import redirect_stdout
+    
     # Add circuit diagrams
     for i, circuit in enumerate(result.circuits):
         try:
-            diagram = str(circuit.draw(output="text"))
+            # Qiskit circuit.draw checks sys.stdout.encoding, which Celery's LoggingProxy lacks
+            class DummyStdout(io.StringIO):
+                @property
+                def encoding(self):
+                    return "utf-8"
+            
+            dummy_stdout = DummyStdout()
+            
+            with redirect_stdout(dummy_stdout):
+                diagram = str(circuit.draw(output="text"))
+                
             suffix = f" ({i+1})" if len(result.circuits) > 1 else ""
             artifacts.append(Artifact(
                 type=ArtifactType.CIRCUIT,
@@ -399,8 +421,8 @@ def build_artifacts_from_result(
                     "depth": circuit.depth(),
                 },
             ))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to draw circuit diagram: {e}", exc_info=True)
 
     # Add measurement results
     for i, counts in enumerate(result.counts):

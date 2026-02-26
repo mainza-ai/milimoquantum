@@ -115,6 +115,6 @@ class AuditLog(Base):
     user_id = Column(String(36), nullable=True)
     action = Column(String(64), nullable=False)  # create | read | update | delete | execute
     resource_type = Column(String(32), nullable=False)  # conversation | experiment | circuit
-    resource_id = Column(String(36), nullable=True)
+    resource_id = Column(String(128), nullable=True)
     details = Column(JSON, default=dict)
     ip_address = Column(String(45), nullable=True)

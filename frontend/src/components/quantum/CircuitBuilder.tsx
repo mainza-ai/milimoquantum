@@ -277,16 +277,17 @@ export function CircuitBuilder({ onExport, onSendToChat }: CircuitBuilderProps) 
                 </div>
             </div>
 
-            {/* ── Qubit count + actions ─────────────────── */}
-            <div className="flex items-center gap-3">
-                <label className="text-xs text-mq-text-secondary">Qubits:</label>
-                <input
-                    type="range" min="1" max="8" value={numQubits}
-                    onChange={e => setNumQubits(Number(e.target.value))}
-                    className="w-24 accent-[#3ecfef]"
-                />
-                <span className="text-xs font-mono text-mq-cyan">{numQubits}</span>
-                <div className="ml-auto flex gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <label className="text-xs text-mq-text-secondary">Qubits:</label>
+                    <input
+                        type="range" min="1" max="8" value={numQubits}
+                        onChange={e => setNumQubits(Number(e.target.value))}
+                        className="w-24 accent-[#3ecfef]"
+                    />
+                    <span className="text-xs font-mono text-mq-cyan">{numQubits}</span>
+                </div>
+                <div className="ml-auto flex flex-wrap gap-2">
                     <button onClick={undo} disabled={!canUndo}
                         className="text-[10px] px-2 py-1 rounded-md border border-white/[0.06]
                             text-mq-text-tertiary hover:text-mq-cyan transition-colors cursor-pointer

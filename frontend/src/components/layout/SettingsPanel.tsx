@@ -68,24 +68,29 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
     const handleSave = async () => {
         setSaving(true);
-        await updateSettings({
-            ollama_model: model,
-            default_shots: shots,
-            ollama_url: ollamaUrl,
-            explain_level: explainLevel,
-        });
-        // Save agent models separately
-        await fetch('/api/settings/agent-models', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ agent_models: agentModels }),
-        });
-        // Apply theme
-        document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('mq-theme', theme);
-        setSaving(false);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+        try {
+            await updateSettings({
+                ollama_model: model,
+                default_shots: shots,
+                ollama_url: ollamaUrl,
+                explain_level: explainLevel,
+            });
+            // Save agent models separately
+            await fetch('/api/settings/agent-models', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ agent_models: agentModels }),
+            });
+            // Apply theme
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('mq-theme', theme);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+        } catch (error) {
+            console.error("Failed to save settings", error);
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleCloudSave = async () => {
@@ -165,6 +170,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                             text-white text-sm focus:outline-none focus:border-[#3ecfef]/40
                                             transition-colors appearance-none cursor-pointer"
                                     >
+                                        <option value="" className="bg-[#0c0c14] text-[#3ecfef]">✨ Auto-detect latest model</option>
                                         {models.map((m) => (
                                             <option key={m} value={m} className="bg-[#0c0c14]">{m}</option>
                                         ))}
@@ -173,7 +179,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                     <input
                                         value={model}
                                         onChange={(e) => setModel(e.target.value)}
-                                        placeholder="llama3.2:3b-instruct-fp16"
+                                        placeholder="Auto-detecting latest..."
                                         className="w-full px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
                                             text-white text-sm focus:outline-none focus:border-[#3ecfef]/40 transition-colors"
                                     />
