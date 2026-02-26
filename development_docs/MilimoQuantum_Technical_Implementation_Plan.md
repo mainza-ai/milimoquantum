@@ -1,79 +1,79 @@
-# Milimo Quantum: Phase 3 Exhaustive Technical Implementation Plan
+# Milimo Quantum: Exhaustive Phase 3 Technical Implementation Plan
 
-This document outlines the exact technical steps required to transition Milimo Quantum from a localized file-based prototype into a true enterprise-grade multi-tenant platform.
+This document outlines the mandatory technical steps required to transition Milimo Quantum from a localized file-based prototype into a true enterprise-grade multi-tenant platform, fixing the exhaustive architectural gaps discovered during the file-by-file audit.
 
 ## User Review Required
 > [!WARNING]
-> This plan advocates for a **complete tear-down of the current local JSON persistence strategy** (`~/.milimoquantum/`) in favor of genuine PostgreSQL database transactions. This is a massive architectural shift but absolutely necessary before building the "12 Missing Dimensions".
+> This plan outlines a **structural teardown of the hidden JSON persistence strategy** (`~/.milimoquantum/`) globally overriding the system in favor of genuine PostgreSQL database transactions. It also addresses the required secure migration of globally shared AI API keys.
 
 ---
 
-## Proposed Changes: Core Architecture Overhaul
+## Proposed Changes: Part 1 — Security & Persistence Overhaul
 
-### 1. Database Adoption (Sunsetting JSON files)
+### 1. Migrating to Relational Persistence (Database Adoption)
 
-#### [MODIFY] `backend/app/routes/chat.py`
-- Strip all `app.storage` and `.json` file reads/writes.
-- Implement SQLAlchemy `session.add(Message)` and `session.add(Conversation)`. 
-- Ensure SSE endpoints yield DB IDs rather than generated UUIDs saved to a file.
-
-#### [MODIFY] `backend/app/routes/projects.py`
-- Create a new DB table `Project` in `app/db/models.py` (which currently doesn't exist).
-- Add a relationship linking `Project` to `Conversation`.
-- Rewrite the entire router to query the PostgreSQL database rather than listing directory contents in `~/.milimoquantum/projects/`.
+#### [MODIFY] `backend/app/routes/chat.py` & `projects.py`
+- Strip all `app.storage` and local `.json` file reads/writes.
+- Implement `session.add(Message)` and `session.add(Conversation)` logic querying by Keycloak User IDs.
+- Create a new DB table `Project` in `app/db/models.py`. Rewrite the entire `projects.py` router to use SQL JOINs for associated conversations.
 
 #### [MODIFY] `backend/app/routes/analytics.py`
-- Remove all fallback logic that attempts to parse local JSON files.
-- Restructure the endpoints (e.g., `/api/analytics/summary`) to rely entirely on efficient SQL aggregation queries (`COUNT()`, `GROUP BY`) over the `messages` and `conversations` tables.
+- Remove fallback parsing of massive local JSON files.
+- Restructure endpoints (`/api/analytics/summary`) to rely entirely on efficient SQL aggregation queries (`COUNT()`, `GROUP BY`) over partitioned rows.
 
-#### [MODIFY] `backend/app/routes/settings.py`
-- Build a new DB model `UserSettings` linked to the `User` table to persist:
-  - Default LLM models per agent
-  - Selected theme / explanation level
-- Build a generic `ProviderCredential` table to store D-Wave, AWS, IBM, and LLM API keys securely (encrypted at rest), allowing multi-user isolation instead of global `.env` configuration.
+#### [MODIFY] `backend/app/routes/graph.py`
+- Connect Neo4j indexing strictly to the PostgreSQL Commit Hooks (Event-Driven) rather than manually scraping the `.json` filesystem.
+
+### 2. Multi-Tenant Secure Configurations
+
+#### [NEW] `backend/app/db/models.py` -> `ProviderCredential` & `UserSettings`
+- Currently, `backend/app/llm/cloud_provider.py` overwrites `os.environ` affecting all users globally.
+- Build a generic `ProviderCredential` schema to securely store API keys (Anthropic, D-Wave, AWS Braket, IBM, Azure Quantum) *encrypted and partitioned by User ID*.
+- Modify `cloud_provider.py` and `ibm_runtime.py` to extract credentials from the DB session of the requesting user per-request, rather than from global environmental variables.
 
 ---
 
-## Proposed Changes: 12 Missing Dimensions
+## Proposed Changes: Part 2 — Building The 12 Missing Dimensions
 
-### 2. Upgrading the "Mocked" Dimensions
+### 1. Hardening "Mocked" Capabilities
 
 #### [MODIFY] `backend/app/routes/academy.py`
 - Create SQLAlchemy tables: `AcademyLesson` and `UserProgress`.
 - Move the hardcoded Python list (`ACADEMY_LESSONS`) into a database seed script.
-- Update endpoints to query PostgreSQL.
+- Update endpoints to query PostgreSQL to permanently save Quiz and Lesson completion states.
 
 #### [MODIFY] `backend/app/routes/marketplace.py`
 - Create SQLAlchemy tables: `Plugin` and `UserPluginInstall`.
-- Move `COMMUNITY_PLUGINS` to a db seed script.
-- Store installation state per-user rather than relying on an ephemeral global Python `set()`.
+- Store installation state per-user securely in the database.
 
-### 3. Orchestration & Visual Workflows
+### 2. Orchestration & Graph Visualization
 
 #### [NEW] `backend/app/routes/workflows.py`
 - Create REST endpoints for DAG Pipeline execution.
-- Create DB schema for `WorkflowTemplate` (JSON structure representing the DAG).
+- Create DB schema for `WorkflowTemplate` (JSON structure representing the user's DAG graph state).
 
-#### [MODIFY] `frontend/package.json` & `frontend/src/components/quantum/WorkflowBuilder.tsx`
-- Add `reactflow` dependency.
-- Build a visual drag-and-drop workspace linking agents (e.g. Finance Agent results pipelined directly into Qiskit Sandbox execution).
+#### [NEW] `frontend/src/components/quantum/WorkflowBuilder.tsx`
+- Add a new dependency (e.g., `reactflow`) to `package.json`.
+- Build a visual drag-and-drop workspace where users can link Agents (Finance) directly into Quantum Hardware providers (Execution) visually bridging `quantum/hpc.py` and `cloud_backends.py`.
 
-### 4. True Dynamic Agents (Replacing Templates)
+### 3. Dynamic Agents & Live Feeds
 
 #### [MODIFY] `backend/app/agents/*`
-- Currently, agents like `finance_agent.py` and `code_agent.py` intercept user queries via regex and return hardcoded Markdown/Qiskit strings.
-- **Action:** Transition these static templates into robust *System Prompts* with distinct tool-use boundaries. The agents must dynamically generate QAOA implementations based on user context rather than relying on `_bell_code()`.
+- Delete static markdown string templates (`QUICK_TOPICS`). 
+- Re-prompt the base agents to dynamically generate targeted Qiskit/Pennylane code specifically constrained by the user's requests rather than returning `_bell_code()`.
+
+#### [MODIFY] `backend/app/feeds/finance.py`
+- Write an actual scraping integration (e.g. `yfinance` API) rather than holding empty stubs. Ensure the `finance_agent.py` pulls from this endpoint contextually before writing optimizations.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-1. **Migrations:** Trigger `alembic upgrade head` and verify the new tables (`Project`, `Plugin`, `AcademyLesson`, `ProviderCredential`) are created successfully.
-2. **Integration Tests:** `pytest` the chat routes ensuring they save accurately to the Test DB container. Verify no local `.json` files are created under `~/.milimoquantum/`.
+1. **Migrations:** Trigger `alembic upgrade head` and verify the new tables (`Project`, `Plugin`, `AcademyLesson`, `ProviderCredential`, `UserSettings`) are created successfully.
+2. **Integration Tests:** Execute `pytest` emphasizing tenant isolation (User A attempting to use User B's IBM token fails).
 
 ### Manual End-to-End Verification
-1. Boot the environment using `docker compose --profile dev up -d`.
-2. Send a chat message. Exec into the Postgres container and `SELECT * FROM messages;` to verify actual database insertion.
-3. Open two browser windows (simulating two tenants). Update the LLM Key in Settings window A. Verify it does *not* override window B's execution capabilities. 
-4. Drag-and-drop a pipeline in the new Workflow Builder UI and verify Celery background task ingestion.
+1. Open two separate browser profiles (simulating two tenants). Set the LLM Key in Settings window A. Verify it does *not* override window B's LLM routing, proving true isolation.
+2. Navigate to **Academy**, complete a lesson quiz, refresh the browser, and verify completion persists precisely.
+3. Drag-and-drop a node pipeline in the Workflow Builder UI, passing Finance JSON Data to a Quantum Backend node, and verify Celery background task ingestion.
