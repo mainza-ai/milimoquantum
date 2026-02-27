@@ -26,7 +26,8 @@ export function ChatInput({ onSend, isStreaming, activeAgent }: ChatInputProps) 
         }
     }, [value]);
 
-    const handleSubmit = () => {
+    const handleSubmit = (e?: React.MouseEvent | React.FormEvent) => {
+        if (e && e.preventDefault) e.preventDefault();
         if (!value.trim() || isStreaming) return;
         setShowCommands(false);
         const fileId = textareaRef.current?.getAttribute('data-file-id') || undefined;
@@ -182,6 +183,7 @@ export function ChatInput({ onSend, isStreaming, activeAgent }: ChatInputProps) 
                         onChange={handleFileSelect}
                     />
                     <button
+                        type="button"
                         onClick={() => fileInputRef.current?.click()}
                         className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0
               bg-mq-elevated/50 text-mq-text-tertiary hover:text-mq-cyan hover:bg-mq-cyan/10
@@ -195,6 +197,7 @@ export function ChatInput({ onSend, isStreaming, activeAgent }: ChatInputProps) 
 
                     {/* Send */}
                     <button
+                        type="button"
                         onClick={handleSubmit}
                         disabled={!value.trim() || isStreaming}
                         className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0

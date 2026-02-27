@@ -100,7 +100,8 @@ function WelcomeScreen({ onSend }: { onSend: (msg: string, fileId?: string) => v
                     {suggestions.map((s, i) => (
                         <button
                             key={i}
-                            onClick={() => onSend(s.text)}
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); onSend(s.text); }}
                             className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl
                 bg-gradient-to-br ${s.gradient}
                 border border-mq-border hover:border-mq-border-light
