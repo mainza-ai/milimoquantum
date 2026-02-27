@@ -23,3 +23,5 @@ dist/
 
 # Gemini/Agent artifacts
 .gemini/
+.kilocode/
+.agents/rules/

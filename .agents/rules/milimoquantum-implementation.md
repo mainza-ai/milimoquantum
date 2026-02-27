@@ -69,3 +69,4 @@ Before implementing any feature, read the relevant skill(s) in `skills/skills/mi
 - **Agents are modular** — each agent is a separate file in `backend/app/agents/`
 - **Artifacts are typed** — always use `Artifact` schema with `type`, `title`, `content`, `metadata`
 - **Streaming is default** — all chat responses use SSE, never blocking JSON responses
+- **Experiment collaboration & versioning** — experiment registry must support branching, merging, sharing, commenting, and graph‑based lineage tracking via Neo4j.

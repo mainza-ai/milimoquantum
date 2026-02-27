@@ -92,15 +92,6 @@ Milimo Quantum utilizes Docker to streamline localized deployment.
 
 ---
 
-## 🧪 Documentation & Deep Dives
-
-For expanded reading on the architecture, business viability, and deep quantum execution specs, explore the internal documentation library:
-- [Milimo Quantum Architecture Framework](./skills/skills/milimoquantum/architecture.md)
-- [Qiskit SDK Capabilities Research](./development_docs/MilimoQuantum_ProjectPlan.md)
-- [Platform Gap Analysis & Integrations](./development_docs/MilimoQuantum_GapAnalysis_Report.md)
-
----
-
 ## 📜 License
 
 This application and its associated software architecture is governed under the **MIT License**.
