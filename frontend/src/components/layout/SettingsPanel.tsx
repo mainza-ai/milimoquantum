@@ -38,6 +38,9 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     const [mlxSearchResults, setMlxSearchResults] = useState<any[]>([]);
     const [mlxSearching, setMlxSearching] = useState(false);
     const [mlxDownloading, setMlxDownloading] = useState<string | null>(null);
+    const [mlxProgress, setMlxProgress] = useState<{ percent: number, bytes: number, total: number } | null>(null);
+    const [mlxConfig, setMlxConfig] = useState<{ temperature: number, top_p: number, max_tokens: number }>({ temperature: 0.7, top_p: 0.9, max_tokens: 1024 });
+    const [mlxConfigSaving, setMlxConfigSaving] = useState(false);
 
     // New features state
     const [explainLevel, setExplainLevel] = useState<'beginner' | 'intermediate' | 'expert'>('intermediate');
@@ -45,6 +48,30 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     const [theme, setTheme] = useState<'dark' | 'light'>(
         () => (localStorage.getItem('mq-theme') as 'dark' | 'light') || 'dark'
     );
+
+    useEffect(() => {
+        let interval: any;
+        if (mlxDownloading) {
+            interval = setInterval(() => {
+                import('../../services/api').then(({ fetchMLXPullStatus }) => {
+                    fetchMLXPullStatus().then(status => {
+                        if (status && status.status === 'downloading') {
+                            setMlxProgress({
+                                percent: status.progress_percent || 0,
+                                bytes: status.downloaded_bytes || 0,
+                                total: status.total_bytes || 0
+                            });
+                        } else if (status && (status.status === 'complete' || status.status === 'failed' || status.status === 'idle')) {
+                            setMlxProgress(null);
+                        }
+                    }).catch(() => { });
+                });
+            }, 500);
+        } else {
+            setMlxProgress(null);
+        }
+        return () => clearInterval(interval);
+    }, [mlxDownloading]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -218,11 +245,83 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                 </p>
 
                                 <div className="mb-4">
-                                    <label className="block text-xs font-medium text-[#a1a1aa] mb-1.5 uppercase tracking-wider">Active MLX Model</label>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <label className="block text-xs font-medium text-[#a1a1aa] uppercase tracking-wider">Active MLX Model</label>
+                                        <button
+                                            onClick={async () => {
+                                                const { unloadMLXModel } = await import('../../services/api');
+                                                await unloadMLXModel();
+                                                setActiveMlxModel('');
+                                            }}
+                                            disabled={!activeMlxModel}
+                                            className="text-[10px] text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed bg-red-400/10 hover:bg-red-400/20 px-2 py-0.5 rounded transition-colors"
+                                        >
+                                            Unload from Memory
+                                        </button>
+                                    </div>
                                     <div className="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/[0.08] text-[#3ecfef] text-sm font-mono truncate">
                                         {activeMlxModel || "No model currently loaded"}
                                     </div>
                                 </div>
+
+                                {activeMlxModel && (
+                                    <div className="mb-4 p-3 rounded-lg border border-white/[0.06] bg-black/20">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="text-xs font-medium text-white">Generation Config</span>
+                                            <button
+                                                onClick={async () => {
+                                                    setMlxConfigSaving(true);
+                                                    const { updateMLXConfig } = await import('../../services/api');
+                                                    await updateMLXConfig(mlxConfig);
+                                                    setMlxConfigSaving(false);
+                                                }}
+                                                className="px-2 py-1 text-[10px] rounded bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 transition-colors"
+                                            >
+                                                {mlxConfigSaving ? 'Saving...' : 'Save Config'}
+                                            </button>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between gap-4">
+                                                <div className="flex-1">
+                                                    <label className="text-[10px] text-[#a1a1aa] flex justify-between">
+                                                        <span>Temperature</span>
+                                                        <span>{mlxConfig.temperature.toFixed(2)}</span>
+                                                    </label>
+                                                    <input
+                                                        type="range" min="0" max="2" step="0.05"
+                                                        value={mlxConfig.temperature}
+                                                        onChange={e => setMlxConfig({ ...mlxConfig, temperature: parseFloat(e.target.value) })}
+                                                        className="w-full mt-1 accent-purple-500"
+                                                    />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <label className="text-[10px] text-[#a1a1aa] flex justify-between">
+                                                        <span>Top P</span>
+                                                        <span>{mlxConfig.top_p.toFixed(2)}</span>
+                                                    </label>
+                                                    <input
+                                                        type="range" min="0" max="1" step="0.05"
+                                                        value={mlxConfig.top_p}
+                                                        onChange={e => setMlxConfig({ ...mlxConfig, top_p: parseFloat(e.target.value) })}
+                                                        className="w-full mt-1 accent-purple-500"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-[#a1a1aa] flex justify-between">
+                                                    <span>Max Tokens</span>
+                                                    <span>{mlxConfig.max_tokens}</span>
+                                                </label>
+                                                <input
+                                                    type="range" min="128" max="8192" step="128"
+                                                    value={mlxConfig.max_tokens}
+                                                    onChange={e => setMlxConfig({ ...mlxConfig, max_tokens: parseInt(e.target.value) })}
+                                                    className="w-full mt-1 accent-purple-500"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className="block text-xs font-medium text-[#a1a1aa] mb-1.5 uppercase tracking-wider">Local Cache ({mlxModels.length})</label>
@@ -272,31 +371,44 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                 <div className="mt-4 flex flex-col gap-2">
                                     <span className="text-xs text-[#636370] uppercase tracking-wider font-medium">Results From Hugging Face Hub (Live)</span>
                                     <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
-                                        {mlxSearchResults.map((m) => (
-                                            <div key={m.id} className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between hover:border-purple-500/30 transition-colors">
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm text-white font-medium">{m.id.split('/')[1]}</span>
-                                                    <span className="text-[10px] text-[#636370]">
-                                                        {m.id.split('/')[0]} · {m.downloads} DLs
-                                                        {m.size_mb ? ` · ${m.size_mb >= 1024 ? (m.size_mb / 1024).toFixed(1) + ' GB' : m.size_mb + ' MB'}` : ''}
-                                                    </span>
+                                        {mlxSearchResults.map((m) => {
+                                            const isDownloadingThis = mlxDownloading === m.id;
+                                            const progressPercent = isDownloadingThis && mlxProgress ? mlxProgress.percent : 0;
+
+                                            return (
+                                                <div key={m.id} className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between hover:border-purple-500/30 transition-colors">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm text-white font-medium">{m.id.split('/')[1]}</span>
+                                                        <span className="text-[10px] text-[#636370]">
+                                                            {m.id.split('/')[0]} · {m.downloads} DLs
+                                                            {m.size_mb ? ` · ${m.size_mb >= 1024 ? (m.size_mb / 1024).toFixed(1) + ' GB' : m.size_mb + ' MB'}` : ''}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {mlxModels.includes(m.id) && <span className="text-[10px] text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full border border-green-400/20">Cached</span>}
+                                                        <button
+                                                            disabled={mlxDownloading !== null}
+                                                            onClick={() => handleMlxPull(m.id)}
+                                                            className={`relative overflow-hidden px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-80 flex items-center gap-1 ${isDownloadingThis ? 'bg-purple-900/50 text-white w-24 justify-center' : 'bg-white text-black hover:bg-white/90 disabled:opacity-50'}`}
+                                                        >
+                                                            {isDownloadingThis && (
+                                                                <div
+                                                                    className="absolute left-0 top-0 bottom-0 bg-purple-500/50 transition-all duration-300"
+                                                                    style={{ width: `${progressPercent}%` }}
+                                                                />
+                                                            )}
+                                                            <span className="relative z-10 flex items-center gap-1">
+                                                                {isDownloadingThis ? (
+                                                                    <>⏳ <span>{progressPercent}%</span></>
+                                                                ) : (
+                                                                    <>⬇ <span>Pull</span></>
+                                                                )}
+                                                            </span>
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    {mlxModels.includes(m.id) && <span className="text-[10px] text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full border border-green-400/20">Cached</span>}
-                                                    <button
-                                                        disabled={mlxDownloading !== null}
-                                                        onClick={() => handleMlxPull(m.id)}
-                                                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white text-black hover:bg-white/90 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
-                                                    >
-                                                        {mlxDownloading === m.id ? (
-                                                            <>⏳ <span>Downloading...</span></>
-                                                        ) : (
-                                                            <>⬇ <span>Pull</span></>
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </div>
                                 </div>
                             )}

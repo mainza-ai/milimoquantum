@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 try:
     from huggingface_hub import HfApi
     from huggingface_hub.utils import RepositoryNotFoundError
+    # Required for progress hooking
+    import huggingface_hub.utils._tqdm as hf_tqdm
     HF_AVAILABLE = True
     api = HfApi()
 except ImportError:
@@ -24,6 +26,41 @@ class MlxManager:
     
     def __init__(self):
         self.default_author = "mlx-community"
+        self.download_progress = {
+            "model_id": None,
+            "status": "idle",
+            "downloaded_bytes": 0,
+            "total_bytes": 0,
+            "progress_percent": 0
+        }
+        self._setup_tqdm_hook()
+
+    def _setup_tqdm_hook(self):
+        """Override HuggingFace's tqdm to capture progress globally."""
+        if not HF_AVAILABLE:
+            return
+
+        original_tqdm = hf_tqdm.tqdm
+
+        class ProgressTqdm(original_tqdm):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                # Keep a reference to the manager to update it
+                self.manager = mlx_manager
+
+            def update(self, n=1):
+                super().update(n)
+                # kwargs may contain 'total' but self.total holds the max value
+                if self.manager and getattr(self, "total", 0):
+                    self.manager.download_progress["total_bytes"] = self.total
+                    self.manager.download_progress["downloaded_bytes"] = self.n
+                    if self.total > 0:
+                        self.manager.download_progress["progress_percent"] = int(
+                            (self.n / self.total) * 100
+                        )
+
+        # Patch huggingface_hub tqdm
+        hf_tqdm.tqdm = ProgressTqdm
         
     def search_models(self, query: str = "", limit: int = 20) -> List[Dict[str, Any]]:
         """Search HuggingFace for MLX compatible models."""

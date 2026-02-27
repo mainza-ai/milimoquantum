@@ -28,6 +28,11 @@ class MlxClient:
         self.tokenizer = None
         self.is_loaded = False
         self.system_prompt = "You are Milimo Quantum, an advanced AI assistant."
+        self.config = {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 1024
+        }
 
     def load_model(self, model_name: str | None = None) -> bool:
         """Load an MLX model into unified memory."""
@@ -48,12 +53,36 @@ class MlxClient:
             self.is_loaded = False
             return False
 
+    def unload_model(self) -> bool:
+        """Unload the active MLX model to free Apple Silicon unified memory."""
+        if not self.is_loaded:
+            return True
+
+        try:
+            logger.info(f"Unloading MLX model: {self.model_name}")
+            del self.model
+            del self.tokenizer
+            self.model = None
+            self.tokenizer = None
+            self.is_loaded = False
+            
+            # Force garbage collection to reclaim memory immediately
+            import gc
+            gc.collect()
+            
+            logger.info("MLX model unloaded successfully. Memory freed.")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to unload MLX model: {e}")
+            return False
+
     def get_status(self) -> dict:
         """Get MLX client status."""
         return {
             "available": MLX_AVAILABLE,
             "loaded": self.is_loaded,
-            "model": self.model_name if self.is_loaded else None
+            "model": self.model_name if self.is_loaded else None,
+            "config": self.config
         }
 
     async def stream_chat(

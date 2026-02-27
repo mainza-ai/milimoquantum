@@ -201,6 +201,30 @@ export async function fetchCircuitStats() {
     return res.json();
 }
 
+export async function fetchMLXPullStatus() {
+    const res = await fetchWithAuth(`${API_BASE}/settings/mlx/pull/status`);
+    return res.json();
+}
+
+export async function unloadMLXModel() {
+    const res = await fetchWithAuth(`${API_BASE}/settings/mlx/unload`, { method: 'POST' });
+    return res.json();
+}
+
+export async function fetchMLXConfig() {
+    const res = await fetchWithAuth(`${API_BASE}/settings/mlx/config`);
+    return res.json();
+}
+
+export async function updateMLXConfig(config: any) {
+    const res = await fetchWithAuth(`${API_BASE}/settings/mlx/config`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config)
+    });
+    return res.json();
+}
+
 export function streamChat(
     message: string,
     conversationId?: string,

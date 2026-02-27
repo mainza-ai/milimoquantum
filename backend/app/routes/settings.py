@@ -168,14 +168,61 @@ async def pull_mlx_model(data: dict):
     if not model_id:
         return {"error": "No model ID provided."}
         
+    # Reset progress tracker
+    mlx_manager.download_progress = {
+        "model_id": model_id,
+        "status": "downloading",
+        "downloaded_bytes": 0,
+        "total_bytes": 0,
+        "progress_percent": 0
+    }
+        
     # Triggering mlx_client.load_model will automatically pull from HuggingFace
     success = mlx_client.load_model(model_name=model_id)
+    
+    mlx_manager.download_progress["status"] = "complete" if success else "failed"
+    
     if success:
         from app.config import settings
         settings.DEFAULT_MODEL = model_id
         return {"status": "ok", "message": f"Successfully loaded {model_id}"}
     else:
         return {"error": f"Failed to load {model_id} via MLX."}
+
+
+@router.get("/mlx/pull/status")
+async def pull_mlx_status():
+    """Poll the status of the current MLX download."""
+    return mlx_manager.download_progress
+
+
+@router.post("/mlx/unload")
+async def unload_mlx_model():
+    """Unload the active MLX model from memory."""
+    platform = detect_platform()
+    if platform.os_name != "Darwin":
+        return {"error": "MLX requires Apple Silicon Mac."}
+        
+    success = mlx_client.unload_model()
+    if success:
+        return {"status": "ok", "message": "Model unloaded successfully"}
+    else:
+        return {"error": "Failed to unload model"}
+
+
+@router.get("/mlx/config")
+async def get_mlx_config():
+    """Get the active MLX generation configuration."""
+    return mlx_client.config
+
+
+@router.put("/mlx/config")
+async def update_mlx_config(data: dict):
+    """Update the MLX generation configuration."""
+    for key in ["temperature", "top_p", "max_tokens"]:
+        if key in data:
+            mlx_client.config[key] = data[key]
+    return {"status": "ok", "config": mlx_client.config}
 
 
 @router.put("/hot-swap-model")
