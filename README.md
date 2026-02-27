@@ -75,6 +75,7 @@ Ensure you have the following installed locally:
 
 Milimo Quantum utilizes Docker to streamline localized deployment.
 
+#### Standard Deployment (Docker-only)
 1. **Boot Core Services & Architecture:**
    Start PostgreSQL, Redis, Neo4j, FalkorDB, and the Python backend/React frontend using docker-compose.
    ```bash
@@ -83,7 +84,33 @@ Milimo Quantum utilizes Docker to streamline localized deployment.
    ```
    *The React quantum dashboard will begin running on `http://localhost:5173` and the backend on `http://localhost:8000`.*
 
-2. **Mobile Client (Optional):**
+#### Apple Silicon Native Inference (Hybrid Deploy)
+If you wish to use the ultra-fast Apple Silicon MLX models via Unified Memory on a Mac host, the backend must run outside of the Linux Docker container.
+1. **Boot Infrastructure & Frontend (Docker):**
+   ```bash
+   ./start-docker-mlx.sh
+   ```
+2. **Start the MLX Native Backend (Mac Host):**
+   ```bash
+   ./start-backend-mlx.sh
+   ```
+
+#### Initialize Authentication (Required)
+Regardless of your deployment method, once the Docker infrastructure is running, you must configure the Keycloak realm, client, and admin user to log in:
+```bash
+./setup-keycloak.sh
+```
+*You can now log in to the web dashboard using username: `admin` and password: `admin`.*
+
+#### To Shut Down:
+```bash
+./stop-backend-mlx.sh # Kills the native Python backend (if using hybrid)
+./stop-docker.sh      # Tears down the docker infrastructure
+```
+
+#### Mobile Support
+
+3. **Mobile Client (Optional):**
    ```bash
    cd mobile
    npm install

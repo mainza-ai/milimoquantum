@@ -4,12 +4,15 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 from app.config import settings
 from app.llm.ollama_client import ollama_client
 from app.llm.cloud_provider import get_available_providers, set_provider, get_current_provider, _save_cloud_settings, _load_cloud_settings
 from app.quantum.hal import detect_platform
 from app.quantum import ibm_runtime
+from app.llm.mlx_manager import mlx_manager
+from app.llm.mlx_client import mlx_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -130,6 +133,49 @@ async def update_agent_models(data: dict):
     settings.agent_models = {k: v for k, v in models.items() if v}  # remove empty
     settings.save_agent_models()
     return {"agent_models": settings.agent_models, "status": "ok"}
+
+
+@router.get("/mlx/models")
+async def list_mlx_models():
+    """List locally downloaded MLX models."""
+    platform = detect_platform()
+    if platform.os_name != "Darwin":
+        return {"models": [], "error": "MLX requires Apple Silicon Mac."}
+        
+    local_hf_models = mlx_manager.get_local_models()
+    return {"models": local_hf_models, "current": mlx_client.model_name}
+
+
+@router.get("/mlx/search")
+async def search_mlx_models(q: str = ""):
+    """Search HuggingFace for MLX community models."""
+    platform = detect_platform()
+    if platform.os_name != "Darwin":
+        return {"results": [], "error": "MLX requires Apple Silicon Mac."}
+        
+    results = mlx_manager.search_models(query=q, limit=10)
+    return {"results": results}
+
+
+@router.post("/mlx/pull")
+async def pull_mlx_model(data: dict):
+    """Trigger a download/load of an MLX model."""
+    platform = detect_platform()
+    if platform.os_name != "Darwin":
+        return {"error": "MLX requires Apple Silicon Mac."}
+        
+    model_id = data.get("model")
+    if not model_id:
+        return {"error": "No model ID provided."}
+        
+    # Triggering mlx_client.load_model will automatically pull from HuggingFace
+    success = mlx_client.load_model(model_name=model_id)
+    if success:
+        from app.config import settings
+        settings.DEFAULT_MODEL = model_id
+        return {"status": "ok", "message": f"Successfully loaded {model_id}"}
+    else:
+        return {"error": f"Failed to load {model_id} via MLX."}
 
 
 @router.put("/hot-swap-model")

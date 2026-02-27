@@ -223,7 +223,7 @@ export function ChatInput({ onSend, isStreaming, activeAgent }: ChatInputProps) 
                 </div>
 
                 <p className="text-center text-[10px] text-mq-text-tertiary/50 mt-2.5 tracking-wide">
-                    Powered by Qiskit · Ollama · Open Source
+                    Powered by Qiskit
                 </p>
             </div>
         </div>

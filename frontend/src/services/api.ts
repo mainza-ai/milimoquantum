@@ -122,6 +122,27 @@ export async function updateSettings(data: Record<string, unknown>) {
     return res.json();
 }
 
+// ── MLX Apple Silicon Providers ────────────────────────
+
+export async function fetchMLXModels() {
+    const res = await fetchWithAuth(`${API_BASE}/settings/mlx/models`);
+    return res.json();
+}
+
+export async function searchMLXModels(query: string = "") {
+    const res = await fetchWithAuth(`${API_BASE}/settings/mlx/search?q=${encodeURIComponent(query)}`);
+    return res.json();
+}
+
+export async function pullMLXModel(modelId: string) {
+    const res = await fetchWithAuth(`${API_BASE}/settings/mlx/pull`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: modelId }),
+    });
+    return res.json();
+}
+
 // ── SSE Chat Stream ────────────────────────────────────
 
 // ── Cloud AI Providers ─────────────────────────────────

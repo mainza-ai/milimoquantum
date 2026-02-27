@@ -1,6 +1,5 @@
-/* Milimo Quantum — Cloud AI Settings + Local Settings Panel */
 import { useState, useEffect } from 'react';
-import { fetchSettings, fetchModels, updateSettings, fetchCloudProviders, setCloudProvider } from '../../services/api';
+import { fetchSettings, fetchModels, updateSettings, fetchCloudProviders, setCloudProvider, fetchMLXModels, searchMLXModels, pullMLXModel } from '../../services/api';
 
 interface CloudProvider {
     id: string;
@@ -30,7 +29,15 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     const [cloudSaving, setCloudSaving] = useState(false);
     const [cloudSaved, setCloudSaved] = useState(false);
     const [savedProvider, setSavedProvider] = useState<string>('ollama');
-    const [activeTab, setActiveTab] = useState<'local' | 'cloud'>('local');
+    const [activeTab, setActiveTab] = useState<'local' | 'cloud' | 'mlx'>('local');
+
+    // MLX state
+    const [mlxModels, setMlxModels] = useState<string[]>([]);
+    const [activeMlxModel, setActiveMlxModel] = useState<string>('');
+    const [mlxSearchQuery, setMlxSearchQuery] = useState('');
+    const [mlxSearchResults, setMlxSearchResults] = useState<any[]>([]);
+    const [mlxSearching, setMlxSearching] = useState(false);
+    const [mlxDownloading, setMlxDownloading] = useState<string | null>(null);
 
     // New features state
     const [explainLevel, setExplainLevel] = useState<'beginner' | 'intermediate' | 'expert'>('intermediate');
@@ -54,6 +61,12 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     setActiveProvider(data.cloud_provider.provider);
                     setCloudModel(data.cloud_provider.model || '');
                 }
+            }
+            if (data.platform?.os === 'Darwin') {
+                fetchMLXModels().then(mlxData => {
+                    setMlxModels(mlxData.models || []);
+                    setActiveMlxModel(mlxData.current || '');
+                }).catch(() => { });
             }
         }).catch(() => { });
 
@@ -113,6 +126,33 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         setTimeout(() => setCloudSaved(false), 2000);
     };
 
+    const handleMlxSearch = async () => {
+        if (!mlxSearchQuery.trim()) return;
+        setMlxSearching(true);
+        try {
+            const data = await searchMLXModels(mlxSearchQuery);
+            setMlxSearchResults(data.results || []);
+        } catch (e) {
+            console.error("MLX Search failed", e);
+        } finally {
+            setMlxSearching(false);
+        }
+    };
+
+    const handleMlxPull = async (modelId: string) => {
+        setMlxDownloading(modelId);
+        try {
+            await pullMLXModel(modelId);
+            setActiveMlxModel(modelId);
+            const mlxData = await fetchMLXModels();
+            setMlxModels(mlxData.models || []);
+        } catch (e) {
+            console.error("Failed to pull MLX model", e);
+        } finally {
+            setMlxDownloading(null);
+        }
+    };
+
     if (!isOpen) return null;
 
     const selectedCloudProvider = providers.find(p => p.id === activeProvider);
@@ -153,11 +193,115 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                 : 'text-[#636370] hover:text-white hover:bg-white/[0.04]'
                             }`}
                     >☁️ Cloud AI</button>
+                    {platform.os === 'Darwin' && (
+                        <button
+                            onClick={() => setActiveTab('mlx')}
+                            className={`px-4 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer
+                                ${activeTab === 'mlx'
+                                    ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-white border border-purple-500/30'
+                                    : 'text-[#636370] hover:text-white hover:bg-white/[0.04]'
+                                }`}
+                        >🍏 Apple MLX</button>
+                    )}
                 </div>
 
                 {/* Body */}
                 <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
-                    {activeTab === 'local' ? (
+                    {activeTab === 'mlx' ? (
+                        <>
+                            <div className="p-4 rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-[#0c0c14]">
+                                <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                                    <span className="text-xl">⚡</span> Apple Silicon Native (MLX)
+                                </h3>
+                                <p className="text-xs text-[#a1a1aa] mb-4">
+                                    Bypass Ollama and run native huggingface `.safetensors` models directly on your Mac's unified memory for maximum token generation speeds.
+                                </p>
+
+                                <div className="mb-4">
+                                    <label className="block text-xs font-medium text-[#a1a1aa] mb-1.5 uppercase tracking-wider">Active MLX Model</label>
+                                    <div className="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/[0.08] text-[#3ecfef] text-sm font-mono truncate">
+                                        {activeMlxModel || "No model currently loaded"}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-medium text-[#a1a1aa] mb-1.5 uppercase tracking-wider">Local Cache ({mlxModels.length})</label>
+                                    <div className="flex flex-col gap-2 max-h-32 overflow-y-auto pr-2">
+                                        {mlxModels.length === 0 ? (
+                                            <span className="text-xs text-[#636370] italic">No MLX models discovered in ~/.cache/huggingface/hub/</span>
+                                        ) : (
+                                            mlxModels.map(m => (
+                                                <div key={m} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04]">
+                                                    <span className="text-xs text-white  truncate max-w-[200px]">{m}</span>
+                                                    <button
+                                                        disabled={activeMlxModel === m || mlxDownloading !== null}
+                                                        onClick={() => handleMlxPull(m)}
+                                                        className="px-2 py-1 text-[10px] font-medium rounded-lg bg-white/[0.05] text-white hover:bg-white/[0.1] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                    >
+                                                        {mlxDownloading === m ? 'Loading...' : (activeMlxModel === m ? 'Loaded' : 'Load')}
+                                                    </button>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="pt-2">
+                                <label className="block text-sm font-medium text-[#a1a1aa] mb-1.5">Search Hugging Face (mlx-community)</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        value={mlxSearchQuery}
+                                        onChange={(e) => setMlxSearchQuery(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleMlxSearch()}
+                                        placeholder="E.g. Llama-3-8B-Instruct-4bit"
+                                        className="flex-1 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
+                                            text-white text-sm focus:outline-none focus:border-purple-500/50 transition-colors"
+                                    />
+                                    <button
+                                        onClick={handleMlxSearch}
+                                        disabled={mlxSearching || !mlxSearchQuery}
+                                        className="px-4 py-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 font-medium text-sm transition-colors disabled:opacity-50"
+                                    >
+                                        {mlxSearching ? 'Searching...' : 'Search'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {mlxSearchResults.length > 0 && (
+                                <div className="mt-4 flex flex-col gap-2">
+                                    <span className="text-xs text-[#636370] uppercase tracking-wider font-medium">Results From Hugging Face Hub (Live)</span>
+                                    <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+                                        {mlxSearchResults.map((m) => (
+                                            <div key={m.id} className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between hover:border-purple-500/30 transition-colors">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm text-white font-medium">{m.id.split('/')[1]}</span>
+                                                    <span className="text-[10px] text-[#636370]">
+                                                        {m.id.split('/')[0]} · {m.downloads} DLs
+                                                        {m.size_mb ? ` · ${m.size_mb >= 1024 ? (m.size_mb / 1024).toFixed(1) + ' GB' : m.size_mb + ' MB'}` : ''}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {mlxModels.includes(m.id) && <span className="text-[10px] text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full border border-green-400/20">Cached</span>}
+                                                    <button
+                                                        disabled={mlxDownloading !== null}
+                                                        onClick={() => handleMlxPull(m.id)}
+                                                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white text-black hover:bg-white/90 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                                                    >
+                                                        {mlxDownloading === m.id ? (
+                                                            <>⏳ <span>Downloading...</span></>
+                                                        ) : (
+                                                            <>⬇ <span>Pull</span></>
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    ) : activeTab === 'local' ? (
                         <>
                             {/* Model Selector */}
                             <div>

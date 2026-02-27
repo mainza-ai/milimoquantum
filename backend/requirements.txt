@@ -24,6 +24,9 @@ qiskit-ibm-runtime
 anthropic>=0.40.0
 openai>=1.0.0
 google-genai>=1.0.0
+# Native Apple Silicon (Host execution only)
+mlx-lm; sys_platform == 'darwin'
+google-genai>=1.0.0
 # Vector search
 chromadb>=0.5.0
 # D-Wave simulated annealing (local solver)
