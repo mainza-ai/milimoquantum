@@ -8,39 +8,39 @@
 ### 1. `MilimoQuantum_Architecture_Diagrams.md`
 | Promised Feature | Actual Code Status | Location / Proof |
 |---|---|---|
-| **Keycloak SSO & RBAC** | 🟡 **Bypassed.** Core auth logic exists but defaults to `AUTH_ENABLED=false` returning a hardcoded `dev-user-id`. | `backend/app/auth.py` |
+| **Keycloak SSO & RBAC** | 🟡 **Partially Fixed.** Frontend now uses implicit OAuth flow and injects token; backend still defaults to `AUTH_ENABLED=false` with dev‑user‑id fallback. | `backend/app/auth.py`, `frontend/src/App.tsx`, `frontend/src/services/api.ts` |
 | **9 Hardware Platforms** | 🔴 **Missing.** Code only integrates Amazon Braket, Azure Quantum, and D-Wave. No IonQ, QuEra, or Quantinuum direct adapters. | `backend/app/quantum/cloud_backends.py` |
 | **App Marketplace** | 🔴 **Mocked.** Frontend UI exists, but backend holds a volatile in-memory list. | `frontend/src/components/layout/MarketplacePanel.tsx` |
-| **Apple MLX Native LLM** | 🟡 **Partial.** Ollama cloud models are fully functional (including cloud models that require no API or local GPU). However the native `mlx-lm` bridge is missing, limiting performance on Apple Silicon. | `backend/app/llm/ollama_client.py` |
+| **Apple MLX Native LLM** | 🟡 **Partial.** MLX client (`mlx_client.py`) implemented and integrated via HAL; native Apple Silicon inference works, but Ollama remains default fallback. | `backend/app/llm/ollama_client.py`, `backend/app/llm/mlx_client.py` |
 
 ### 2. `MilimoQuantum_CrossPlatform_Guide.md`
 | Promised Feature | Actual Code Status | Location / Proof |
 |---|---|---|
 | **Apple Silicon (MPS) Detection** | 🟢 **Implemented.** Correctly identifies ARM Mac and routes Torch to `mps`. | `backend/app/quantum/hal.py` |
-| **CUDA-Q HPC Simulation** | 🔴 **Missing.** The HPC adapter only integrates `qiskit_aer` (cuStateVec), omitting NVIDIA's native `cudaq` library entirely. | `backend/app/quantum/hpc.py` |
-| **Device Syncing** | 🔴 **Missing.** No API endpoints or frontend hooks exist to synchronize state across devices. | Codebase-wide |
+| **CUDA-Q HPC Simulation** | 🟡 **Partial.** CUDA‑Q executor (`cudaq_executor.py`) implemented and integrated via HAL; supports GPU‑accelerated simulation, but not yet default. | `backend/app/quantum/hpc.py`, `backend/app/quantum/cudaq_executor.py` |
+| **Device Syncing** | 🟡 **Partial.** Offline sync engine (`experiments/sync_engine.py`) and WebSocket manager exist; peer‑to‑peer broadcast implemented, but full device‑to‑device synchronization not yet production‑ready. | `backend/app/experiments/sync_engine.py`, `backend/app/routes/sync.py` |
 
 ### 3. `MilimoQuantum_GraphDB_Addendum.md`
 | Promised Feature | Actual Code Status | Location / Proof |
 |---|---|---|
 | **Neo4j Cypher Integration** | 🟡 **Partial.** Basic client exists, but it requires manual synchronization rather than event-driven graph mapping. | `backend/app/graph/neo4j_client.py` |
-| **FalkorDB & Kuzu** | 🔴 **Missing.** Neither database is implemented in the application layer. | `backend/app/graph/` directory |
+| **FalkorDB & Kuzu** | 🟡 **Partial.** Unified graph client (`graph/client.py`) includes FalkorDB stub and Kuzu detection; FalkorDB driver instantiated but not fully integrated. | `backend/app/graph/client.py` |
 | **GraphRAG & Graphiti** | 🔴 **Missing.** No semantic vector retrieval or sub-graph traversal exists in the `agent_memory.py`. | `backend/app/graph/agent_memory.py` |
 
 ### 4. `MilimoQuantum_ProjectPlan.md` & Missing Dimensions
 | Promised Feature | Actual Code Status | Location / Proof |
 |---|---|---|
 | **Experiment Persistence** | 🟢 **Implemented.** Correctly uses SQLAlchemy to save experiments directly into PostgreSQL DB. | `backend/app/experiments/registry.py` |
-| **Secure Multi-Tenancy (Projects)** | 🔴 **Bypassed.** Projects completely ignore the PostgreSQL DB, writing sensitive user data exclusively to `~/.milimoquantum/projects/*.json`. | `backend/app/routes/projects.py` |
+| **Secure Multi-Tenancy (Projects)** | 🟡 **Partial.** Projects now stored in PostgreSQL DB (`projects.py` uses SQLAlchemy), but RBAC, sharing, and collaboration features are missing. | `backend/app/routes/projects.py` |
 | **Experiment Collaboration & Versioning** | 🟡 **Partial.** Basic experiment registry exists, but lacks collaboration features (sharing, commenting), graph integration, and advanced versioning (branching/merging). | `backend/app/experiments/registry.py`, `backend/app/routes/experiments.py` |
-| **Local Experiment Management & Synchronization** | 🟡 **Partial.** SQLite fallback provides local storage, but lacks caching, offline synchronization, conflict resolution, and device sync engine. | `backend/app/db/__init__.py`, `backend/app/experiments/registry.py` |
+| **Local Experiment Management & Synchronization** | 🟡 **Partial.** SQLite fallback provides local storage; offline sync engine (`experiments/sync_engine.py`) implements conflict resolution and peer‑to‑peer broadcast, but device‑to‑device sync not yet production‑ready. | `backend/app/db/__init__.py`, `backend/app/experiments/registry.py`, `backend/app/experiments/sync_engine.py` |
 | **AI Scientific Research Capabilities & End‑to‑End Workflows** | 🟡 **Partial.** Planning agent exists for simple multi‑agent workflows, but lacks deep integration with scientific databases (PubChem, arXiv), automated analysis pipelines, and structured data passing between agents. | `backend/app/agents/planning_agent.py`, `backend/app/agents/orchestrator.py` |
 | **DAG Workflow Orchestration** | 🔴 **Missing.** Neither a React Flow UI nor a Celery DAG engine exist. | Frontend / Backend |
 | **Live Data Connectors** | 🔴 **Mocked.** `arxiv.py` and `finance.py` exist but lack functional scraping implementation. | `backend/app/feeds/finance.py` |
 | **Quantum Sensing & Metrology Module** | 🟡 **Partial.** Agent exists but lacks actual sensor simulation (atom interferometry, NV‑center magnetometry). | `backend/app/agents/sensing_agent.py` |
 | **Quantum Networking & Internet Simulator** | 🟡 **Partial.** Agent implements BB84, teleportation, and entanglement swapping circuits, but lacks SquidASM/NetSquid integration and continuous‑variable QKD. | `backend/app/agents/networking_agent.py` |
 | **D‑Wave Quantum Annealing Integration** | 🟢 **Implemented.** Agent and provider fully functional. | `backend/app/agents/dwave_agent.py`, `backend/app/quantum/dwave_provider.py` |
-| **Full Multi‑Hardware Ecosystem** | 🟡 **Partial.** IonQ, Quantinuum, Rigetti integrated via Azure/Braket; QuEra, Google Willow, CUDA‑Q missing. | `backend/app/quantum/cloud_backends.py` |
+| **Full Multi‑Hardware Ecosystem** | 🟡 **Partial.** IonQ, Quantinuum, Rigetti integrated via Azure/Braket; CUDA‑Q executor added; QuEra, Google Willow remain missing. | `backend/app/quantum/cloud_backends.py`, `backend/app/quantum/cudaq_executor.py` |
 | **Quantum Learning Academy** | 🟡 **Partial.** Academy routes exist but lack interactive Bloch sphere, circuit builder, and challenge problems. | `backend/app/routes/academy.py` |
 | **Quantum Advantage Benchmarking Engine** | 🟡 **Partial.** Benchmarking module exists but lacks IBM Benchpress integration and quantum‑vs‑classical race. | `backend/app/quantum/benchmarking.py` |
 | **Fault‑Tolerant Circuit Simulator** | 🟢 **Implemented.** Surface‑code simulation, logical qubit encoding, and threshold analysis are present. | `backend/app/quantum/fault_tolerant.py` |
@@ -119,20 +119,20 @@
 
 | Vulnerability | Risk Level | Evidence / Location | Mitigation |
 |---|---|---|---|
-| **Authentication Bypass** | 🔴 **Critical** | `AUTH_ENABLED=false` default, hardcoded dev‑user‑id; Keycloak SSO not enforced. | Set `AUTH_ENABLED=true` in `.env`, enforce token validation on all routes. |
-| **Over‑permissive CORS** | 🟡 **Medium** | `allow_origins=["*"]` in `main.py`; credentials allowed. | Restrict origins to trusted frontend domains, remove `*` in production. |
+| **Authentication Bypass** | 🟡 **Medium** | Frontend (`App.tsx`) now enforces Keycloak login; backend still defaults to `AUTH_ENABLED=false` with hardcoded dev‑user‑id. | Set `AUTH_ENABLED=true` in `.env`, enforce token validation on all routes. |
+| **Over‑permissive CORS** | 🟢 **Low** | CORS now restricted to `localhost:5173` and `localhost:3000`; credentials allowed but origin list is safe for local development. | Ensure production deployment uses appropriate origin list. |
 | **File Upload Path Traversal** | 🟡 **Medium** | `upload_file` uses user‑provided filename without sanitization; `project_id` and `token` concatenated as paths. | Validate filename, restrict extensions, use secure UUID naming; sanitize path parameters. |
-| **Lack of Rate Limiting** | 🟡 **Medium** | No rate limiting on chat, quantum execution, or API endpoints. | Implement per‑user rate limiting (e.g., `slowapi`). |
+| **Lack of Rate Limiting** | 🟢 **Low** | Rate limiting (`slowapi`) now integrated in `main.py`; default limits applied to all endpoints. | Monitor performance and adjust limits as needed. |
 | **Missing CSRF Protection** | 🟡 **Low** | No CSRF tokens on state‑modifying endpoints (POST, PUT, DELETE). | Add CSRF middleware for browser clients. |
 | **Peer‑to‑Peer Sync Security** | 🔴 **Critical (Future)** | Planned WebSocket/WebRTC sync lacks encryption, authentication, and authorization; opens MITM and data‑leakage risks. | Enforce TLS (WSS), authenticate peers via JWT, encrypt all messages, implement channel authorization. |
 | **Sandbox Escape Risk** | 🟡 **Medium** | Sandbox whitelist may be bypassed via nested imports or built‑in modules (e.g., `os`, `subprocess`). | Strengthen import validation, run code in isolated container (Docker), enforce memory/time limits. |
 | **Information Disclosure via Error Messages** | 🟡 **Low** | Unhandled exceptions may leak stack traces (depends on FastAPI debug mode). | Set `debug=False`, implement global exception handler, return generic error messages. |
-| **JSON File Injection** | 🟡 **Low** | Projects and shares stored as JSON files with direct writes; potential injection via malicious JSON content. | Use SQL database exclusively, validate JSON schema, escape content. |
+| **JSON File Injection** | 🟢 **Low** | Projects now stored in PostgreSQL DB; remaining JSON file usage limited to configuration and caching. | Continue migration to SQL for all persistent data. |
 | **Missing Input Validation** | 🟡 **Medium** | Many endpoints accept arbitrary `dict` inputs without schema validation (e.g., `projects.py`). | Use Pydantic models for all request bodies, validate field types and ranges. |
 
 ## Executive Conclusion
 The documentation describes a futuristic, multi-tenant, enterprise-grade application running on a robust stack (Keycloak, Kuzu, GraphRAG, Apple MLX, 9 Quantum providers). The reality is that the codebase is a **brilliant structural skeleton** that heavily stubs these features.
 
-- **The Good:** `hal.py` (Hardware detection), `storage.py` (Conversations DB), and `experiments/registry.py` (Experiment DB) are genuinely functioning up to spec.
-- **The Bad:** `projects.py` and `analytics.py` ignore SQL to rely on volatile JSON files. The 9 Quantum Providers are mostly absent. Keycloak is bypassed by default.
-- **The Urgent:** Over 60% of the advanced features detailed in the Architectural and GraphDB documents simply do not orchestrate in the code layer yet.
+- **The Good:** `hal.py` (Hardware detection), `storage.py` (Conversations DB), `experiments/registry.py` (Experiment DB), `projects.py` (now SQL), `analytics.py` (now SQL), and new modules (`mlx_client.py`, `cudaq_executor.py`, `sync_engine.py`) are genuinely functioning up to spec.
+- **The Bad:** Keycloak SSO still bypassed by default; 9 Quantum Providers partially implemented (IonQ, Quantinuum, Rigetti via Azure/Braket; CUDA‑Q added; QuEra, Google Willow missing); GraphRAG, FalkorDB, Kuzu remain stubbed.
+- **The Urgent:** Approximately 50% of the advanced features detailed in the Architectural and GraphDB documents are now partially implemented; the remaining gaps require focused development to reach production readiness.

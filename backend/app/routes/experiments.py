@@ -47,11 +47,11 @@ async def log_run(data: dict):
     """Log a new experiment run.
 
     Body: { project, circuit_name, circuit_code, backend, shots,
-            mitigation, transpile_options, results, tags, notes }
+            mitigation, transpile_options, results, tags, notes, parent_run_id }
     """
     return registry.log_run(**{k: v for k, v in data.items() if k in {
         "project", "circuit_name", "circuit_code", "backend", "shots",
-        "mitigation", "transpile_options", "results", "tags", "notes",
+        "mitigation", "transpile_options", "results", "tags", "notes", "parent_run_id"
     }})
 
 
@@ -75,6 +75,37 @@ async def tag_run(project: str, run_id: str, data: dict):
     Body: { tags: ["fast", "production"] }
     """
     return registry.tag_run(project, run_id, data.get("tags", []))
+
+
+@router.post("/runs/{project}/{run_id}/comments")
+async def add_comment(project: str, run_id: str, data: dict, user: dict = Depends(get_current_user)):
+    """Add a comment to a run.
+    
+    Body: { text: "This run looks stable." }
+    """
+    author = user.get("username", "anonymous")
+    text = data.get("text", "")
+    if not text:
+        return {"error": "Comment text required"}
+    return registry.add_comment(project, run_id, author, text)
+
+
+@router.post("/runs/{project}/{run_id}/share")
+async def share_run(project: str, run_id: str, data: dict):
+    """Share a run with another user.
+    
+    Body: { user_id: "colleague_username" }
+    """
+    user_id = data.get("user_id")
+    if not user_id:
+        return {"error": "user_id required"}
+    return registry.share_run(project, run_id, user_id)
+
+
+@router.get("/runs/{project}/{run_id}/lineage")
+async def get_lineage(project: str, run_id: str):
+    """Get the ancestral lineage graph for a run."""
+    return registry.get_lineage(project, run_id)
 
 
 # ── Notebook Export ──────────────────────────────────────

@@ -2,30 +2,49 @@
 
 const API_BASE = '/api';
 
+async function fetchWithAuth(url: string, options: RequestInit = {}) {
+    const token = localStorage.getItem('mq_token');
+    const headers = new Headers(options.headers || {});
+
+    if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    return fetch(url, { ...options, headers });
+}
+
 export async function fetchHealth() {
-    const res = await fetch(`${API_BASE}/health`);
+    const res = await fetchWithAuth(`${API_BASE}/health`);
+    return res.json();
+}
+
+export async function fetchCurrentUser() {
+    const res = await fetchWithAuth(`${API_BASE}/auth/me`);
+    if (!res.ok) {
+        throw new Error('Unauthorized');
+    }
     return res.json();
 }
 
 export async function fetchQuantumStatus() {
-    const res = await fetch(`${API_BASE}/quantum/status`);
+    const res = await fetchWithAuth(`${API_BASE}/quantum/status`);
     return res.json();
 }
 
 export async function fetchCircuits() {
-    const res = await fetch(`${API_BASE}/quantum/circuits`);
+    const res = await fetchWithAuth(`${API_BASE}/quantum/circuits`);
     return res.json();
 }
 
 export async function executeCircuit(name: string, shots = 1024) {
-    const res = await fetch(`${API_BASE}/quantum/execute/${name}?shots=${shots}`);
+    const res = await fetchWithAuth(`${API_BASE}/quantum/execute/${name}?shots=${shots}`);
     return res.json();
 }
 
 // ── Fault Tolerance & Benchmarking ─────────────────────
 
 export async function runBenchmark(name: string, size: number, shots = 1024) {
-    const res = await fetch(`${API_BASE}/benchmarks/run`, {
+    const res = await fetchWithAuth(`${API_BASE}/benchmarks/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, size, shots }),
@@ -34,68 +53,68 @@ export async function runBenchmark(name: string, size: number, shots = 1024) {
 }
 
 export async function fetchBenchmarkHistory() {
-    const res = await fetch(`${API_BASE}/benchmarks/history`);
+    const res = await fetchWithAuth(`${API_BASE}/benchmarks/history`);
     return res.json();
 }
 
 export async function fetchFaultTolerantResource(algo: string, size: number) {
-    const res = await fetch(`${API_BASE}/quantum/ft/resource-estimation?algorithm=${algo}&size=${size}`);
+    const res = await fetchWithAuth(`${API_BASE}/quantum/ft/resource-estimation?algorithm=${algo}&size=${size}`);
     return res.json();
 }
 
 export async function fetchBibTeX(conversationId: string) {
-    const res = await fetch(`${API_BASE}/citations/bibtex/${conversationId}`);
+    const res = await fetchWithAuth(`${API_BASE}/citations/bibtex/${conversationId}`);
     return res.json();
 }
 
 // ── HPC & Marketplace ──────────────────────────────────
 
 export async function fetchMarketplacePlugins() {
-    const res = await fetch(`${API_BASE}/marketplace/`);
+    const res = await fetchWithAuth(`${API_BASE}/marketplace/algorithms`);
     return res.json();
 }
 
 export async function installPlugin(id: string) {
-    const res = await fetch(`${API_BASE}/marketplace/install/${id}`, { method: 'POST' });
+    const res = await fetchWithAuth(`${API_BASE}/marketplace/install/${id}`, { method: 'POST' });
     return res.json();
 }
 
 export async function checkHpcStatus() {
-    const res = await fetch(`${API_BASE}/hpc/status`);
+    const res = await fetchWithAuth(`${API_BASE}/hpc/status`);
     return res.json();
 }
 
 // ── Conversations ──────────────────────────────────────
 
 export async function fetchConversations() {
-    const res = await fetch(`${API_BASE}/chat/conversations`);
+    const res = await fetchWithAuth(`${API_BASE}/chat/conversations`);
     return res.json();
 }
 
 export async function fetchConversation(id: string) {
-    const res = await fetch(`${API_BASE}/chat/conversations/${id}`);
+    const res = await fetchWithAuth(`${API_BASE}/chat/conversations/${id}`);
     return res.json();
 }
 
 export async function deleteConversation(id: string) {
-    const res = await fetch(`${API_BASE}/chat/conversations/${id}`, { method: 'DELETE' });
+    const res = await fetchWithAuth(`${API_BASE}/chat/conversations/${id}`, { method: 'DELETE' });
     return res.json();
 }
 
 // ── Settings ───────────────────────────────────────────
 
 export async function fetchSettings() {
-    const res = await fetch(`${API_BASE}/settings/`);
+    const res = await fetchWithAuth(`${API_BASE}/settings/`);
     return res.json();
 }
 
 export async function fetchModels() {
-    const res = await fetch(`${API_BASE}/settings/models`);
+    const res = await fetchWithAuth(`${API_BASE}/settings/models`);
     return res.json();
 }
 
 export async function updateSettings(data: Record<string, unknown>) {
-    const res = await fetch(`${API_BASE}/settings/`, {
+    const res = await fetchWithAuth(`${API_BASE}/settings/`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -108,12 +127,12 @@ export async function updateSettings(data: Record<string, unknown>) {
 // ── Cloud AI Providers ─────────────────────────────────
 
 export async function fetchCloudProviders() {
-    const res = await fetch(`${API_BASE}/settings/cloud-providers`);
+    const res = await fetchWithAuth(`${API_BASE}/settings/cloud-providers`);
     return res.json();
 }
 
 export async function setCloudProvider(provider: string, model?: string, api_key?: string) {
-    const res = await fetch(`${API_BASE}/settings/cloud-provider`, {
+    const res = await fetchWithAuth(`${API_BASE}/settings/cloud-provider`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider, model, api_key }),
@@ -124,12 +143,12 @@ export async function setCloudProvider(provider: string, model?: string, api_key
 // ── Projects ───────────────────────────────────────────
 
 export async function fetchProjects() {
-    const res = await fetch(`${API_BASE}/projects/`);
+    const res = await fetchWithAuth(`${API_BASE}/projects/`);
     return res.json();
 }
 
 export async function createProject(data: { name: string; description?: string; tags?: string[] }) {
-    const res = await fetch(`${API_BASE}/projects/`, {
+    const res = await fetchWithAuth(`${API_BASE}/projects/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -138,12 +157,12 @@ export async function createProject(data: { name: string; description?: string; 
 }
 
 export async function deleteProject(id: string) {
-    const res = await fetch(`${API_BASE}/projects/${id}`, { method: 'DELETE' });
+    const res = await fetchWithAuth(`${API_BASE}/projects/${id}`, { method: 'DELETE' });
     return res.json();
 }
 
 export async function addConversationToProject(projectId: string, conversationId: string) {
-    const res = await fetch(`${API_BASE}/projects/${projectId}/conversations/${conversationId}`, {
+    const res = await fetchWithAuth(`${API_BASE}/projects/${projectId}/conversations/${conversationId}`, {
         method: 'POST',
     });
     return res.json();
@@ -152,12 +171,12 @@ export async function addConversationToProject(projectId: string, conversationId
 // ── Dashboard ──────────────────────────────────────────
 
 export async function fetchAnalyticsSummary() {
-    const res = await fetch(`${API_BASE}/analytics/summary`);
+    const res = await fetchWithAuth(`${API_BASE}/analytics/summary`);
     return res.json();
 }
 
 export async function fetchCircuitStats() {
-    const res = await fetch(`${API_BASE}/analytics/circuits`);
+    const res = await fetchWithAuth(`${API_BASE}/analytics/circuits`);
     return res.json();
 }
 
@@ -178,7 +197,7 @@ export function streamChat(
         attached_file_id: fileId || null,
     });
 
-    fetch(`${API_BASE}/chat/send`, {
+    fetchWithAuth(`${API_BASE}/chat/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
@@ -240,58 +259,58 @@ export function streamChat(
 // ── Graph Intelligence ─────────────────────────────────
 
 export async function fetchGraphStatus() {
-    const res = await fetch(`${API_BASE}/graph/status`);
+    const res = await fetchWithAuth(`${API_BASE}/graph/status`);
     return res.json();
 }
 
 export async function fetchGraphRelated(query: string) {
-    const res = await fetch(`${API_BASE}/graph/related?q=${encodeURIComponent(query)}`);
+    const res = await fetchWithAuth(`${API_BASE}/graph/related?q=${encodeURIComponent(query)}`);
     return res.json();
 }
 
 export async function fetchGraphStats() {
-    const res = await fetch(`${API_BASE}/graph/stats`);
+    const res = await fetchWithAuth(`${API_BASE}/graph/stats`);
     return res.json();
 }
 
 export async function fetchAgentMemory(agentType: string, query?: string) {
     const params = query ? `?query=${encodeURIComponent(query)}` : '';
-    const res = await fetch(`${API_BASE}/graph/memory/${agentType}${params}`);
+    const res = await fetchWithAuth(`${API_BASE}/graph/memory/${agentType}${params}`);
     return res.json();
 }
 
 // ── Learning Academy ───────────────────────────────────
 
 export async function fetchLessons() {
-    const res = await fetch(`${API_BASE}/academy/lessons`);
+    const res = await fetchWithAuth(`${API_BASE}/academy/lessons`);
     return res.json();
 }
 
 export async function fetchLesson(id: string) {
-    const res = await fetch(`${API_BASE}/academy/lessons/${id}`);
+    const res = await fetchWithAuth(`${API_BASE}/academy/lessons/${id}`);
     return res.json();
 }
 
 export async function saveAcademyProgress(lessonId: string, completed: boolean = true, quizScore?: number) {
     const params = new URLSearchParams({ lesson_id: lessonId, completed: String(completed) });
     if (quizScore !== undefined) params.set('quiz_score', String(quizScore));
-    const res = await fetch(`${API_BASE}/academy/progress?${params}`, { method: 'POST' });
+    const res = await fetchWithAuth(`${API_BASE}/academy/progress?${params}`, { method: 'POST' });
     return res.json();
 }
 
 // ── Live Data Feeds ────────────────────────────────────
 
 export async function searchArxivPapers(query: string, maxResults: number = 5) {
-    const res = await fetch(`${API_BASE}/feeds/arxiv?query=${encodeURIComponent(query)}&max_results=${maxResults}`);
+    const res = await fetchWithAuth(`${API_BASE}/feeds/arxiv?query=${encodeURIComponent(query)}&max_results=${maxResults}`);
     return res.json();
 }
 
 export async function searchPubChem(name: string) {
-    const res = await fetch(`${API_BASE}/feeds/pubchem?name=${encodeURIComponent(name)}`);
+    const res = await fetchWithAuth(`${API_BASE}/feeds/pubchem?name=${encodeURIComponent(name)}`);
     return res.json();
 }
 
 export async function fetchStockPrices(symbols: string[]) {
-    const res = await fetch(`${API_BASE}/feeds/finance?symbols=${symbols.join(',')}`);
+    const res = await fetchWithAuth(`${API_BASE}/feeds/finance?symbols=${symbols.join(',')}`);
     return res.json();
 }

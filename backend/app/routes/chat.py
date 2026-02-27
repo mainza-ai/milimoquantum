@@ -9,8 +9,6 @@ Architecture:
 
 Every response is unique, dynamic, and contextual — no static shortcuts.
 """
-from __future__ import annotations
-
 import json
 import logging
 import uuid
@@ -20,6 +18,8 @@ from pathlib import Path
 
 from fastapi import APIRouter, Request, Depends, UploadFile, File
 from fastapi.responses import StreamingResponse
+
+from app.limiter import limiter
 
 from app.audit import log_action
 
@@ -57,6 +57,8 @@ AGENT_LABELS: dict[AgentType, str] = {
     AgentType.SENSING: "Quantum Sensing",
     AgentType.NETWORKING: "Quantum Networking",
     AgentType.DWAVE: "D-Wave Annealing",
+    AgentType.BENCHMARKING: "Benchmarking & Advantage",
+    AgentType.FAULT_TOLERANCE: "Fault Tolerance Lab",
     AgentType.PLANNING: "Planning",
     AgentType.ORCHESTRATOR: "Milimo Quantum",
 }
@@ -88,10 +90,14 @@ def _load_or_init(conversation_id: str) -> list[dict[str, Any]]:
 
 
 @router.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+@limiter.limit("5/minute")
+async def upload_file(request: Request, file: UploadFile = File(...)):
     """Upload a file to attach to a chat message."""
     file_id = str(uuid.uuid4())
-    ext = file.filename.split('.')[-1] if '.' in file.filename else ''
+    # Sanitize filename strictly to alphanumeric and common safe characters
+    safe_filename = "".join(c for c in (file.filename or "") if c.isalnum() or c in "._-")
+    
+    ext = safe_filename.split('.')[-1] if '.' in safe_filename else ''
     safe_name = f"{file_id}.{ext}" if ext else file_id
     file_path = UPLOAD_DIR / safe_name
     
@@ -101,43 +107,44 @@ async def upload_file(file: UploadFile = File(...)):
     import os
     return {
         "id": file_id,
-        "filename": file.filename,
+        "filename": safe_filename or file_id,
         "path": str(file_path),
         "content_type": file.content_type,
         "size": os.path.getsize(file_path)
     }
 
 @router.post("/send")
-async def send_message(request: ChatRequest):
+@limiter.limit("10/minute")
+async def send_message(request: Request, payload: ChatRequest):
     """Send a message and get a streaming SSE response."""
-    conversation_id = request.conversation_id or str(uuid.uuid4())
+    conversation_id = payload.conversation_id or str(uuid.uuid4())
     msgs = _load_or_init(conversation_id)
 
     # Detect agent
-    agent_type = request.agent or classify_intent(request.message)
-    _, clean_message = detect_slash_command(request.message)
+    agent_type = payload.agent or classify_intent(payload.message)
+    _, clean_message = detect_slash_command(payload.message)
 
     # Auto-detect QASM file content → route to Code Agent
-    if 'OPENQASM' in request.message or 'qreg' in request.message:
+    if 'OPENQASM' in payload.message or 'qreg' in payload.message:
         agent_type = AgentType.CODE
 
-    if getattr(request, "attached_file_id", None):
-        found = list(UPLOAD_DIR.glob(f"{request.attached_file_id}.*"))
+    if getattr(payload, "attached_file_id", None):
+        found = list(UPLOAD_DIR.glob(f"{payload.attached_file_id}.*"))
         if found:
             file_path = found[0]
             try:
                 content = file_path.read_text(errors='replace')
-                request.message = f"[Attached File: {file_path.name}]\n\n{content}\n\n---\n\n{request.message}"
+                payload.message = f"[Attached File: {file_path.name}]\n\n{content}\n\n---\n\n{payload.message}"
                 clean_message = f"[Attached File: {file_path.name}]\n\n{content}\n\n---\n\n{clean_message}"
             except Exception as e:
                 logger.error(f"Failed to read attached file: {e}")
 
     # Store user message
-    msgs.append({"role": "user", "content": request.message})
+    msgs.append({"role": "user", "content": payload.message})
 
     # Audit log
     await log_action("user", "chat_message", f"conversation/{conversation_id}",
-                     {"agent": agent_type, "length": len(request.message)})
+                     {"agent": agent_type, "length": len(payload.message)})
 
     async def event_stream():
         """Generate SSE events."""
@@ -148,6 +155,11 @@ async def send_message(request: ChatRequest):
         if agent_type == AgentType.PLANNING or needs_planning(clean_message):
             steps = decompose_task(clean_message)
             plan_text = format_plan(steps)
+            
+            from app.agents.planning_agent import get_workflow_artifact
+            wf_art = get_workflow_artifact(steps)
+            all_message_artifacts.append(wf_art)
+            yield f"event: artifact\ndata: {json.dumps(wf_art, default=str)}\n\n"
 
             # Stream the plan to the user
             for chunk in _chunk_text(plan_text, 12):

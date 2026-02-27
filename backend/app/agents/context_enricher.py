@@ -65,9 +65,12 @@ async def enrich_prompt(
                 sections.append(data)
 
         elif agent_type == AgentType.RESEARCH:
-            data = _enrich_research(message)
-            if data:
-                sections.append(data)
+            data_res = _enrich_research(message)
+            data_med = _enrich_medical(message)
+            if data_res:
+                sections.append(data_res)
+            if data_med:
+                sections.append(data_med)
 
         elif agent_type == AgentType.CHEMISTRY:
             data = _enrich_chemistry(message)
@@ -97,7 +100,11 @@ def build_data_preamble(agent_type: AgentType, message: str) -> str | None:
         if agent_type == AgentType.FINANCE:
             return _build_finance_preamble(message)
         elif agent_type == AgentType.RESEARCH:
-            return _build_research_preamble(message)
+            res = _build_research_preamble(message)
+            med = _build_medical_preamble(message)
+            if res or med:
+                return "\n".join(filter(None, [res, med]))
+            return None
         elif agent_type == AgentType.CHEMISTRY:
             return _build_chemistry_preamble(message)
     except Exception as e:
@@ -227,6 +234,46 @@ def _build_research_preamble(message: str) -> str | None:
     except Exception as e:
         logger.warning(f"Research preamble failed: {e}")
         return None
+
+def _build_medical_preamble(message: str) -> str | None:
+    """Build a recent medical papers section from PubMed."""
+    lower = message.lower()
+    # Only trigger if medical terminology is used
+    if not any(w in lower for w in ["drug", "medicine", "protein", "disease", "clinical", "affinity", "receptor", "pubmed"]):
+        return None
+        
+    skip_words = {"explain", "what", "is", "are", "the", "how", "does", "about", "tell", "me", "research", "find"}
+    topic_words = [w for w in lower.split() if w not in skip_words and len(w) > 2]
+    query = " ".join(topic_words[:5])
+
+    if not query or len(query) < 4:
+        return None
+
+    try:
+        from app.feeds.pubmed import search_pubmed
+
+        papers = search_pubmed(query, max_results=3)
+        if not papers:
+            return None
+
+        lines = ["## ⚕️ Recent Medical Research (PubMed)\n"]
+
+        for i, p in enumerate(papers, 1):
+            authors = ", ".join(p["authors"][:3])
+            if len(p["authors"]) > 3:
+                authors += " et al."
+            lines.append(f"**{i}. [{p['title']}]({p['url']})**")
+            lines.append(f"*{authors}* — {p.get('journal', 'Journal')} ({p.get('published', '')})")
+            lines.append(f"> PMID: {p['uid']}\n")
+
+        lines.append("---\n")
+        logger.info(f"Medical preamble built with {len(papers)} papers")
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.warning(f"Medical preamble failed: {e}")
+        return None
+
 
 
 def _build_chemistry_preamble(message: str) -> str | None:
@@ -397,6 +444,49 @@ def _enrich_research(message: str) -> str | None:
     except Exception as e:
         logger.warning(f"Research enrichment failed: {e}")
         return None
+
+def _enrich_medical(message: str) -> str | None:
+    """Fetch relevant PubMed papers for medical queries."""
+    lower = message.lower()
+    if not any(w in lower for w in ["drug", "medicine", "protein", "disease", "clinical", "affinity", "receptor", "pubmed"]):
+        return None
+        
+    skip_words = {"explain", "what", "is", "are", "the", "how", "does", "about", "tell", "me", "research", "find"}
+    topic_words = [w for w in lower.split() if w not in skip_words and len(w) > 2]
+    query = " ".join(topic_words[:5])
+
+    if not query or len(query) < 4:
+        return None
+
+    try:
+        from app.feeds.pubmed import search_pubmed
+
+        papers = search_pubmed(query, max_results=3)
+        if not papers:
+            return None
+
+        lines = [
+            "\n--- RECENT MEDICAL RESEARCH (PUBMED) ---",
+            "The following are real recent papers from PubMed. Mention relevant ones if applicable.\n",
+        ]
+
+        for i, p in enumerate(papers, 1):
+            authors = ", ".join(p["authors"][:2])
+            if len(p["authors"]) > 2:
+                authors += " et al."
+            lines.append(f"{i}. **{p['title']}** ({p.get('published', '')})")
+            lines.append(f"   Authors: {authors}")
+            lines.append(f"   Journal: {p.get('journal', '')}")
+            lines.append(f"   PMID: {p['uid']} - Link: {p['url']}\n")
+
+        lines.append("--- END MEDICAL RESEARCH ---\n")
+        logger.info(f"Medical context enriched with {len(papers)} papers")
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.warning(f"Medical enrichment failed: {e}")
+        return None
+
 
 
 def _enrich_chemistry(message: str) -> str | None:

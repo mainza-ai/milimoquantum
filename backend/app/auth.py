@@ -8,10 +8,12 @@ import logging
 import os
 from typing import Optional, List
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, APIRouter
 from fastapi.security import OAuth2PasswordBearer
 from keycloak import KeycloakOpenID
 from keycloak.exceptions import KeycloakError
+
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 logger = logging.getLogger(__name__)
 
@@ -106,3 +108,7 @@ def require_role(role_name: str):
             )
         return user
     return role_checker
+
+@router.get("/me")
+async def get_me(user: dict = Depends(get_current_user)):
+    return {"user": user}

@@ -136,10 +136,10 @@ export function Sidebar({
                         <button
                             onClick={onNewChat}
                             className="w-full py-2.5 px-4 rounded-xl
-                                bg-white/[0.04] hover:bg-white/[0.07]
-                                border border-white/[0.06] hover:border-white/[0.10]
+                                bg-white/[0.04] hover:bg-[#3ecfef]/5
+                                border border-white/[0.06] hover:border-[#3ecfef]/30
                                 text-[#e8e8ed] text-[13px] font-medium
-                                transition-all duration-200
+                                transition-all duration-300 hover:shadow-[0_0_15px_rgba(62,207,239,0.15)]
                                 flex items-center gap-2.5 cursor-pointer group"
                         >
                             <svg className="w-4 h-4 text-[#8a8a9a] group-hover:text-[#b0b0c0] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -232,8 +232,8 @@ export function Sidebar({
                                             className={`w-full flex items-center gap-2 py-2 px-3 rounded-lg text-[13px]
                                                 transition-all duration-150 cursor-pointer group text-left
                                                 ${isActive
-                                                    ? 'bg-white/[0.06] text-[#e8e8ed]'
-                                                    : 'text-[#8a8a9a] hover:text-[#c0c0d0] hover:bg-white/[0.03]'
+                                                    ? 'bg-white/[0.06] text-[#e8e8ed] border-l-2 border-[#3ecfef]'
+                                                    : 'text-[#8a8a9a] border-l-2 border-transparent hover:text-[#c0c0d0] hover:bg-[#3ecfef]/[0.02] hover:border-[#3ecfef]/50'
                                                 }`}
                                         >
                                             <span className="flex-1 truncate leading-snug">{c.title}</span>

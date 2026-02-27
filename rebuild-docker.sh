@@ -11,5 +11,12 @@ echo "⚛  Starting Milimo Quantum Docker Cluster..."
 docker compose --profile dev up -d --force-recreate
 
 echo ""
-echo "⚛  Cluster rebuilt and running in the background!"
+echo "   Backend:  http://localhost:8000"
+echo "   Frontend: http://localhost:5173"
+echo "   Neo4j:    http://localhost:7474"
+echo "   Keycloak: http://localhost:8080"
+echo "   Postgres: localhost:5432"
+echo "   Redis:    localhost:6379"
+echo "   Celery Worker is running in background"
+echo ""
 echo "Use './logs-docker.sh' to view logs."

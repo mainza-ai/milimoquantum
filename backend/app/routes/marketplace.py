@@ -138,8 +138,9 @@ INSTALLED_PLUGINS: set[str] = set()
 
 
 @router.get("/")
+@router.get("/algorithms")
 async def list_plugins(q: str = "", tag: str = ""):
-    """Browse the quantum app marketplace."""
+    """Browse the quantum app marketplace algorithms."""
     results = list(COMMUNITY_PLUGINS)
 
     if q:

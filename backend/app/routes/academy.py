@@ -390,8 +390,9 @@ def _save_progress(data: dict):
 
 
 @router.get("/lessons")
+@router.get("/courses")
 async def list_lessons():
-    """List all available lessons with progress status."""
+    """List all available lessons/courses with progress status."""
     progress = _load_progress()
     lessons = []
     for lesson in sorted(LESSONS, key=lambda x: x["order"]):
@@ -410,17 +411,19 @@ async def list_lessons():
 
 
 @router.get("/lessons/{lesson_id}")
-async def get_lesson(lesson_id: str):
-    """Get full lesson content by ID."""
+@router.get("/courses/{course_id}")
+async def get_lesson(lesson_id: str = None, course_id: str = None):
+    """Get full lesson/course content by ID."""
+    target_id = course_id if course_id else lesson_id
     for lesson in LESSONS:
-        if lesson["id"] == lesson_id:
+        if lesson["id"] == target_id:
             progress = _load_progress()
             return {
                 **lesson,
-                "completed": lesson_id in progress.get("completed", []),
-                "quiz_score": progress.get("quiz_scores", {}).get(lesson_id),
+                "completed": target_id in progress.get("completed", []),
+                "quiz_score": progress.get("quiz_scores", {}).get(target_id),
             }
-    raise HTTPException(status_code=404, detail=f"Lesson '{lesson_id}' not found")
+    raise HTTPException(status_code=404, detail=f"Course/Lesson '{target_id}' not found")
 
 
 @router.post("/progress")

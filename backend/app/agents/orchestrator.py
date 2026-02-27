@@ -9,6 +9,11 @@ import re
 
 from app.models.schemas import AgentType
 
+from app.llm.cloud_provider import get_current_provider, stream_chat_cloud
+from app.llm.ollama_client import ollama_client
+from app.llm.mlx_client import mlx_client
+from app.graph.agent_memory import agent_memory
+
 logger = logging.getLogger(__name__)
 
 # Slash command mapping
@@ -29,17 +34,32 @@ SLASH_COMMANDS: dict[str, AgentType] = {
     "/sensing": AgentType.SENSING,
     "/networking": AgentType.NETWORKING,
     "/dwave": AgentType.DWAVE,
+    "/benchmark": AgentType.BENCHMARKING,
+    "/ft": AgentType.FAULT_TOLERANCE,
+    "/error_correction": AgentType.FAULT_TOLERANCE,
 }
 
 # Keyword-based intent patterns (fallback when LLM is unavailable)
+# Order matters: more specific intents must come before generic ones
 INTENT_PATTERNS: list[tuple[list[str], AgentType]] = [
-    (["circuit", "qiskit", "qubit", "gate", "bell state", "ghz", "qft",
-      "hadamard", "cnot", "measure", "simulate", "transpile", "openqasm"],
-     AgentType.CODE),
-    (["quantum computing", "superposition",
-      "entanglement", "decoherence", "algorithm", "research", "paper",
-      "grover", "shor", "vqe", "qaoa"],
-     AgentType.RESEARCH),
+    # Highly specific dimensions
+    (["benchmark", "clops", "quantum advantage", "supremacy", "fidelity",
+      "metrics", "volume", "benchpress"],
+     AgentType.BENCHMARKING),
+    (["fault tolerant", "surface code", "logical qubit", "error correction",
+      "syndrome", "mwpm", "decoder", "qldpc", "magic state"],
+     AgentType.FAULT_TOLERANCE),
+    (["sensing", "metrology", "interferometry", "magnetometer",
+      "nv center", "nv-center", "gps", "lidar", "radar", "gravimetry"],
+     AgentType.SENSING),
+    (["network", "teleportation", "qkd", "repeater", "entanglement distribution",
+      "internet", "bb84", "squidasm", "netsquid"],
+     AgentType.NETWORKING),
+    (["dwave", "annealing", "qubo", "minorminer", "ocean", "ising", "advantage2", "d-wave"],
+     AgentType.DWAVE),
+    (["climate", "weather", "battery", "catalyst", "superconductor",
+      "hubbard", "material", "lattice", "carbon capture", "atmosphere"],
+     AgentType.CLIMATE),
     (["molecule", "drug", "protein", "chemistry", "vqe energy",
       "hamiltonian", "molecular"],
      AgentType.CHEMISTRY),
@@ -49,25 +69,25 @@ INTENT_PATTERNS: list[tuple[list[str], AgentType]] = [
     (["optimize", "max-cut", "tsp", "scheduling", "routing",
       "combinatorial"],
      AgentType.OPTIMIZATION),
-    (["encryption", "cryptography", "qkd", "bb84", "shor", "post-quantum",
+    (["encryption", "cryptography", "post-quantum",
       "rsa", "key distribution", "qrng", "random number"],
      AgentType.CRYPTO),
     (["neural network", "qnn", "qsvm", "classifier", "feature map",
       "machine learning", "quantum ml", "kernel", "barren plateau"],
      AgentType.QML),
-    (["climate", "weather", "battery", "catalyst", "superconductor",
-      "hubbard", "material", "lattice", "carbon capture"],
-     AgentType.CLIMATE),
     (["planning", "pipeline", "workflow", "multi-step"],
      AgentType.PLANNING),
     (["graph", "knowledge graph", "neo4j", "quantum graph intelligence", "qgi"],
      AgentType.QGI),
-    (["sensing", "metrology", "interferometry", "nv-center", "magnetometry", "lidar"],
-     AgentType.SENSING),
-    (["network", "teleportation", "entanglement distribution", "repeater", "squidasm", "netsquid"],
-     AgentType.NETWORKING),
-    (["dwave", "annealing", "qubo", "minorminer", "ocean", "ising"],
-     AgentType.DWAVE),
+
+    # Less specific / mostly generic
+    (["circuit", "qiskit", "qubit", "gate", "bell state", "ghz", "qft",
+      "hadamard", "cnot", "measure", "simulate", "transpile", "openqasm"],
+     AgentType.CODE),
+    (["quantum computing", "superposition",
+      "entanglement", "decoherence", "algorithm", "research", "paper",
+      "grover", "shor", "vqe", "qaoa"],
+     AgentType.RESEARCH),
 ]
 
 
@@ -161,30 +181,54 @@ def dispatch_multi_agent(steps: list[dict]) -> list[dict]:
     """Execute a multi-step plan by dispatching each step to its agent.
 
     Args:
-        steps: List of step dicts with 'agent', 'instruction' keys.
+        steps: List of step dicts with 'agent', 'instruction', and 'expected_output' keys.
 
     Returns:
         List of result dicts with 'step', 'agent', 'response', 'artifacts'.
     """
+    import json
     results = []
     context = ""  # Accumulated context from previous steps
+    structured_data = {} # Accumulated structured key-values
 
     for step in steps:
         agent_type = step.get("agent", AgentType.ORCHESTRATOR)
         instruction = step.get("instruction", "")
+        expected = step.get("expected_output", [])
 
-        # Enrich instruction with context from previous steps
+        # Enrich instruction with context and structured data from previous steps
         if context:
             instruction = f"{instruction}\n\nContext from previous steps:\n{context}"
+        if structured_data:
+            instruction = f"{instruction}\n\nStructured Data from upstream:\n{json.dumps(structured_data, indent=2)}"
+
+        if expected:
+            instruction = f"{instruction}\n\nIMPORTANT: You must include a structured output block at the end of your response with the following keys: {', '.join(expected)}. Format it exactly like this in your response:\n```json\n{{\n  \"key\": \"value\"\n}}\n```\nMake sure the JSON block contains the requested keys."
 
         result = dispatch_to_agent(agent_type, instruction)
         result["step"] = step.get("step", len(results) + 1)
         result["agent"] = agent_type.value
+        
+        response_text = result.get("response", "")
+        
+        # Try to parse the JSON block if expected
+        if expected and "```json" in response_text:
+            try:
+                import re
+                json_blocks = re.findall(r'```json\n(.*?)\n```', response_text, re.DOTALL)
+                if json_blocks:
+                    parsed = json.loads(json_blocks[-1])
+                    for k, v in parsed.items():
+                        if k in expected:
+                            structured_data[k] = v
+            except Exception as e:
+                logger.warning(f"Failed to parse expected structural data: {e}")
+
         results.append(result)
 
-        # Accumulate context for dependent steps
-        if result.get("response"):
-            context += f"\n[Step {result['step']}]: {result['response'][:500]}"
+        # Accumulate string context for dependent steps
+        if response_text:
+            context += f"\n[Step {result['step']}]: {response_text[:500]}"
 
     return results
 
@@ -506,9 +550,27 @@ print(sampleset)
 
 # Format for visualization (Optional: extract energies)
 best_sample = sampleset.first.sample
-print(f"\nBest Solution: {best_sample} Energy: {sampleset.first.energy}")
+print(f"\\nBest Solution: {best_sample} Energy: {sampleset.first.energy}")
 ```
 
 Explain the formulation (e.g., how the cost function maps to the QUBO).
+""" + _CODE_INSTRUCTION,
+
+    AgentType.BENCHMARKING: """You are the Milimo Quantum Benchmarking Agent.
+IMPORTANT: Always include a runnable ```python code block demonstrating the benchmark.
+
+For Quantum Volume: build randomized square circuits of depth d and width d.
+For CLOPS tracking: explain the benchmark flow and show parameterized layer updates.
+For Advantage candidates: outline IBM's criteria (100 qubits, depth > 100) and show a sample circuit volume limit.
+For generic metrics: use transpiler passes to count 2-qubit gates and depth before vs after optimization.
+""" + _CODE_INSTRUCTION,
+
+    AgentType.FAULT_TOLERANCE: """You are the Milimo Fault-Tolerant Quantum Circuit Agent.
+IMPORTANT: Always include a runnable ```python code block demonstrating the concept.
+
+For Surface codes: demonstrate a distance-d stabilization circuit with data and measure qubits.
+For Syndrome decoding: outline the flow of extracting errors and passing to MWPM.
+For Logical gates: show transversal CNOTs or magic state injection circuits.
+For qLDPC: outline the connectivity differences compared to surface codes (IBM Heron/Loon architecture).
 """ + _CODE_INSTRUCTION,
 }

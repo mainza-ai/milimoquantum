@@ -9,7 +9,10 @@ from app.quantum.executor import (
     QISKIT_AVAILABLE,
     execute_circuit,
     create_bell_state,
+    execute_circuit_code,
 )
+from app.quantum.cudaq_executor import CUDAQ_AVAILABLE
+from app.quantum import cudaq_executor
 from app.quantum.hal import hal_config
 from app.quantum import ibm_runtime
 from app.quantum import braket_provider, azure_provider
@@ -23,6 +26,7 @@ async def quantum_status():
     """Get quantum engine status and platform info."""
     return {
         "qiskit_available": QISKIT_AVAILABLE,
+        "cudaq_available": CUDA_Q_AVAILABLE,
         "ibm_quantum": ibm_runtime.get_status(),
         "braket": braket_provider.get_status(),
         "azure_quantum": azure_provider.get_status(),
@@ -98,6 +102,11 @@ async def list_providers():
             "available": QISKIT_AVAILABLE,
             "type": "local",
         },
+        "cudaq": {
+            "name": "NVIDIA CUDA-Q",
+            "available": CUDA_Q_AVAILABLE,
+            "type": "local/remote",
+        },
         "ibm_quantum": ibm_runtime.get_status(),
         "amazon_braket": {
             **braket_provider.get_status(),
@@ -125,13 +134,34 @@ async def list_circuits():
 @router.post("/execute")
 async def execute_quantum(request: CircuitRequest):
     """Execute a quantum circuit."""
-    if not QISKIT_AVAILABLE:
-        return {"error": "Qiskit is not installed"}
+    shots = request.shots
+    options = request.options or {}
 
-    if request.qasm:
-        result = execute_circuit(qasm_str=request.qasm, shots=request.shots)
+    if request.backend == "cudaq":
+        if not CUDA_Q_AVAILABLE:
+            return {"error": "CUDA-Q is not available or installed."}
+        result = cudaq_executor.execute_code(request.circuit_code, shots=shots)
+    elif request.backend.startswith("braket:"):
+        _, device_id = request.backend.split(":", 1)
+        result = braket_provider.run_circuit(qasm_str=request.circuit_code, device_id=device_id, shots=shots)
+    elif request.backend.startswith("azure:"):
+        _, target_id = request.backend.split(":", 1)
+        # Azure needs a qiskit circuit. Best effort parse.
+        try:
+            from qiskit import QuantumCircuit
+            qc = QuantumCircuit.from_qasm_str(request.circuit_code)
+            result = azure_provider.run_circuit(qiskit_circuit=qc, target_id=target_id, shots=shots)
+        except Exception as e:
+            return {"error": f"Azure Quantum requires valid QASM to build circuit: {e}"}
+    elif request.type == "qasm":
+        if not QISKIT_AVAILABLE:
+            return {"error": "Qiskit is not installed, cannot execute QASM."}
+        result = execute_circuit(qasm_str=request.circuit_code, shots=shots)
     else:
-        return {"error": "Provide QASM string in 'qasm' field"}
+        # Code execution mode (assumes Qiskit for most backends, or specific handling for others)
+        if not QISKIT_AVAILABLE and request.backend != "cudaq":
+            return {"error": f"Qiskit is not installed, cannot execute code for backend '{request.backend}'."}
+        result = execute_circuit_code(request.circuit_code, backend_name=request.backend, shots=shots, options=options)
 
     return result
 

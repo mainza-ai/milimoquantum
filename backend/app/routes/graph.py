@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from fastapi import APIRouter
 
-from app.graph.neo4j_client import neo4j_client
+from app.graph.client import graph_client
 from app.graph.agent_memory import agent_memory
 
 logger = logging.getLogger(__name__)
@@ -63,25 +63,25 @@ async def index_conversations():
                     if msg.get("agent"):
                         agent = msg["agent"]
 
-                await neo4j_client.index_conversation(conv_id, messages, agent)
+                await graph_client.index_conversation(conv_id, messages, agent)
                 indexed += 1
             except Exception:
                 continue
 
-    return {"indexed": indexed, "neo4j_connected": neo4j_client.connected}
+    return {"indexed": indexed, "neo4j_connected": graph_client.connected}
 
 
 @router.get("/related")
 async def query_related(q: str, limit: int = 10):
     """Find related concepts and conversations via graph traversal."""
-    results = await neo4j_client.query_related(q, limit)
+    results = await graph_client.query_related(q, limit)
     return {"query": q, "results": results}
 
 
 @router.get("/stats")
 async def graph_stats():
     """Get knowledge graph statistics."""
-    return await neo4j_client.get_graph_stats()
+    return await graph_client.get_graph_stats()
 
 
 # ── Agent Memory Endpoints ────────────────────────────

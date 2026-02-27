@@ -106,9 +106,10 @@ const LABEL_WIDTH = 40;
 
 interface CircuitVisualizerProps {
     code: string;
+    simulating?: boolean;
 }
 
-export function CircuitVisualizer({ code }: CircuitVisualizerProps) {
+export function CircuitVisualizer({ code, simulating = false }: CircuitVisualizerProps) {
     const [tooltip, setTooltip] = useState<TooltipState | null>(null);
     const { numQubits, gates } = useMemo(() => parseCircuit(code), [code]);
 
@@ -226,8 +227,9 @@ export function CircuitVisualizer({ code }: CircuitVisualizerProps) {
                             y1={wireY(i)}
                             x2={svgWidth - 10}
                             y2={wireY(i)}
-                            stroke="var(--color-mq-border-light)"
+                            stroke={simulating ? "var(--color-mq-cyan)" : "var(--color-mq-border-light)"}
                             strokeWidth="1.5"
+                            className={simulating ? "animate-pulse" : ""}
                         />
                     ))}
 
@@ -245,6 +247,7 @@ export function CircuitVisualizer({ code }: CircuitVisualizerProps) {
                                     onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, gate })}
                                     onMouseLeave={() => setTooltip(null)}
                                     style={{ cursor: 'pointer' }}
+                                    className={simulating ? "animate-pulse" : ""}
                                 >
                                     {/* Vertical line between control and target */}
                                     <line
@@ -271,6 +274,7 @@ export function CircuitVisualizer({ code }: CircuitVisualizerProps) {
                                     onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, gate })}
                                     onMouseLeave={() => setTooltip(null)}
                                     style={{ cursor: 'pointer' }}
+                                    className={simulating ? "animate-pulse" : ""}
                                 >
                                     <line x1={x} y1={wireY(q0)} x2={x} y2={wireY(q1)} stroke={info.color} strokeWidth="2" />
                                     {/* X on q0 */}
@@ -294,6 +298,7 @@ export function CircuitVisualizer({ code }: CircuitVisualizerProps) {
                                     onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, gate })}
                                     onMouseLeave={() => setTooltip(null)}
                                     style={{ cursor: 'pointer' }}
+                                    className={simulating ? "animate-pulse" : ""}
                                 >
                                     <line x1={x} y1={minY} x2={x} y2={maxY} stroke={info.color} strokeWidth="2" />
                                     <circle cx={x} cy={wireY(c0)} r={5} fill={info.color} />
@@ -314,6 +319,7 @@ export function CircuitVisualizer({ code }: CircuitVisualizerProps) {
                                     onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, gate })}
                                     onMouseLeave={() => setTooltip(null)}
                                     style={{ cursor: 'pointer' }}
+                                    className={simulating ? "animate-pulse" : ""}
                                 >
                                     <line x1={x} y1={wireY(q0)} x2={x} y2={wireY(q1)} stroke={info.color} strokeWidth="2" />
                                     <circle cx={x} cy={wireY(q0)} r={5} fill={info.color} />
@@ -331,6 +337,7 @@ export function CircuitVisualizer({ code }: CircuitVisualizerProps) {
                                     onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, gate })}
                                     onMouseLeave={() => setTooltip(null)}
                                     style={{ cursor: 'pointer' }}
+                                    className={simulating ? "animate-pulse" : ""}
                                 >
                                     <rect
                                         x={x - GATE_WIDTH / 2} y={y - 16}
@@ -359,6 +366,7 @@ export function CircuitVisualizer({ code }: CircuitVisualizerProps) {
                                 onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, gate })}
                                 onMouseLeave={() => setTooltip(null)}
                                 style={{ cursor: 'pointer' }}
+                                className={simulating ? "animate-pulse" : ""}
                             >
                                 <rect
                                     x={x - GATE_WIDTH / 2} y={y - 16}

@@ -76,27 +76,48 @@ export function CircuitBuilder({ onExport, onSendToChat }: CircuitBuilderProps) 
     const canRedo = useMemo(() => historyPosRef.current < historyRef.current.length - 1, [placedGates]);
 
     const handleDragStart = useCallback((gateId: string) => {
-        setDragGate(gateId);
+        setDragGate(`new:${gateId}`);
+    }, []);
+
+    const handleDragStartGate = useCallback((id: string) => {
+        setDragGate(`move:${id}`);
     }, []);
 
     const handleDrop = useCallback((qubit: number) => {
         if (!dragGate) return;
 
+        if (dragGate.startsWith('move:')) {
+            const id = dragGate.split(':')[1];
+            // Move the gate to the end of the target wire's layout
+            const gateToMove = placedGates.find(g => g.id === id);
+            if (!gateToMove) return;
+            const filtered = placedGates.filter(g => g.id !== id);
+            const updated = [...filtered, { ...gateToMove, qubit }];
+
+            // Re-assign targetQubit if two-qubit gate logic applies, though could keep original target
+            setPlacedGates(updated);
+            pushHistory(updated);
+            setDragGate(null);
+            return;
+        }
+
+        const gateType = dragGate.split(':')[1];
+
         const newGate: PlacedGate = {
             id: `g${idCounter.current++}`,
-            gate: dragGate,
+            gate: gateType,
             qubit,
         };
 
         // Two-qubit gates default target to next qubit
-        if (['cx', 'cz', 'swap'].includes(dragGate)) {
+        if (['cx', 'cz', 'swap'].includes(gateType)) {
             newGate.targetQubit = (qubit + 1) % numQubits;
         }
-        if (dragGate === 'ccx') {
+        if (gateType === 'ccx') {
             newGate.targetQubit = Math.min(qubit + 2, numQubits - 1);
         }
         // Parameterized gates default to π/2
-        if (PARAMETERIZED_GATES.has(dragGate)) {
+        if (PARAMETERIZED_GATES.has(gateType)) {
             newGate.param = Math.PI / 2;
         }
 
@@ -359,6 +380,8 @@ export function CircuitBuilder({ onExport, onSendToChat }: CircuitBuilderProps) 
                                         return (
                                             <span key={g.id} className="relative inline-flex flex-col items-center">
                                                 <span
+                                                    draggable
+                                                    onDragStart={() => handleDragStartGate(g.id)}
                                                     onClick={() => {
                                                         if (isParam) {
                                                             setEditingGate(isEditing ? null : g.id);
@@ -368,7 +391,7 @@ export function CircuitBuilder({ onExport, onSendToChat }: CircuitBuilderProps) 
                                                     }}
                                                     onContextMenu={(e) => { e.preventDefault(); removeGate(g.id); }}
                                                     className="inline-flex items-center justify-center w-7 h-7
-                                                        rounded-md text-[10px] font-mono font-bold cursor-pointer
+                                                        rounded-md text-[10px] font-mono font-bold cursor-grab active:cursor-grabbing
                                                         border hover:brightness-125 hover:scale-110 transition-all"
                                                     style={{
                                                         color: palette?.color || '#a1a1aa',
@@ -427,7 +450,7 @@ export function CircuitBuilder({ onExport, onSendToChat }: CircuitBuilderProps) 
                     <p className="text-[10px] text-mq-text-tertiary uppercase tracking-wider mb-2 font-medium">
                         Live Preview
                     </p>
-                    <CircuitVisualizer code={code} />
+                    <CircuitVisualizer code={code} simulating={simulating} />
                 </div>
             )}
 

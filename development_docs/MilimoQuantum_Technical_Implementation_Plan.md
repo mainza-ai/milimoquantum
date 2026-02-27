@@ -1,8 +1,17 @@
 # Milimo Quantum: Phase 3 True Implementation Plan
 
-**Update Status:** Codebase audit complete. This plan accurately and exhaustively addresses all verified gaps between the architecture documents and the current codebase implementation.
+**Update Status:** Phase 2 audit completed. The codebase has been partially updated: projects and analytics now use SQL; Apple MLX and CUDA‑Q integration added; sync engine implemented. However, many gaps remain (Keycloak bypass, missing quantum providers, GraphRAG). This plan prioritizes the remaining critical gaps.
 
 Based on the Exhaustive Documentation Traceability Audit, the following plan bridges the massive gap between the 5 foundational Architecture Documents and the current codebase.
+
+**Recent Progress:** The codebase has been updated to address some of the most critical gaps identified in the previous audit:
+- **Projects & Analytics migrated to SQL:** `projects.py` and `analytics.py` now use PostgreSQL, eliminating file‑based sprawl.
+- **Apple MLX Integration:** `mlx_client.py` provides native LLM acceleration on Apple Silicon.
+- **CUDA‑Q Integration:** `cudaq_executor.py` enables GPU‑accelerated quantum simulation on NVIDIA hardware.
+- **Device Synchronization Engine:** `sync_engine.py` enables real‑time collaboration via WebSocket.
+- **Frontend OAuth Gap Closed:** Implicit flow token extraction and Authorization header injection now functional (`App.tsx`, `api.ts`).
+
+However, many architectural obligations remain unfulfilled, as detailed in the audit report. This plan prioritizes the remaining critical gaps.
 
 ## Part 1: Eliminating File-Based System Vulnerabilities
 
@@ -13,7 +22,8 @@ The codebase suffers from split-brain persistence. Experiments and Conversations
 - **Action:** Rewrite `analytics.py` endpoints like `circuit_stats()` to execute SQL queries rather than traversing `.json` directory globs.
 
 ### 2. Activating Keycloak SSO
-- **Action:** Enforce `AUTH_ENABLED=true` in `.env`.
+- **Status:** Frontend OAuth gap closed (implicit flow token extraction, Authorization header injection). Backend still defaults to `AUTH_ENABLED=false`.
+- **Action:** Enforce `AUTH_ENABLED=true` in `.env` (remove dev‑user‑id fallback) and ensure token validation is required for all protected endpoints.
 - **Action:** Bind `get_current_user` directly into the UI state (`App.tsx` / `Sidebar.tsx`) so that the application is locked behind Keycloak authentication.
 
 ---

@@ -1,178 +1,197 @@
 """Milimo Quantum — Project Management Routes.
 
-Full CRUD for quantum computing projects.
-Projects organize conversations, experiments, and results.
+Full CRUD for quantum computing projects via PostgreSQL.
 """
 from __future__ import annotations
 
-import json
 import logging
 import uuid
 from datetime import datetime
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import List, Optional
+
+from app.db import get_session
+from app.db.models import Project
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
-PROJECTS_DIR = Path.home() / ".milimoquantum" / "projects"
+class ProjectCreate(BaseModel):
+    name: str = "New Project"
+    description: str = ""
+    tags: List[str] = []
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 
-def _ensure_dir():
-    """Ensure the projects directory exists."""
-    PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+def _create_default_project(session: Session) -> dict:
+    """Create the default project if none exists."""
+    project = Project(
+        id="default",
+        name="My Quantum Lab",
+        description="Default quantum computing workspace",
+        tags=["general"],
+        conversation_ids=[]
+    )
+    session.add(project)
+    session.commit()
+    return _format_project(project)
 
 
-def _load_project(project_id: str) -> dict | None:
-    """Load a project from disk."""
-    filepath = PROJECTS_DIR / f"{project_id}.json"
-    if not filepath.exists():
-        return None
-    try:
-        return json.loads(filepath.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return None
-
-
-def _save_project(project: dict) -> None:
-    """Save a project to disk."""
-    _ensure_dir()
-    filepath = PROJECTS_DIR / f"{project['id']}.json"
-    project["updated_at"] = datetime.utcnow().isoformat()
-    filepath.write_text(json.dumps(project, indent=2, default=str), encoding="utf-8")
+def _format_project(p: Project) -> dict:
+    # Ensure tags and arrays are always lists
+    tags = p.tags if isinstance(p.tags, list) else (list(p.tags) if p.tags else [])
+    convs = p.conversation_ids if isinstance(p.conversation_ids, list) else (list(p.conversation_ids) if p.conversation_ids else [])
+    
+    return {
+        "id": p.id,
+        "name": p.name,
+        "description": p.description,
+        "tags": tags,
+        "conversation_ids": convs,
+        "conversation_count": len(convs),
+        "created_at": p.created_at.isoformat() if p.created_at else "",
+        "updated_at": p.updated_at.isoformat() if p.updated_at else "",
+    }
 
 
 @router.get("/")
 async def list_projects():
     """List all projects."""
-    _ensure_dir()
-    projects = []
-    for filepath in sorted(PROJECTS_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
-        try:
-            data = json.loads(filepath.read_text(encoding="utf-8"))
-            projects.append({
-                "id": data["id"],
-                "name": data.get("name", "Untitled"),
-                "description": data.get("description", ""),
-                "tags": data.get("tags", []),
-                "conversation_ids": data.get("conversation_ids", []),
-                "conversation_count": len(data.get("conversation_ids", [])),
-                "created_at": data.get("created_at", ""),
-                "updated_at": data.get("updated_at", ""),
-            })
-        except (json.JSONDecodeError, OSError, KeyError):
-            continue
-
-    # Ensure default project exists
-    if not projects:
-        default = _create_default_project()
-        projects.append({
-            "id": default["id"],
-            "name": default["name"],
-            "description": default["description"],
-            "tags": default.get("tags", []),
-            "conversation_ids": [],
-            "conversation_count": 0,
-            "created_at": default["created_at"],
-            "updated_at": default["updated_at"],
-        })
-
-    return {"projects": projects}
+    session = get_session()
+    try:
+        projects = session.query(Project).order_by(Project.updated_at.desc()).all()
+        if not projects:
+            default = _create_default_project(session)
+            return {"projects": [default]}
+        return {"projects": [_format_project(p) for p in projects]}
+    except Exception as e:
+        logger.error(f"Error listing projects: {e}")
+        raise HTTPException(status_code=500, detail="Database Error")
+    finally:
+        session.close()
 
 
 @router.post("/")
-async def create_project(data: dict):
+async def create_project(data: ProjectCreate):
     """Create a new project."""
-    project_id = str(uuid.uuid4())
-    now = datetime.utcnow().isoformat()
-    project = {
-        "id": project_id,
-        "name": data.get("name", "New Project"),
-        "description": data.get("description", ""),
-        "tags": data.get("tags", []),
-        "conversation_ids": [],
-        "created_at": now,
-        "updated_at": now,
-    }
-    _save_project(project)
-    logger.info(f"Created project {project_id}: {project['name']}")
-    return project
+    session = get_session()
+    try:
+        now = datetime.utcnow()
+        project = Project(
+            id=str(uuid.uuid4()),
+            name=data.name,
+            description=data.description,
+            tags=data.tags,
+            conversation_ids=[],
+            created_at=now,
+            updated_at=now
+        )
+        session.add(project)
+        session.commit()
+        logger.info(f"Created project {project.id}: {project.name}")
+        return _format_project(project)
+    finally:
+        session.close()
 
 
 @router.get("/{project_id}")
 async def get_project(project_id: str):
     """Get a project by ID."""
-    project = _load_project(project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
+    session = get_session()
+    try:
+        project = session.query(Project).filter_by(id=project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        return _format_project(project)
+    finally:
+        session.close()
 
 
 @router.put("/{project_id}")
-async def update_project(project_id: str, data: dict):
+async def update_project(project_id: str, data: ProjectUpdate):
     """Update a project."""
-    project = _load_project(project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    session = get_session()
+    try:
+        project = session.query(Project).filter_by(id=project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
 
-    if "name" in data:
-        project["name"] = data["name"]
-    if "description" in data:
-        project["description"] = data["description"]
-    if "tags" in data:
-        project["tags"] = data["tags"]
-
-    _save_project(project)
-    logger.info(f"Updated project {project_id}")
-    return project
+        if data.name is not None:
+            project.name = data.name
+        if data.description is not None:
+            project.description = data.description
+        if data.tags is not None:
+            project.tags = data.tags
+            
+        project.updated_at = datetime.utcnow()
+        session.commit()
+        logger.info(f"Updated project {project_id}")
+        return _format_project(project)
+    finally:
+        session.close()
 
 
 @router.delete("/{project_id}")
 async def delete_project(project_id: str):
     """Delete a project."""
-    filepath = PROJECTS_DIR / f"{project_id}.json"
-    if not filepath.exists():
-        raise HTTPException(status_code=404, detail="Project not found")
-    filepath.unlink()
-    logger.info(f"Deleted project {project_id}")
-    return {"deleted": True}
+    session = get_session()
+    try:
+        project = session.query(Project).filter_by(id=project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        session.delete(project)
+        session.commit()
+        logger.info(f"Deleted project {project_id}")
+        return {"deleted": True}
+    finally:
+        session.close()
 
 
 @router.post("/{project_id}/conversations/{conversation_id}")
 async def add_conversation_to_project(project_id: str, conversation_id: str):
     """Associate a conversation with a project."""
-    project = _load_project(project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    if conversation_id not in project.get("conversation_ids", []):
-        project.setdefault("conversation_ids", []).append(conversation_id)
-        _save_project(project)
-    return {"added": True}
+    session = get_session()
+    try:
+        project = session.query(Project).filter_by(id=project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # JSON fields in SQLAlchemy can be tricky, sometimes require reassignment
+        convs = project.conversation_ids if project.conversation_ids else []
+        if isinstance(convs, list) and conversation_id not in convs:
+            new_convs = list(convs)
+            new_convs.append(conversation_id)
+            project.conversation_ids = new_convs
+            project.updated_at = datetime.utcnow()
+            session.commit()
+        return {"added": True}
+    finally:
+        session.close()
 
 
 @router.delete("/{project_id}/conversations/{conversation_id}")
 async def remove_conversation_from_project(project_id: str, conversation_id: str):
     """Remove a conversation from a project."""
-    project = _load_project(project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    if conversation_id in project.get("conversation_ids", []):
-        project["conversation_ids"].remove(conversation_id)
-        _save_project(project)
-    return {"removed": True}
+    session = get_session()
+    try:
+        project = session.query(Project).filter_by(id=project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
 
-
-def _create_default_project() -> dict:
-    """Create the default project if none exists."""
-    project = {
-        "id": "default",
-        "name": "My Quantum Lab",
-        "description": "Default quantum computing workspace",
-        "tags": ["general"],
-        "conversation_ids": [],
-        "created_at": datetime.utcnow().isoformat(),
-        "updated_at": datetime.utcnow().isoformat(),
-    }
-    _save_project(project)
-    return project
+        convs = project.conversation_ids if project.conversation_ids else []
+        if isinstance(convs, list) and conversation_id in convs:
+            new_convs = list(convs)
+            new_convs.remove(conversation_id)
+            project.conversation_ids = new_convs
+            project.updated_at = datetime.utcnow()
+            session.commit()
+        return {"removed": True}
+    finally:
+        session.close()

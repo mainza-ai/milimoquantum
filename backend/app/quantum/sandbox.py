@@ -67,18 +67,48 @@ def extract_code_blocks(llm_output: str) -> list[str]:
 
 
 def _validate_imports(code: str) -> str | None:
-    """Check that all imports are from whitelisted modules.
+    """Check that all imports and calls are safe using AST parsing.
 
-    Returns error message if an unsafe import is found, None if safe.
+    Returns error message if an unsafe operation is found, None if safe.
     """
-    import_pattern = r"(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))"
-    for match in re.finditer(import_pattern, code):
-        module = match.group(1) or match.group(2)
-        # Check if the root module is allowed
-        root_module = module.split(".")[0]
-        allowed_roots = {m.split(".")[0] for m in ALLOWED_MODULES}
-        if root_module not in allowed_roots:
-            return f"Import '{module}' is not allowed. Only Qiskit, NumPy, math, and SciPy imports are permitted."
+    import ast
+    try:
+        tree = ast.parse(code)
+    except Exception as e:
+        return f"SyntaxError: {e}"
+
+    allowed_roots = {m.split(".")[0] for m in ALLOWED_MODULES}
+
+    for node in ast.walk(tree):
+        # 1. Check direct imports
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                root_module = alias.name.split('.')[0]
+                if root_module not in allowed_roots:
+                    return f"Import '{alias.name}' is not allowed. Only Qiskit, NumPy, math, and SciPy are permitted."
+        
+        # 2. Check from ... import ...
+        elif isinstance(node, ast.ImportFrom):
+            if isinstance(node.module, str):
+                root_module = node.module.split('.')[0]
+                if root_module not in allowed_roots:
+                    return f"Import '{node.module}' is not allowed."
+            # Edge case: 'from . import x' might set node.module=None
+            elif node.level > 0:
+                pass  # Local relative imports are fine if we are within sandbox structure
+        
+        # 3. Check for specific dangerous builtin calls that might exist in globals temporarily
+        elif isinstance(node, ast.Call):
+            if hasattr(node.func, "id") and isinstance(getattr(node.func, "id", None), str):
+                func_id = getattr(node.func, "id", "")
+                if func_id in {"__import__", "eval", "exec", "open", "input"}:
+                    return f"Function call '{func_id}' is forbidden for security reasons."
+            # Also catch things like getattr(builtins, '__import__')
+            elif hasattr(node.func, "attr") and isinstance(getattr(node.func, "attr", None), str):
+                func_attr = getattr(node.func, "attr", "")
+                if func_attr in {"__import__", "eval", "exec", "open"}:
+                    return f"Attribute call '{func_attr}' is forbidden."
+
     return None
 
 

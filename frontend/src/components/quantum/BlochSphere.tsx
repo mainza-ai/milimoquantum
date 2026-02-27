@@ -140,11 +140,12 @@ export function BlochSphere({
                     stroke="#e879f9"
                     strokeWidth="2"
                     markerEnd="url(#arrowhead)"
+                    className="transition-all duration-700 ease-in-out"
                 />
 
                 {/* State dot */}
-                <circle cx={stateX} cy={stateY} r={5} fill="#e879f9" />
-                <circle cx={stateX} cy={stateY} r={8} fill="#e879f9" opacity="0.2">
+                <circle cx={stateX} cy={stateY} r={5} fill="#e879f9" className="transition-all duration-700 ease-in-out" />
+                <circle cx={stateX} cy={stateY} r={8} fill="#e879f9" opacity="0.2" className="transition-all duration-700 ease-in-out">
                     <animate attributeName="r" values="8;12;8" dur="2s" repeatCount="indefinite" />
                 </circle>
 
@@ -213,6 +214,51 @@ export function BlochSphereInteractive({ externalTheta, externalPhi, externalLab
         { label: '|−i⟩', theta: Math.PI / 2, phi: 3 * Math.PI / 2 },
     ];
 
+    const applyGate = (gate: string) => {
+        // Current state in amplitudes: a|0> + b|1>
+        const a_re = Math.cos(theta / 2);
+        const a_im = 0;
+        const b_re = Math.sin(theta / 2) * Math.cos(phi);
+        const b_im = Math.sin(theta / 2) * Math.sin(phi);
+
+        let n_a_re = a_re, n_a_im = a_im, n_b_re = b_re, n_b_im = b_im;
+
+        if (gate === 'X') {
+            n_a_re = b_re; n_a_im = b_im;
+            n_b_re = a_re; n_b_im = a_im;
+        } else if (gate === 'Y') {
+            n_a_re = b_im; n_a_im = -b_re;
+            n_b_re = -a_im; n_b_im = a_re;
+        } else if (gate === 'Z') {
+            n_a_re = a_re; n_a_im = a_im;
+            n_b_re = -b_re; n_b_im = -b_im;
+        } else if (gate === 'H') {
+            const invSqrt2 = 1 / Math.sqrt(2);
+            n_a_re = invSqrt2 * (a_re + b_re);
+            n_a_im = invSqrt2 * (a_im + b_im);
+            n_b_re = invSqrt2 * (a_re - b_re);
+            n_b_im = invSqrt2 * (a_im - b_im);
+        }
+
+        // Convert back to spherical theta, phi
+        const norm_a = Math.hypot(n_a_re, n_a_im);
+        const newTheta = 2 * Math.acos(Math.min(1, Math.max(0, norm_a)));
+
+        let newPhi = 0;
+        if (newTheta > 1e-5 && newTheta < Math.PI - 1e-5) {
+            const phase_a = Math.atan2(n_a_im, n_a_re);
+            const phase_b = Math.atan2(n_b_im, n_b_re);
+            newPhi = phase_b - phase_a;
+        }
+
+        while (newPhi < 0) newPhi += 2 * Math.PI;
+        while (newPhi >= 2 * Math.PI) newPhi -= 2 * Math.PI;
+
+        setTheta(newTheta);
+        setPhi(newPhi);
+        setIsExternal(false);
+    };
+
     return (
         <div className="space-y-4">
             {/* External state indicator */}
@@ -226,20 +272,39 @@ export function BlochSphereInteractive({ externalTheta, externalPhi, externalLab
                 </div>
             )}
 
-            {/* Preset buttons */}
-            <div className="flex flex-wrap gap-1.5">
-                {presets.map(p => (
-                    <button
-                        key={p.label}
-                        onClick={() => { setTheta(p.theta); setPhi(p.phi); setIsExternal(false); }}
-                        className="px-2.5 py-1 rounded-lg text-[10px] font-mono font-semibold
-                            border border-white/[0.06] bg-white/[0.02]
-                            text-mq-text-secondary hover:text-mq-cyan hover:border-[#3ecfef]/30
-                            transition-all cursor-pointer"
-                    >
-                        {p.label}
-                    </button>
-                ))}
+            {/* Controls Bar */}
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Gates</span>
+                    <div className="flex gap-1.5">
+                        {['X', 'Y', 'Z', 'H'].map(g => (
+                            <button key={g} onClick={() => applyGate(g)}
+                                className="w-7 h-7 rounded-lg text-xs font-mono font-bold
+                                bg-cyan-500/10 text-cyan-400 border border-cyan-500/20
+                                hover:bg-cyan-500/20 transition-all cursor-pointer shadow-sm
+                                shadow-cyan-500/10 active:scale-95 flex items-center justify-center">
+                                {g}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-white/[0.04] pt-2">
+                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">States</span>
+                    <div className="flex flex-wrap justify-end gap-1.5">
+                        {presets.map(p => (
+                            <button
+                                key={p.label}
+                                onClick={() => { setTheta(p.theta); setPhi(p.phi); setIsExternal(false); }}
+                                className="px-2 py-1 rounded bg-white/[0.02] border border-white/[0.06]
+                                text-[10px] font-mono font-semibold text-gray-400
+                                hover:text-white hover:border-gray-500 transition-all cursor-pointer"
+                            >
+                                {p.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             <BlochSphere theta={theta} phi={phi} label={isExternal ? externalLabel : undefined} />

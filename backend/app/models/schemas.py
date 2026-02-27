@@ -26,7 +26,8 @@ class AgentType(str, Enum):
     SENSING = "sensing"
     NETWORKING = "networking"
     DWAVE = "dwave"
-
+    BENCHMARKING = "benchmarking"
+    FAULT_TOLERANCE = "fault_tolerance"
 
 class MessageRole(str, Enum):
     USER = "user"
@@ -40,6 +41,7 @@ class ArtifactType(str, Enum):
     RESULTS = "results"
     NOTEBOOK = "notebook"
     REPORT = "report"
+    WORKFLOW = "workflow"
 
 
 # ── Chat ───────────────────────────────────────────────────────────

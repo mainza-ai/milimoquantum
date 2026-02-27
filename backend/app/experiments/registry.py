@@ -39,19 +39,23 @@ def log_run(
     results: dict | None = None,
     tags: list[str] | None = None,
     notes: str = "",
+    parent_run_id: str | None = None,
 ) -> dict:
     """Log a quantum circuit execution to the run registry.
 
     Returns the run metadata with a unique run_id.
     """
-    from app.db import get_session
+    from app.db.local_cache import get_local_session
     from app.db.models import Experiment
+    from app.experiments.sync_engine import broadcast_p2p
+    import asyncio
 
     now = datetime.utcnow()
     hash_input = f"{circuit_code}{now.isoformat()}{shots}".encode()
     run_id = hashlib.sha256(hash_input).hexdigest()[:12]
 
-    session = get_session()
+    # Save to local SQLite explicitly
+    session = get_local_session()
     try:
         exp = Experiment(
             id=run_id,
@@ -67,12 +71,16 @@ def log_run(
                 "transpile_options": transpile_options or {},
                 "notes": notes,
                 "version": 1,
+                "parent_run_id": parent_run_id,
+                "comments": [],
+                "shared_with": []
             },
             created_at=now,
+            is_synced=False,
         )
         session.add(exp)
         session.commit()
-        logger.info(f"Logged run {run_id} for project '{project}' (DB)")
+        logger.info(f"Logged run {run_id} for project '{project}' (Local Cache)")
 
         return {
             "run_id": run_id,
@@ -88,7 +96,19 @@ def log_run(
             "notes": notes,
             "timestamp": now.isoformat(),
             "version": 1,
+            "parent_run_id": parent_run_id,
+            "comments": [],
+            "shared_with": []
         }
+        
+        # Fire-and-forget broadcast via event loop if available
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(broadcast_p2p(run_data))
+        except RuntimeError:
+            pass # No running loop (e.g. CLI script)
+            
+        return run_data
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to log run {run_id}: {e}")
@@ -121,6 +141,9 @@ def get_run(project: str, run_id: str) -> dict | None:
             "notes": exp.parameters.get("notes", ""),
             "timestamp": exp.created_at.isoformat(),
             "version": exp.parameters.get("version", 1),
+            "parent_run_id": exp.parameters.get("parent_run_id"),
+            "comments": exp.parameters.get("comments", []),
+            "shared_with": exp.parameters.get("shared_with", [])
         }
     finally:
         session.close()
@@ -225,6 +248,129 @@ def tag_run(project: str, run_id: str, tags: list[str]) -> dict:
         return {"run_id": run_id, "tags": exp.tags}
     except Exception as e:
         session.rollback()
+        return {"error": str(e)}
+    finally:
+        session.close()
+
+
+def add_comment(project: str, run_id: str, author: str, text: str) -> dict:
+    """Add a collaboration comment to a run."""
+    from app.db import get_session
+    from app.db.models import Experiment
+
+    session = get_session()
+    try:
+        exp = session.query(Experiment).filter_by(project=project, id=run_id).first()
+        if not exp:
+            return {"error": "Run not found"}
+
+        params = exp.parameters or {}
+        comments = params.get("comments", [])
+        
+        # We need to explicitly copy lists/dicts for SQLAlchemy JSON fields to detect changes
+        new_comments = list(comments)
+        new_comments.append({
+            "author": author,
+            "text": text,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+        new_params = dict(params)
+        new_params["comments"] = new_comments
+        exp.parameters = new_params
+        
+        session.commit()
+        return {"run_id": run_id, "comments": exp.parameters["comments"]}
+    except Exception as e:
+        session.rollback()
+        return {"error": str(e)}
+    finally:
+        session.close()
+
+
+def share_run(project: str, run_id: str, user_id: str) -> dict:
+    """Add a user to the shared_with list for a run."""
+    from app.db import get_session
+    from app.db.models import Experiment
+
+    session = get_session()
+    try:
+        exp = session.query(Experiment).filter_by(project=project, id=run_id).first()
+        if not exp:
+            return {"error": "Run not found"}
+
+        params = exp.parameters or {}
+        shared_with = params.get("shared_with", [])
+        
+        if user_id not in shared_with:
+            new_shared = list(shared_with)
+            new_shared.append(user_id)
+            
+            new_params = dict(params)
+            new_params["shared_with"] = new_shared
+            exp.parameters = new_params
+            
+            session.commit()
+            
+        return {"run_id": run_id, "shared_with": exp.parameters["shared_with"]}
+    except Exception as e:
+        session.rollback()
+        return {"error": str(e)}
+    finally:
+        session.close()
+
+
+def get_lineage(project: str, run_id: str) -> dict:
+    """Reconstruct the ancestral tree for a specific run."""
+    from app.db import get_session
+    from app.db.models import Experiment
+
+    session = get_session()
+    try:
+        # Start from the requested run and walk upwards to find all ancestors
+        all_runs = session.query(Experiment).filter_by(project=project).all()
+        
+        run_map = {r.id: r for r in all_runs}
+        if run_id not in run_map:
+            return {"error": "Run not found"}
+            
+        nodes = []
+        edges = []
+        
+        current_id = run_id
+        visited = set()
+        
+        # Traverse upwards to the root
+        while current_id and current_id in run_map and current_id not in visited:
+            visited.add(current_id)
+            exp = run_map[current_id]
+            
+            nodes.append({
+                "id": exp.id,
+                "label": exp.name or "Untitled Run",
+                "backend": exp.backend,
+                "timestamp": exp.created_at.isoformat()
+            })
+            
+            parent_id = exp.parameters.get("parent_run_id")
+            if parent_id:
+                edges.append({"source": parent_id, "target": current_id})
+            
+            current_id = parent_id
+            
+        # Reverse to show chronological order (root first)
+        nodes.reverse()
+        edges.reverse()
+        
+        return {
+            "root_run_id": nodes[0]["id"] if nodes else None,
+            "target_run_id": run_id,
+            "graph": {
+                "nodes": nodes,
+                "edges": edges
+            }
+        }
+    except Exception as e:
         return {"error": str(e)}
     finally:
         session.close()

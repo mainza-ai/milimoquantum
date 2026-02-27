@@ -37,7 +37,7 @@ def needs_planning(message: str) -> bool:
 def decompose_task(message: str) -> list[dict]:
     """Break a complex request into ordered sub-tasks.
 
-    Returns a list of step dicts: {agent, instruction, depends_on}
+    Returns a list of step dicts: {agent, instruction, depends_on, expected_output}
     """
     lower = message.lower()
 
@@ -47,51 +47,97 @@ def decompose_task(message: str) -> list[dict]:
             {
                 "step": 1,
                 "agent": AgentType.RESEARCH,
-                "instruction": f"Explain the concepts being compared: {message}",
+                "instruction": f"Explain the concepts being compared: {message}. Extract the distinct theoretical models.",
                 "depends_on": None,
+                "expected_output": ["theoretical_models", "comparison_metrics"]
             },
             {
                 "step": 2,
                 "agent": AgentType.CODE,
-                "instruction": "Generate Qiskit circuits to demonstrate each approach",
+                "instruction": "Generate Qiskit circuits to demonstrate each approach identified.",
                 "depends_on": 1,
+                "expected_output": ["circuit_codes"]
             },
             {
                 "step": 3,
                 "agent": AgentType.ORCHESTRATOR,
-                "instruction": "Synthesize the comparison with a clear recommendation",
+                "instruction": "Synthesize the comparison with a clear recommendation.",
                 "depends_on": 2,
+                "expected_output": ["final_synthesis"]
             },
         ]
 
     # ── Pipeline / workflow pattern ─────────────────────
-    if any(kw in lower for kw in ["pipeline", "workflow", "end to end", "end-to-end"]):
+    if any(kw in lower for kw in ["pipeline", "workflow", "end to end", "end-to-end", "drug"]):
         steps = []
-        if any(kw in lower for kw in ["molecule", "drug", "chemistry", "vqe"]):
+        if any(kw in lower for kw in ["molecule", "drug", "chemistry", "vqe", "affinity", "protein"]):
             steps = [
-                {"step": 1, "agent": AgentType.RESEARCH, "instruction": "Explain the molecular simulation approach", "depends_on": None},
-                {"step": 2, "agent": AgentType.CHEMISTRY, "instruction": "Set up the molecular Hamiltonian and ansatz", "depends_on": 1},
-                {"step": 3, "agent": AgentType.CODE, "instruction": "Generate the complete Qiskit code", "depends_on": 2},
+                {
+                    "step": 1, 
+                    "agent": AgentType.RESEARCH, 
+                    "instruction": f"Research the molecular target for: {message}. Return the molecular structure details.",
+                    "depends_on": None,
+                    "expected_output": ["molecule_name", "smiles", "formula", "protein_target"]
+                },
+                {
+                    "step": 2, 
+                    "agent": AgentType.CHEMISTRY, 
+                    "instruction": "Set up the molecular Hamiltonian and VQE ansatz for the identified molecule.", 
+                    "depends_on": 1,
+                    "expected_output": ["qubit_count", "hamiltonian_mapping", "ansatz_type"]
+                },
+                {
+                    "step": 3, 
+                    "agent": AgentType.CODE, 
+                    "instruction": "Generate the complete Qiskit code to execute the VQE simulation.", 
+                    "depends_on": 2,
+                    "expected_output": ["circuit_code"]
+                },
             ]
         elif any(kw in lower for kw in ["portfolio", "finance", "optimize"]):
             steps = [
-                {"step": 1, "agent": AgentType.RESEARCH, "instruction": "Explain the optimization approach", "depends_on": None},
-                {"step": 2, "agent": AgentType.FINANCE, "instruction": "Formulate the financial model", "depends_on": 1},
-                {"step": 3, "agent": AgentType.OPTIMIZATION, "instruction": "Build the QAOA circuit", "depends_on": 2},
-                {"step": 4, "agent": AgentType.CODE, "instruction": "Generate the complete implementation", "depends_on": 3},
+                {"step": 1, "agent": AgentType.RESEARCH, "instruction": f"Explain the optimization approach for: {message}", "depends_on": None, "expected_output": ["optimization_strategy"]},
+                {"step": 2, "agent": AgentType.FINANCE, "instruction": "Formulate the financial model based on the strategy.", "depends_on": 1, "expected_output": ["financial_model", "assets"]},
+                {"step": 3, "agent": AgentType.OPTIMIZATION, "instruction": "Build the QAOA circuit definition.", "depends_on": 2, "expected_output": ["qaoa_parameters"]},
+                {"step": 4, "agent": AgentType.CODE, "instruction": "Generate the complete implementation.", "depends_on": 3, "expected_output": ["circuit_code"]},
             ]
         else:
             steps = [
-                {"step": 1, "agent": AgentType.RESEARCH, "instruction": f"Research: {message}", "depends_on": None},
-                {"step": 2, "agent": AgentType.CODE, "instruction": "Implement the solution in Qiskit", "depends_on": 1},
+                {"step": 1, "agent": AgentType.RESEARCH, "instruction": f"Research: {message}", "depends_on": None, "expected_output": ["research_summary"]},
+                {"step": 2, "agent": AgentType.CODE, "instruction": "Implement the solution in Qiskit", "depends_on": 1, "expected_output": ["circuit_code"]},
             ]
         return steps
 
     # ── Default: research → code ────────────────────────
     return [
-        {"step": 1, "agent": AgentType.RESEARCH, "instruction": f"Analyze: {message}", "depends_on": None},
-        {"step": 2, "agent": AgentType.CODE, "instruction": "Implement in Qiskit", "depends_on": 1},
+        {"step": 1, "agent": AgentType.RESEARCH, "instruction": f"Analyze: {message}", "depends_on": None, "expected_output": ["analysis"]},
+        {"step": 2, "agent": AgentType.CODE, "instruction": "Implement in Qiskit", "depends_on": 1, "expected_output": ["code"]},
     ]
+
+def get_workflow_artifact(steps: list[dict], title: str = "Execution Pipeline") -> dict:
+    """Generate a WORKFLOW artifact definition mapping the DAG."""
+    nodes = []
+    edges = []
+    for step in steps:
+        nodes.append({
+            "id": str(step["step"]),
+            "label": str(step.get("agent", "Agent").value).title() if hasattr(step.get("agent"), "value") else str(step.get("agent")),
+            "description": step["instruction"],
+            "expected_output": step.get("expected_output", [])
+        })
+        if step.get("depends_on"):
+            edges.append({
+                "source": str(step["depends_on"]),
+                "target": str(step["step"])
+            })
+    
+    import json
+    return {
+        "type": "workflow",
+        "title": title,
+        "content": json.dumps({"nodes": nodes, "edges": edges}),
+        "language": "json"
+    }
 
 
 def format_plan(steps: list[dict]) -> str:

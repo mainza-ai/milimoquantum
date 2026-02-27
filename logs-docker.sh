@@ -4,4 +4,4 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 
 echo "📄 Tailing logs for all services (Press Ctrl+C to exit)..."
-docker compose logs -f
+docker compose --profile dev logs -f

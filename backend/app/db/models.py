@@ -102,6 +102,7 @@ class Experiment(Base):
     tags = Column(JSON, default=list)
     created_at = Column(DateTime, default=datetime.utcnow)
     runtime_ms = Column(Float, nullable=True)
+    is_synced = Column(Boolean, default=False)
 
     user = relationship("User", back_populates="experiments")
 
@@ -118,3 +119,16 @@ class AuditLog(Base):
     resource_id = Column(String(128), nullable=True)
     details = Column(JSON, default=dict)
     ip_address = Column(String(45), nullable=True)
+
+
+class Project(Base):
+    """Workspace organizing conversations, experiments, and results."""
+    __tablename__ = "projects"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    name = Column(String(256), nullable=False, default="New Project")
+    description = Column(Text, default="")
+    tags = Column(JSON, default=list)
+    conversation_ids = Column(JSON, default=list)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

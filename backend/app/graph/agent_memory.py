@@ -122,8 +122,14 @@ class AgentMemory:
         """Retrieve relevant context for an agent's current query.
 
         Uses simple keyword matching on local store.
-        When FalkorDB is available, uses GraphRAG for semantic retrieval.
+        # When FalkorDB/Neo4j is available, uses GraphRAG for semantic retrieval.
+        # This is a stub for the unified client.
         """
+        from app.graph.client import graph_client
+        if graph_client.get_status().get('connected'):
+            # TODO: Add specific query routing based on provider here
+            pass
+            
         memories = self._local.get(agent_type, [])
         if not memories:
             return []
