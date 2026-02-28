@@ -40,6 +40,12 @@ except ImportError:
 
 MLX_AVAILABLE = MLX_LM_AVAILABLE or MLX_VLM_AVAILABLE
 
+try:
+    from mlx_lm.sample_utils import make_sampler, make_logits_processors
+    SAMPLING_UTILS_AVAILABLE = True
+except ImportError:
+    SAMPLING_UTILS_AVAILABLE = False
+
 
 class MlxClient:
     """Native Apple Silicon MLX Client for local LLMs."""
@@ -148,6 +154,31 @@ class MlxClient:
             "config": self.config
         }
 
+    def _get_sampling_config(self, **kwargs) -> dict:
+        """Create sampler and logits_processors for generation."""
+        temp = kwargs.get("temperature", self.config.get("temperature", 0.7))
+        top_p = kwargs.get("top_p", self.config.get("top_p", 0.9))
+        repetition_penalty = kwargs.get("repetition_penalty")
+        repetition_context_size = kwargs.get("repetition_context_size", 20)
+        logit_bias = kwargs.get("logit_bias")
+        
+        # Build sampler
+        if SAMPLING_UTILS_AVAILABLE:
+            sampler = make_sampler(temp=temp, top_p=top_p)
+            processors = make_logits_processors(logit_bias, repetition_penalty, repetition_context_size)
+            return {
+                "sampler": sampler,
+                "logits_processors": processors,
+                "temperature": temp, # Keep for vlm compatibility
+                "top_p": top_p      # Keep for vlm compatibility
+            }
+        
+        # Fallback if utilities not available
+        return {
+            "temperature": temp,
+            "top_p": top_p
+        }
+
     async def stream_chat(
         self,
         messages: list[dict[str, str]],
@@ -206,25 +237,38 @@ class MlxClient:
         loop = asyncio.get_running_loop()
         
         def _generate_iter():
+            sampling_config = self._get_sampling_config()
+            
             gen_args = {
                 "max_tokens": self.config.get("max_tokens", 32768),
-                "temperature": self.config.get("temperature", 0.7),
-                "top_p": self.config.get("top_p", 0.9),
             }
-            if not self.is_vlm:
-                # mlx-lm uses 'temp' in its internal sampler logic for stream_generate
-                gen_args["temp"] = gen_args.pop("temperature")
+            
+            # Add sampling parameters
+            gen_args.update(sampling_config)
+            
             if self.is_vlm:
-                # If image_path is provided, use it.
+                # mlx_vlm.generate_step signature includes these explicitly,
+                # but we also pass the sampler to be safe.
+                # Filter to only allowed kwargs for mlx_vlm.stream_generate
+                vlm_allowed = ["max_tokens", "temperature", "top_p", "repetition_penalty", 
+                               "repetition_context_size", "logit_bias", "sampler", "logits_processors"]
+                filtered_args = {k: v for k, v in gen_args.items() if k in vlm_allowed}
+                
                 return mlx_vlm.stream_generate(
                     self.model, self.processor, prompt, 
                     image=image_path, 
-                    **gen_args
+                    **filtered_args
                 )
             else:
+                # mlx_lm.generate_step signature is very strict.
+                # It does NOT take temperature or top_p, only sampler.
+                lm_allowed = ["max_tokens", "sampler", "logits_processors", "max_kv_size", 
+                              "prompt_cache", "prefill_step_size"]
+                filtered_args = {k: v for k, v in gen_args.items() if k in lm_allowed}
+                
                 return mlx_lm.stream_generate(
                     self.model, self.tokenizer, prompt=prompt, 
-                    **gen_args
+                    **filtered_args
                 )
 
         try:
@@ -293,24 +337,30 @@ class MlxClient:
          loop = asyncio.get_running_loop()
          
          def _generate():
+             sampling_config = self._get_sampling_config()
              gen_args = {
                  "max_tokens": self.config.get("max_tokens", 32768),
-                 "temperature": self.config.get("temperature", 0.7),
-                 "top_p": self.config.get("top_p", 0.9),
              }
-             if not self.is_vlm:
-                 # mlx-lm uses 'temp'
-                 gen_args["temp"] = gen_args.pop("temperature")
+             gen_args.update(sampling_config)
+             
              if self.is_vlm:
+                 vlm_allowed = ["max_tokens", "temperature", "top_p", "repetition_penalty", 
+                                "repetition_context_size", "logit_bias", "sampler", "logits_processors"]
+                 filtered_args = {k: v for k, v in gen_args.items() if k in vlm_allowed}
+                 
                  return mlx_vlm.generate(
                      self.model, self.processor, prompt=formatted_prompt, 
                      image=image_path, 
-                     **gen_args
+                     **filtered_args
                  )
              else:
+                 lm_allowed = ["max_tokens", "sampler", "logits_processors", "max_kv_size", 
+                               "prompt_cache", "prefill_step_size"]
+                 filtered_args = {k: v for k, v in gen_args.items() if k in lm_allowed}
+                 
                  return mlx_lm.generate(
                      self.model, self.tokenizer, prompt=formatted_prompt, 
-                     **gen_args
+                     **filtered_args
                  )
              
          try:
