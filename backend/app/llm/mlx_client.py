@@ -208,8 +208,12 @@ class MlxClient:
         def _generate_iter():
             gen_args = {
                 "max_tokens": self.config.get("max_tokens", 32768),
-                "temp": self.config.get("temperature", 0.7),
+                "temperature": self.config.get("temperature", 0.7),
+                "top_p": self.config.get("top_p", 0.9),
             }
+            if not self.is_vlm:
+                # mlx-lm uses 'temp' in its internal sampler logic for stream_generate
+                gen_args["temp"] = gen_args.pop("temperature")
             if self.is_vlm:
                 # If image_path is provided, use it.
                 return mlx_vlm.stream_generate(
@@ -291,8 +295,12 @@ class MlxClient:
          def _generate():
              gen_args = {
                  "max_tokens": self.config.get("max_tokens", 32768),
-                 "temp": self.config.get("temperature", 0.7),
+                 "temperature": self.config.get("temperature", 0.7),
+                 "top_p": self.config.get("top_p", 0.9),
              }
+             if not self.is_vlm:
+                 # mlx-lm uses 'temp'
+                 gen_args["temp"] = gen_args.pop("temperature")
              if self.is_vlm:
                  return mlx_vlm.generate(
                      self.model, self.processor, prompt=formatted_prompt, 
