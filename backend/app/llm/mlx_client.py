@@ -100,7 +100,14 @@ class MlxClient:
             # Detect if model is VLM (multimodal)
             import os
             
-            config_path = hf_hub_download(repo_id=self.model_name, filename="config.json")
+            # If the model is already cached, avoid network HEAD requests
+            is_cached = self.model_name in local_models
+            
+            config_path = hf_hub_download(
+                repo_id=self.model_name, 
+                filename="config.json",
+                local_files_only=is_cached
+            )
             with open(config_path, "r") as f:
                 self.model_config = json.load(f)
             
@@ -109,9 +116,11 @@ class MlxClient:
             
             if self.is_vlm and MLX_VLM_AVAILABLE:
                 logger.info(f"Detected multimodal model, loading with mlx-vlm")
+                # mlx-vlm load also handles local loading if snapshots are present
                 self.model, self.processor = mlx_vlm.load(self.model_name)
             else:
                 logger.info(f"Loading as standard LLM with mlx-lm")
+                # mlx-lm load also handles local loading efficiently
                 self.model, self.tokenizer = mlx_lm.load(self.model_name)
                 
             self.is_loaded = True

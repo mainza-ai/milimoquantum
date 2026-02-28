@@ -82,12 +82,25 @@ async def _get_embedding(text: str) -> list[float] | None:
     # Fallback: local sentence‑transformer (all‑MiniLM‑L6‑v2)
     try:
         from sentence_transformers import SentenceTransformer
+        import os
+        
         # Lazy load the model (cached globally)
         if not hasattr(_get_embedding, "_local_model"):
             MODEL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            model_id = 'all-MiniLM-L6-v2'
+            
+            # Check if model folder exists to avoid network calls
+            # sentence-transformers replaces / with _ in folder names typically
+            model_folder = os.path.join(MODEL_CACHE_DIR, model_id.replace("/", "_"))
+            
+            # Use local_files_only=True if we have reason to believe it's already there
+            # snapshot_download often creates a folder with the repo name
+            is_cached = os.path.exists(model_folder) or any(model_id in d for d in os.listdir(MODEL_CACHE_DIR) if os.path.isdir(os.path.join(MODEL_CACHE_DIR, d)))
+            
             _get_embedding._local_model = SentenceTransformer(
-                'all-MiniLM-L6-v2', 
-                cache_folder=str(MODEL_CACHE_DIR)
+                model_id, 
+                cache_folder=str(MODEL_CACHE_DIR),
+                model_kwargs={"local_files_only": is_cached}
             )
         model = _get_embedding._local_model
         embedding = model.encode(text, normalize_embeddings=True).tolist()
