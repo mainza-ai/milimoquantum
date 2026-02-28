@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import uuid
-from fastapi import APIRouter
+from app.auth import get_current_user
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.quantum.hpc import HPCAdapter
 from app.quantum.hal import hal_config
 
-router = APIRouter(prefix="/api/hpc", tags=["hpc"])
+router = APIRouter(prefix="/api/hpc", tags=["hpc"], dependencies=[Depends(get_current_user)])
 
 class HPCJobRequest(BaseModel):
     qasm: str

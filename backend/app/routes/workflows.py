@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import logging
 from typing import Dict, Any, List
-from fastapi import APIRouter, HTTPException
+from app.auth import get_current_user
+from fastapi import APIRouter, HTTPException, Depends
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ except ImportError:
     CELERY_AVAILABLE = False
     logger.warning("Celery tasks unavailable, workflows will run synchronously or fail.")
 
-router = APIRouter(prefix="/api/workflows", tags=["workflows"])
+router = APIRouter(prefix="/api/workflows", tags=["workflows"], dependencies=[Depends(get_current_user)])
 
 @router.post("/parameter_sweep")
 async def trigger_parameter_sweep(payload: Dict[str, Any]):

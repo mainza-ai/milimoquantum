@@ -6,7 +6,8 @@ All IBM Runtime logic is delegated to app.quantum.ibm_runtime.
 from __future__ import annotations
 
 import logging
-from fastapi import APIRouter
+from app.auth import get_current_user
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.quantum.ibm_runtime import (
@@ -19,7 +20,7 @@ from app.quantum.ibm_runtime import (
 from app.audit import log_action
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/quantum/ibm", tags=["ibm-quantum"])
+router = APIRouter(prefix="/api/quantum/ibm", tags=["ibm-quantum"], dependencies=[Depends(get_current_user)])
 
 
 class ConnectRequest(BaseModel):

@@ -76,7 +76,8 @@ export function MessageBubble({ message, onArtifactClick }: MessageBubbleProps) 
                             >
                                 {message.content}
                             </ReactMarkdown>
-                            {message.isStreaming && (
+
+                            {message.isStreaming && message.content.trim().endsWith('</think>') === false && (
                                 <span className="inline-flex ml-0.5 align-middle">
                                     <span className="w-[2px] h-[18px] bg-mq-cyan rounded-full"
                                         style={{ animation: 'typing-cursor 1s ease-in-out infinite' }} />

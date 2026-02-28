@@ -6,13 +6,14 @@ import io
 import json
 import logging
 
-from fastapi import APIRouter
+from app.auth import get_current_user
+from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 
 from app import storage
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/export", tags=["export"])
+router = APIRouter(prefix="/api/export", tags=["export"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/conversations/{conversation_id}")

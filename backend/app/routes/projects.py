@@ -8,7 +8,8 @@ import logging
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from app.auth import get_current_user
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
@@ -17,7 +18,7 @@ from app.db import get_session
 from app.db.models import Project
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/projects", tags=["projects"])
+router = APIRouter(prefix="/api/projects", tags=["projects"], dependencies=[Depends(get_current_user)])
 
 class ProjectCreate(BaseModel):
     name: str = "New Project"

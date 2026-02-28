@@ -1,11 +1,12 @@
 """Milimo Quantum — Benchmarking Routes."""
 from __future__ import annotations
-from fastapi import APIRouter
+from app.auth import get_current_user
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.quantum.benchmarking import BenchmarkEngine
 
-router = APIRouter(prefix="/api/benchmarks", tags=["benchmarks"])
+router = APIRouter(prefix="/api/benchmarks", tags=["benchmarks"], dependencies=[Depends(get_current_user)])
 
 
 class BenchmarkRequest(BaseModel):

@@ -39,7 +39,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     const [mlxSearching, setMlxSearching] = useState(false);
     const [mlxDownloading, setMlxDownloading] = useState<string | null>(null);
     const [mlxProgress, setMlxProgress] = useState<{ percent: number, bytes: number, total: number } | null>(null);
-    const [mlxConfig, setMlxConfig] = useState<{ temperature: number, top_p: number, max_tokens: number }>({ temperature: 0.7, top_p: 0.9, max_tokens: 1024 });
+    const [mlxConfig, setMlxConfig] = useState<{ temperature: number, top_p: number, max_tokens: number }>({ temperature: 0.7, top_p: 0.9, max_tokens: 32768 });
     const [mlxConfigSaving, setMlxConfigSaving] = useState(false);
 
     // New features state
@@ -94,6 +94,13 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     setMlxModels(mlxData.models || []);
                     setActiveMlxModel(mlxData.current || '');
                 }).catch(() => { });
+
+                // Fetch current MLX generation config
+                import('../../services/api').then(({ fetchMLXConfig }) => {
+                    fetchMLXConfig().then(config => {
+                        if (config) setMlxConfig(config);
+                    }).catch(() => { });
+                });
             }
         }).catch(() => { });
 
@@ -116,9 +123,13 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 explain_level: explainLevel,
             });
             // Save agent models separately
+            const token = localStorage.getItem('mq_token');
             await fetch('/api/settings/agent-models', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
                 body: JSON.stringify({ agent_models: agentModels }),
             });
             // Apply theme
@@ -313,7 +324,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                                     <span>{mlxConfig.max_tokens}</span>
                                                 </label>
                                                 <input
-                                                    type="range" min="128" max="8192" step="128"
+                                                    type="range" min="128" max="32768" step="128"
                                                     value={mlxConfig.max_tokens}
                                                     onChange={e => setMlxConfig({ ...mlxConfig, max_tokens: parseInt(e.target.value) })}
                                                     className="w-full mt-1 accent-purple-500"
@@ -352,13 +363,22 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                     <input
                                         value={mlxSearchQuery}
                                         onChange={(e) => setMlxSearchQuery(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleMlxSearch()}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleMlxSearch();
+                                            }
+                                        }}
                                         placeholder="E.g. Llama-3-8B-Instruct-4bit"
                                         className="flex-1 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
                                             text-white text-sm focus:outline-none focus:border-purple-500/50 transition-colors"
                                     />
                                     <button
-                                        onClick={handleMlxSearch}
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            handleMlxSearch();
+                                        }}
                                         disabled={mlxSearching || !mlxSearchQuery}
                                         className="px-4 py-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 font-medium text-sm transition-colors disabled:opacity-50"
                                     >
@@ -580,7 +600,8 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                     >
                                         <div className="text-sm font-medium text-white">🖥️ Ollama</div>
                                         <div className="text-[10px] text-[#636370] mt-0.5">Local, free, private</div>
-                                        {savedProvider === 'ollama' && <div className="text-[10px] text-green-400 mt-1">● Active</div>}
+                                        {savedProvider === 'ollama' && !activeMlxModel && <div className="text-[10px] text-green-400 mt-1">● Active</div>}
+                                        {savedProvider === 'ollama' && activeMlxModel && <div className="text-[10px] text-amber-500 mt-1">● Overridden by MLX</div>}
                                     </button>
                                     {providers.map(p => (
                                         <button

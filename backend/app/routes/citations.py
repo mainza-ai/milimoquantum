@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from app.auth import get_current_user
+from fastapi import APIRouter, HTTPException, Depends
 
-router = APIRouter(prefix="/api/citations", tags=["citations"])
+router = APIRouter(prefix="/api/citations", tags=["citations"], dependencies=[Depends(get_current_user)])
 
 # Common algorithm citations (simulated database)
 ALGO_CITATIONS = {

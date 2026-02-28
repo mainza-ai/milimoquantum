@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import logging
-from fastapi import APIRouter
+from app.auth import get_current_user
+from fastapi import APIRouter, Depends
 
 from app.vector_store import search, reindex_all, get_status
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/search", tags=["search"])
+router = APIRouter(prefix="/api/search", tags=["search"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/")

@@ -4,9 +4,10 @@ API endpoints for database management, health check, and migration status.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter
+from app.auth import get_current_user
+from fastapi import APIRouter, Depends
 
-router = APIRouter(prefix="/api/db", tags=["database"])
+router = APIRouter(prefix="/api/db", tags=["database"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/status")

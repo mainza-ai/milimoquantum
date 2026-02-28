@@ -5,11 +5,12 @@ Exposes the quantum random number generator to the outside world.
 from __future__ import annotations
 
 from typing import Dict, List, Any
-from fastapi import APIRouter
+from app.auth import get_current_user
+from fastapi import APIRouter, Depends
 
 from app.quantum.qrng import qrng_provider
 
-router = APIRouter(prefix="/api/qrng", tags=["qrng"])
+router = APIRouter(prefix="/api/qrng", tags=["qrng"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/status")

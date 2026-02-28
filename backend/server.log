@@ -1,0 +1,41 @@
+huggingface_hub not installed. MLX Model Manager disabled.
+Celery tasks unavailable, workflows will run synchronously or fail.
+INFO:     Started server process [98537]
+INFO:     Waiting for application startup.
+2026-02-27 00:19:22,598 | app.main | INFO | ⚛  Milimo Quantum starting up...
+2026-02-27 00:19:22,603 | app.db | INFO | Database engine created: SQLite
+2026-02-27 00:19:22,603 | app.db | INFO | Database tables created/verified
+2026-02-27 00:19:22,604 | app.llm.mlx_client | INFO | Loading MLX model: mlx-community/Qwen2.5-1.5B-Instruct-4bit
+2026-02-27 00:19:22,839 | httpx | INFO | HTTP Request: GET https://huggingface.co/api/models/mlx-community/Qwen2.5-1.5B-Instruct-4bit/revision/main "HTTP/1.1 200 OK"
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files: 100%|██████████| 9/9 [00:00<00:00, 12048.75it/s]
+2026-02-27 00:19:23,428 | app.llm.mlx_client | INFO | MLX model loaded successfully
+2026-02-27 00:19:23,428 | app.main | INFO | ✅ MLX LLM model loaded directly into unified memory.
+2026-02-27 00:19:23,451 | httpx | INFO | HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-02-27 00:19:23,461 | httpx | INFO | HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-02-27 00:19:23,462 | app.main | INFO | ✅ Ollama running with 60 local models
+2026-02-27 00:19:23,462 | app.main | INFO | ℹ️  CUDA-Q not available. Falling back to Aer Simulator.
+2026-02-27 00:19:23,462 | app.main | INFO | 🖥  Platform: Darwin arm64
+2026-02-27 00:19:23,462 | app.main | INFO | ⚡ GPU: Apple Silicon (MPS)
+2026-02-27 00:19:23,462 | app.main | INFO | ✅ Qiskit loaded — quantum execution ready
+2026-02-27 00:19:23,478 | app.graph.neo4j_client | INFO | Connected to Neo4j at bolt://localhost:7687
+2026-02-27 00:19:23,481 | neo4j.notifications | INFO | Received notification from DBMS server: <GqlStatusObject gql_status='00NA0', status_description="note: successful completion - index or constraint already exists. The command 'CREATE CONSTRAINT IF NOT EXISTS FOR (e:Concept) REQUIRE (e.name) IS UNIQUE' has no effect. The index or constraint specified by 'CONSTRAINT constraint_daf53b FOR (e:Concept) REQUIRE (e.name) IS UNIQUE' already exists.", position=None, raw_classification='SCHEMA', classification=<NotificationClassification.SCHEMA: 'SCHEMA'>, raw_severity='INFORMATION', severity=<NotificationSeverity.INFORMATION: 'INFORMATION'>, diagnostic_record={'_classification': 'SCHEMA', '_severity': 'INFORMATION', 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CREATE CONSTRAINT IF NOT EXISTS FOR (c:Concept) REQUIRE c.name IS UNIQUE'
+2026-02-27 00:19:23,485 | neo4j.notifications | INFO | Received notification from DBMS server: <GqlStatusObject gql_status='00NA0', status_description="note: successful completion - index or constraint already exists. The command 'CREATE CONSTRAINT IF NOT EXISTS FOR (e:Experiment) REQUIRE (e.id) IS UNIQUE' has no effect. The index or constraint specified by 'CONSTRAINT constraint_dc52fa09 FOR (e:Experiment) REQUIRE (e.id) IS UNIQUE' already exists.", position=None, raw_classification='SCHEMA', classification=<NotificationClassification.SCHEMA: 'SCHEMA'>, raw_severity='INFORMATION', severity=<NotificationSeverity.INFORMATION: 'INFORMATION'>, diagnostic_record={'_classification': 'SCHEMA', '_severity': 'INFORMATION', 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CREATE CONSTRAINT IF NOT EXISTS FOR (e:Experiment) REQUIRE e.id IS UNIQUE'
+2026-02-27 00:19:23,488 | neo4j.notifications | INFO | Received notification from DBMS server: <GqlStatusObject gql_status='00NA0', status_description="note: successful completion - index or constraint already exists. The command 'CREATE CONSTRAINT IF NOT EXISTS FOR (e:Conversation) REQUIRE (e.id) IS UNIQUE' has no effect. The index or constraint specified by 'CONSTRAINT constraint_8bacace6 FOR (e:Conversation) REQUIRE (e.id) IS UNIQUE' already exists.", position=None, raw_classification='SCHEMA', classification=<NotificationClassification.SCHEMA: 'SCHEMA'>, raw_severity='INFORMATION', severity=<NotificationSeverity.INFORMATION: 'INFORMATION'>, diagnostic_record={'_classification': 'SCHEMA', '_severity': 'INFORMATION', 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CREATE CONSTRAINT IF NOT EXISTS FOR (conv:Conversation) REQUIRE conv.id IS UNIQUE'
+2026-02-27 00:19:23,491 | neo4j.notifications | INFO | Received notification from DBMS server: <GqlStatusObject gql_status='00NA0', status_description="note: successful completion - index or constraint already exists. The command 'CREATE RANGE INDEX IF NOT EXISTS FOR (e:Circuit) ON (e.type)' has no effect. The index or constraint specified by 'RANGE INDEX index_69d55624 FOR (e:Circuit) ON (e.type)' already exists.", position=None, raw_classification='SCHEMA', classification=<NotificationClassification.SCHEMA: 'SCHEMA'>, raw_severity='INFORMATION', severity=<NotificationSeverity.INFORMATION: 'INFORMATION'>, diagnostic_record={'_classification': 'SCHEMA', '_severity': 'INFORMATION', 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CREATE INDEX IF NOT EXISTS FOR (c:Circuit) ON (c.type)'
+2026-02-27 00:19:23,493 | neo4j.notifications | INFO | Received notification from DBMS server: <GqlStatusObject gql_status='00NA0', status_description="note: successful completion - index or constraint already exists. The command 'CREATE RANGE INDEX IF NOT EXISTS FOR (e:Agent) ON (e.type)' has no effect. The index or constraint specified by 'RANGE INDEX index_b6a537d9 FOR (e:Agent) ON (e.type)' already exists.", position=None, raw_classification='SCHEMA', classification=<NotificationClassification.SCHEMA: 'SCHEMA'>, raw_severity='INFORMATION', severity=<NotificationSeverity.INFORMATION: 'INFORMATION'>, diagnostic_record={'_classification': 'SCHEMA', '_severity': 'INFORMATION', 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CREATE INDEX IF NOT EXISTS FOR (a:Agent) ON (a.type)'
+2026-02-27 00:19:23,493 | app.graph.neo4j_client | INFO | Neo4j schema ensured
+2026-02-27 00:19:23,493 | app.main | INFO | ✅ Graph database connected — knowledge graph ready
+2026-02-27 00:19:23,494 | app.main | INFO | ✅ Offline sync engine started in background
+2026-02-27 00:19:23,494 | app.main | INFO | ⚛  Milimo Quantum ready on http://0.0.0.0:8000
+2026-02-27 00:19:23,495 | app.db.local_cache | INFO | Local SQLite cache engine created at /Users/mck/.milimoquantum/local_cache.db
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:58650 - "GET /api/projects/ HTTP/1.1" 401 Unauthorized
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-27 00:19:33,179 | app.graph.neo4j_client | INFO | Closed Neo4j connection
+2026-02-27 00:19:33,179 | app.main | INFO | ⚛  Milimo Quantum shut down
+INFO:     Application shutdown complete.
+INFO:     Finished server process [98537]
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

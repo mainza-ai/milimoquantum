@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import json
-from fastapi import APIRouter
+from app.auth import get_current_user
+from fastapi import APIRouter, Depends
 
 from app.quantum.executor import (
     CIRCUIT_LIBRARY,
@@ -18,7 +19,7 @@ from app.quantum import ibm_runtime
 from app.quantum import braket_provider, azure_provider
 from app.models.schemas import CircuitRequest
 
-router = APIRouter(prefix="/api/quantum", tags=["quantum"])
+router = APIRouter(prefix="/api/quantum", tags=["quantum"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/status")

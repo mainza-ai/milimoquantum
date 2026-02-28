@@ -53,7 +53,10 @@ export function ChatInput({ onSend, isStreaming, activeAgent }: ChatInputProps) 
     // ── File upload handling ─────────────────────────
     const handleFile = useCallback(async (file: File) => {
         const ext = file.name.split('.').pop()?.toLowerCase();
-        if (!['qasm', 'py', 'qpy', 'txt', 'csv', 'pdf', 'json'].includes(ext || '')) {
+        const isImage = ['png', 'jpg', 'jpeg', 'webp'].includes(ext || '');
+        const isDocument = ['qasm', 'py', 'qpy', 'txt', 'csv', 'pdf', 'json'].includes(ext || '');
+
+        if (!isImage && !isDocument) {
             return; // unsupported file type
         }
         setFileName(file.name);
@@ -70,9 +73,15 @@ export function ChatInput({ onSend, isStreaming, activeAgent }: ChatInputProps) 
 
             if (data.id) {
                 // Attach to context
-                const prefix = ext === 'qasm'
-                    ? `Execute this QASM circuit:\n\n`
-                    : `Analyze this file:\n\n`;
+                let prefix = "";
+                if (isImage) {
+                    prefix = `Analyze this image:\n\n`;
+                } else if (ext === 'qasm') {
+                    prefix = `Execute this QASM circuit:\n\n`;
+                } else {
+                    prefix = `Analyze this file:\n\n`;
+                }
+
                 setValue(prev => {
                     const spacer = prev ? prev + '\n\n' : '';
                     return spacer + prefix + '[Attached File: ' + file.name + ']';
@@ -85,7 +94,7 @@ export function ChatInput({ onSend, isStreaming, activeAgent }: ChatInputProps) 
             console.error("Upload failed", e);
             setFileName(null);
         }
-    }, []);
+    }, [setValue]);
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -178,7 +187,7 @@ export function ChatInput({ onSend, isStreaming, activeAgent }: ChatInputProps) 
                     <input
                         ref={fileInputRef}
                         type="file"
-                        accept=".qasm,.py,.qpy,.txt"
+                        accept=".qasm,.py,.qpy,.txt,.csv,.pdf,.json,.png,.jpg,.jpeg,.webp"
                         className="hidden"
                         onChange={handleFileSelect}
                     />

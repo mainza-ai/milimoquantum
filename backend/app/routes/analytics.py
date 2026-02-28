@@ -8,14 +8,15 @@ from __future__ import annotations
 import logging
 from collections import Counter
 
-from fastapi import APIRouter
+from app.auth import get_current_user
+from fastapi import APIRouter, Depends
 from sqlalchemy import func, desc
 
 from app.db import get_session
 from app.db.models import Conversation, Message, Artifact, Project
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/analytics", tags=["analytics"])
+router = APIRouter(prefix="/api/analytics", tags=["analytics"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/summary")

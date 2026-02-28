@@ -5,13 +5,14 @@ API endpoints for the quantum knowledge graph (Neo4j) and agent memory system.
 from __future__ import annotations
 
 import logging
-from fastapi import APIRouter
+from app.auth import get_current_user
+from fastapi import APIRouter, Depends
 
 from app.graph.client import graph_client
 from app.graph.agent_memory import agent_memory
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/graph", tags=["graph"])
+router = APIRouter(prefix="/api/graph", tags=["graph"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/status")

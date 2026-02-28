@@ -1,10 +1,11 @@
 """Milimo Quantum — Audit Routes."""
 from __future__ import annotations
+from app.auth import get_current_user
 from fastapi import APIRouter, Depends
 
 from app.audit import get_logs
 
-router = APIRouter(prefix="/api/audit", tags=["audit"])
+router = APIRouter(prefix="/api/audit", tags=["audit"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/log")

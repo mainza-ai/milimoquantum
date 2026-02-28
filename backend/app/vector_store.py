@@ -49,7 +49,8 @@ def _get_collection():
 
 
 async def _get_embedding(text: str) -> list[float] | None:
-    """Generate embedding via Ollama."""
+    """Generate embedding via Ollama, falling back to local sentence‑transformer."""
+    # Try Ollama first (if available)
     try:
         import httpx
         from app.config import settings
@@ -66,9 +67,25 @@ async def _get_embedding(text: str) -> list[float] | None:
             if resp.status_code == 200:
                 data = resp.json()
                 embeddings = data.get("embeddings", [])
-                return embeddings[0] if embeddings else None
+                if embeddings:
+                    return embeddings[0]
+    except Exception:
+        pass  # Ollama not reachable, fall through
+
+    # Fallback: local sentence‑transformer (all‑MiniLM‑L6‑v2)
+    try:
+        from sentence_transformers import SentenceTransformer
+        # Lazy load the model (cached globally)
+        if not hasattr(_get_embedding, "_local_model"):
+            _get_embedding._local_model = SentenceTransformer('all-MiniLM-L6-v2')
+        model = _get_embedding._local_model
+        embedding = model.encode(text, normalize_embeddings=True).tolist()
+        logger.debug("Generated embedding via local sentence‑transformer")
+        return embedding
+    except ImportError:
+        logger.warning("sentence‑transformers not installed; install with 'pip install sentence‑transformers'")
     except Exception as e:
-        logger.warning(f"Embedding generation failed: {e}")
+        logger.warning(f"Local embedding generation failed: {e}")
     return None
 
 

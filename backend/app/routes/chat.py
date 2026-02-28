@@ -38,6 +38,7 @@ from app.quantum.sandbox import (
     build_artifacts_from_result,
 )
 from app.llm.ollama_client import ollama_client
+from app.llm.mlx_client import mlx_client
 from app.llm.cloud_provider import get_current_provider, stream_chat_cloud
 from app.models.schemas import AgentType, ChatRequest
 from app import storage
@@ -128,16 +129,24 @@ async def send_message(request: Request, payload: ChatRequest):
     if 'OPENQASM' in payload.message or 'qreg' in payload.message:
         agent_type = AgentType.CODE
 
+    image_path = None
     if getattr(payload, "attached_file_id", None):
         found = list(UPLOAD_DIR.glob(f"{payload.attached_file_id}.*"))
         if found:
             file_path = found[0]
-            try:
-                content = file_path.read_text(errors='replace')
-                payload.message = f"[Attached File: {file_path.name}]\n\n{content}\n\n---\n\n{payload.message}"
-                clean_message = f"[Attached File: {file_path.name}]\n\n{content}\n\n---\n\n{clean_message}"
-            except Exception as e:
-                logger.error(f"Failed to read attached file: {e}")
+            ext = file_path.suffix.lower()
+            if ext in ['.png', '.jpg', '.jpeg', '.webp']:
+                image_path = str(file_path)
+                payload.message = f"[Attached Image: {file_path.name}]\n\n{payload.message}"
+                clean_message = f"[Attached Image: {file_path.name}]\n\n{clean_message}"
+                logger.info(f"Image attachment detected: {image_path}")
+            else:
+                try:
+                    content = file_path.read_text(errors='replace')
+                    payload.message = f"[Attached File: {file_path.name}]\n\n{content}\n\n---\n\n{payload.message}"
+                    clean_message = f"[Attached File: {file_path.name}]\n\n{content}\n\n---\n\n{clean_message}"
+                except Exception as e:
+                    logger.error(f"Failed to read attached file: {e}")
 
     # Store user message
     msgs.append({"role": "user", "content": payload.message})
@@ -214,7 +223,27 @@ async def send_message(request: Request, payload: ChatRequest):
                 yield f"event: token\ndata: {json.dumps({'content': chunk})}\n\n"
 
         cloud = get_current_provider()
-        if cloud.get("provider") != "ollama" and cloud.get("provider"):
+        if mlx_client.is_loaded:
+            # ── Apple Silicon Native MLX loaded
+            model_override = agent_model if agent_model else None
+            async for token_str in mlx_client.stream_chat(
+                messages=history, system_prompt=system_prompt, model=model_override, image_path=image_path
+            ):
+                # parse the json to extract content for the full response accumulation
+                try:
+                    payload = json.loads(token_str)
+                    if "message" in payload and "content" in payload["message"]:
+                        token_content = payload["message"]["content"]
+                        full_response += token_content
+                        # MLX client already yields formatted API JSON strings
+                        yield f"event: token\ndata: {json.dumps({'content': token_content})}\n\n"
+                    elif "error" in payload:
+                        yield f"event: token\ndata: {json.dumps({'content': payload['error']})}\n\n"
+                except Exception:
+                    # just stream the raw string if not json
+                    full_response += str(token_str)
+                    yield f"event: token\ndata: {json.dumps({'content': str(token_str)})}\n\n"
+        elif cloud.get("provider") != "ollama" and cloud.get("provider"):
             # ── Cloud AI provider active (Anthropic / OpenAI / Gemini)
             async for token in stream_chat_cloud(messages=history, system_prompt=system_prompt):
                 full_response += str(token)
@@ -239,7 +268,24 @@ async def send_message(request: Request, payload: ChatRequest):
         async def _stream_llm_generate(prompt: str, sys_prompt: str):
             """Streaming LLM generation for retry loop."""
             cloud = get_current_provider()
-            if cloud.get("provider") != "ollama" and cloud.get("provider"):
+            if mlx_client.is_loaded:
+                model_override = None
+                async for token_str in mlx_client.stream_chat(
+                    messages=[{"role": "user", "content": prompt}],
+                    system_prompt=sys_prompt,
+                    model=model_override
+                ):
+                    # parse the json to extract content
+                    try:
+                        payload = json.loads(token_str)
+                        if "message" in payload and "content" in payload["message"]:
+                            token_content = payload["message"]["content"]
+                            yield token_content
+                        elif "error" in payload:
+                            yield payload["error"]
+                    except Exception:
+                        yield str(token_str)
+            elif cloud.get("provider") != "ollama" and cloud.get("provider"):
                 async for t in stream_chat_cloud(
                     messages=[{"role": "user", "content": prompt}],
                     system_prompt=sys_prompt,

@@ -47,14 +47,14 @@ EXECUTION_TIMEOUT = 15  # seconds
 
 
 def extract_code_blocks(llm_output: str) -> list[str]:
-    """Extract Python code blocks from LLM markdown output.
-
-    Looks for ```python ... ``` blocks.
-    If none found, looks for any ``` ... ``` blocks that look like Python.
-    """
+    """Extract Python code blocks from LLM markdown output, ignoring 'thoughts'."""
+    # Remove any content inside <think>...</think> tags to avoid extracting 
+    # code that the model is just 'thinking' about but not final output.
+    clean_output = re.sub(r"<think>.*?</think>", "", llm_output, flags=re.DOTALL)
+    
     # Match ```python ... ``` blocks
     pattern = r"```python\s*\n(.*?)```"
-    blocks = re.findall(pattern, llm_output, re.DOTALL)
+    blocks = re.findall(pattern, clean_output, re.DOTALL)
 
     if blocks:
         return blocks

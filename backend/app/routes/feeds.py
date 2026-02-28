@@ -5,10 +5,11 @@ Exposes endpoints for Yahoo Finance, arXiv, and PubChem data feeds.
 from __future__ import annotations
 
 import logging
-from fastapi import APIRouter
+from app.auth import get_current_user
+from fastapi import APIRouter, Depends
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/feeds", tags=["feeds"])
+router = APIRouter(prefix="/api/feeds", tags=["feeds"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/arxiv")

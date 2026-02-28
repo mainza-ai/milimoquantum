@@ -9,10 +9,11 @@ import json
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from app.auth import get_current_user
+from fastapi import APIRouter, HTTPException, Depends
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/academy", tags=["academy"])
+router = APIRouter(prefix="/api/academy", tags=["academy"], dependencies=[Depends(get_current_user)])
 
 PROGRESS_FILE = Path.home() / ".milimoquantum" / "academy_progress.json"
 

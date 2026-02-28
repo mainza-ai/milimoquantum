@@ -47,8 +47,10 @@ def save_conversation(conversation_id: str, messages: list[dict], title: str | N
             conv.title = title
             conv.message_count = len(messages)
             conv.updated_at = datetime.utcnow()
-            # Delete existing messages to rewrite
-            session.query(Message).filter_by(conversation_id=conversation_id).delete()
+            # Delete existing messages and their artifacts to rewrite
+            msg_ids = session.query(Message.id).filter_by(conversation_id=conversation_id)
+            session.query(Artifact).filter(Artifact.message_id.in_(msg_ids)).delete(synchronize_session=False)
+            session.query(Message).filter_by(conversation_id=conversation_id).delete(synchronize_session=False)
 
         # Add messages
         for msg in messages:

@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter
+from app.auth import get_current_user
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.config import settings
@@ -15,7 +16,7 @@ from app.llm.mlx_manager import mlx_manager
 from app.llm.mlx_client import mlx_client
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/settings", tags=["settings"])
+router = APIRouter(prefix="/api/settings", tags=["settings"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/")

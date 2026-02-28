@@ -29,6 +29,7 @@ mlx-lm; sys_platform == 'darwin'
 google-genai>=1.0.0
 # Vector search
 chromadb>=0.5.0
+sentence-transformers>=3.0.0
 # D-Wave simulated annealing (local solver)
 dwave-neal>=0.6.0
 # Database & Cache (Batch 9 & 10)

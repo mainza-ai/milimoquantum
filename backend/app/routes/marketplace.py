@@ -5,9 +5,10 @@ Community agents, optimizers, circuit libraries, and plugins.
 from __future__ import annotations
 
 from typing import Dict, List
-from fastapi import APIRouter
+from app.auth import get_current_user
+from fastapi import APIRouter, Depends
 
-router = APIRouter(prefix="/api/marketplace", tags=["marketplace"])
+router = APIRouter(prefix="/api/marketplace", tags=["marketplace"], dependencies=[Depends(get_current_user)])
 
 # Community plugins spanning all quantum domains
 COMMUNITY_PLUGINS = [

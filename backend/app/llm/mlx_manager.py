@@ -14,12 +14,12 @@ try:
     from huggingface_hub import HfApi
     from huggingface_hub.utils import RepositoryNotFoundError
     # Required for progress hooking
-    import huggingface_hub.utils._tqdm as hf_tqdm
+    from huggingface_hub.utils import tqdm as hf_tqdm
     HF_AVAILABLE = True
     api = HfApi()
-except ImportError:
+except ImportError as e:
     HF_AVAILABLE = False
-    logger.warning("huggingface_hub not installed. MLX Model Manager disabled.")
+    logger.warning(f"huggingface_hub not installed or error: {e}. MLX Model Manager disabled.")
 
 class MlxManager:
     """Manages MLX model discovery and downloads from HuggingFace."""
@@ -40,7 +40,7 @@ class MlxManager:
         if not HF_AVAILABLE:
             return
 
-        original_tqdm = hf_tqdm.tqdm
+        original_tqdm = hf_tqdm
 
         class ProgressTqdm(original_tqdm):
             def __init__(self, *args, **kwargs):
@@ -60,7 +60,8 @@ class MlxManager:
                         )
 
         # Patch huggingface_hub tqdm
-        hf_tqdm.tqdm = ProgressTqdm
+        import huggingface_hub.utils
+        huggingface_hub.utils.tqdm = ProgressTqdm
         
     def search_models(self, query: str = "", limit: int = 20) -> List[Dict[str, Any]]:
         """Search HuggingFace for MLX compatible models."""
@@ -70,25 +71,33 @@ class MlxManager:
         try:
             # We specifically target mlx-community as they host the officially converted safetensors
             search_query = query if query else "Qwen"
-            models = api.list_models(
+            models = list(api.list_models(
                 author=self.default_author,
                 search=search_query,
                 sort="downloads",
-                direction=-1,
                 limit=limit
-            )
+            ))
+            
+            from concurrent.futures import ThreadPoolExecutor
+            
+            def get_size(model_id):
+                try:
+                    info = api.model_info(repo_id=model_id, files_metadata=True)
+                    if getattr(info, "safetensors", None) and getattr(info.safetensors, "total", None):
+                        return info.safetensors.total
+                    if getattr(info, "siblings", None):
+                        return sum(getattr(f, "size", 0) or 0 for f in info.siblings)
+                except Exception:
+                    pass
+                return 0
+
+            sizes = []
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                sizes = list(executor.map(get_size, [m.id for m in models]))
             
             results = []
-            for model in models:
-                size_mb = 0
-                try:
-                    # Fetch repo tree to calculate total model size
-                    files = api.list_repo_tree(model.id)
-                    total_bytes = sum(getattr(f, "size", 0) or 0 for f in files)
-                    size_mb = int(total_bytes / (1024 * 1024))
-                except Exception as e:
-                    logger.debug(f"Could not fetch size for {model.id}: {e}")
-
+            for model, size_bytes in zip(models, sizes):
+                size_mb = int(size_bytes / (1024 * 1024)) if size_bytes else 0
                 results.append({
                     "id": model.id,
                     "downloads": getattr(model, "downloads", 0),
