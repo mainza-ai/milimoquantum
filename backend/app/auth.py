@@ -44,11 +44,11 @@ if AUTH_ENABLED:
 
 async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> dict:
     """Validate token and return current user."""
-    # Allow bypass if auth isn't strictly enabled (e.g. local dev without Keycloak)
+    # If auth is disabled, return a mock user (Local development only)
     if not AUTH_ENABLED:
         return {
-            "sub": "dev-user-id", 
-            "preferred_username": "dev_user", 
+            "sub": "local-dev-id", 
+            "preferred_username": "local_dev", 
             "realm_access": {"roles": ["admin", "researcher"]}
         }
 

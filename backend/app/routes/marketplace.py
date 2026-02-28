@@ -4,9 +4,11 @@ Community agents, optimizers, circuit libraries, and plugins.
 """
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Any
 from app.auth import get_current_user
-from fastapi import APIRouter, Depends
+from app.db import get_session
+from app.db.models import MarketplacePlugin, UserPlugin
+from fastapi import APIRouter, Depends, HTTPException
 
 router = APIRouter(prefix="/api/marketplace", tags=["marketplace"], dependencies=[Depends(get_current_user)])
 
@@ -135,44 +137,95 @@ COMMUNITY_PLUGINS = [
 ]
 
 # State for installed plugins (persists in memory for demo)
-INSTALLED_PLUGINS: set[str] = set()
+# INSTALLED_PLUGINS: set[str] = set()
 
 
 @router.get("/")
 @router.get("/algorithms")
-async def list_plugins(q: str = "", tag: str = ""):
+async def list_plugins(q: str = "", tag: str = "", current_user: Any = Depends(get_current_user)):
     """Browse the quantum app marketplace algorithms."""
-    results = list(COMMUNITY_PLUGINS)
+    session = get_session()
+    try:
+        # Get all plugins from DB (or use the hardcoded list to seed if empty)
+        db_plugins = session.query(MarketplacePlugin).all()
+        if not db_plugins:
+            # Seed the database with the core plugins on first run
+            for p_data in COMMUNITY_PLUGINS:
+                p = MarketplacePlugin(**p_data)
+                session.add(p)
+            session.commit()
+            db_plugins = session.query(MarketplacePlugin).all()
 
-    if q:
-        q_lower = q.lower()
-        results = [p for p in results if q_lower in p["name"].lower() or q_lower in p["description"].lower()]
+        # Get user's installed plugins
+        user_id = current_user.get("sub", "local-dev-id")
+        installed_ids = {up.plugin_id for up in session.query(UserPlugin).filter_by(user_id=user_id).all()}
 
-    if tag:
-        t_lower = tag.lower()
-        results = [p for p in results if t_lower in [t.lower() for t in p["tags"]]]
+        results = []
+        for p in db_plugins:
+            p_dict = {
+                "id": p.id,
+                "name": p.name,
+                "author": p.author,
+                "description": p.description,
+                "version": p.version,
+                "downloads": p.downloads,
+                "rating": p.rating,
+                "tags": p.tags or [],
+                "installed": p.id in installed_ids
+            }
+            
+            # Simple filtering
+            if q and q.lower() not in p_dict["name"].lower() and q.lower() not in p_dict["description"].lower():
+                continue
+            if tag and tag.lower() not in [t.lower() for t in p_dict["tags"]]:
+                continue
+            
+            results.append(p_dict)
 
-    # Add installed boolean
-    for r in results:
-        r["installed"] = r["id"] in INSTALLED_PLUGINS
-
-    return {"plugins": results}
+        return {"plugins": results}
+    finally:
+        session.close()
 
 
 @router.post("/install/{plugin_id}")
-async def install_plugin(plugin_id: str):
+async def install_plugin(plugin_id: str, current_user: Any = Depends(get_current_user)):
     """Install a community plugin."""
-    plugin = next((p for p in COMMUNITY_PLUGINS if p["id"] == plugin_id), None)
-    if not plugin:
-        return {"error": "Plugin not found", "status": 404}
+    session = get_session()
+    try:
+        plugin = session.query(MarketplacePlugin).filter_by(id=plugin_id).first()
+        if not plugin:
+            # Check hardcoded list as fallback seeded data
+            plugin_data = next((p for p in COMMUNITY_PLUGINS if p["id"] == plugin_id), None)
+            if not plugin_data:
+                raise HTTPException(status_code=404, detail="Plugin not found")
+            plugin = MarketplacePlugin(**plugin_data)
+            session.add(plugin)
+            session.commit()
 
-    INSTALLED_PLUGINS.add(plugin_id)
-    return {"message": f"Successfully installed {plugin['name']}", "plugin_id": plugin_id}
+        # Check if already installed
+        user_id = current_user.get("sub", "local-dev-id")
+        existing = session.query(UserPlugin).filter_by(user_id=user_id, plugin_id=plugin_id).first()
+        if not existing:
+            install = UserPlugin(user_id=user_id, plugin_id=plugin_id)
+            session.add(install)
+            plugin.downloads += 1
+            session.commit()
+            
+        return {"message": f"Successfully installed {plugin.name}", "plugin_id": plugin_id}
+    finally:
+        session.close()
 
 
 @router.delete("/install/{plugin_id}")
-async def uninstall_plugin(plugin_id: str):
+async def uninstall_plugin(plugin_id: str, current_user: Any = Depends(get_current_user)):
     """Uninstall a community plugin."""
-    if plugin_id in INSTALLED_PLUGINS:
-        INSTALLED_PLUGINS.remove(plugin_id)
-    return {"message": "Plugin removed"}
+    session = get_session()
+    try:
+        user_id = current_user.get("sub", "local-dev-id")
+        install = session.query(UserPlugin).filter_by(user_id=user_id, plugin_id=plugin_id).first()
+        if install:
+            session.delete(install)
+            session.commit()
+        return {"message": "Plugin removed"}
+    finally:
+        session.close()

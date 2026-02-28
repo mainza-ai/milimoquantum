@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import time
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -65,16 +66,15 @@ class AgentMemory:
             logger.error(f"Failed to save memory for {agent_type}: {e}")
 
     async def connect(self) -> bool:
-        """Try to connect to FalkorDB for graph-enhanced memory."""
-        try:
-            import falkordb  # noqa: F401
-            # Would initialize FalkorDB connection here
-            self.use_graph = False  # Keep off until fully wired
-            logger.info("FalkorDB available but using local memory for now")
-            return False
-        except ImportError:
+        """Try to connect to the unified graph client for enhanced memory."""
+        from app.graph.client import graph_client
+        if await graph_client.connect():
+            self.use_graph = True
+            logger.info(f"AgentMemory connected to {graph_client.active_provider}")
+            return True
+        else:
             self.use_graph = False
-            logger.debug("FalkorDB not installed — using local JSON memory")
+            logger.debug("Graph DB not available — using local JSON memory")
             return False
 
     async def add_memory(
@@ -111,7 +111,46 @@ class AgentMemory:
 
         # Persist
         self._save_agent(agent_type)
-        logger.debug(f"[{agent_type}] Stored memory: {content[:60]}...")
+        content_snippet: str = str(content)[:60]
+        logger.debug(f"[{agent_type}] Stored memory: {content_snippet}...")
+
+        # Sync to Graph if available
+        if self.use_graph:
+            try:
+                from app.graph.client import graph_client
+                # 1. Index full interaction
+                await graph_client.index_conversation(
+                    conversation_id, 
+                    [{"role": "assistant", "content": content, "timestamp": entry["timestamp"]}],
+                    agent_type=agent_type
+                )
+                
+                # 2. Extract and Index Entities (Phase 2 GraphRAG)
+                entities = self._extract_entities(content)
+                for ent in entities:
+                    await graph_client.execute_query(
+                        "MERGE (c:Concept {name: $name, type: $type}) "
+                        "MERGE (conv:Conversation {id: $conv_id}) "
+                        "MERGE (conv)-[:MENTIONS]->(c)",
+                        {"name": ent["name"], "type": ent["type"], "conv_id": conversation_id}
+                    )
+                    
+            except Exception as e:
+                logger.error(f"Graph memory sync failed: {e}")
+
+    def _extract_entities(self, text: str) -> list[dict[str, str]]:
+        """Identify quantum entities in text."""
+        concepts = {
+            "Algorithm": ["Shor", "Grover", "QAOA", "VQE", "QFT", "Hadamard"],
+            "Hardware": ["Transmon", "IonQ", "Rigetti", "Superconducting", "Trapped Ion"],
+            "Concept": ["Entanglement", "Superposition", "Teleportation", "Error Correction", "Fault Tolerance"]
+        }
+        found = []
+        for category, keywords in concepts.items():
+            for kw in keywords:
+                if re.search(rf"\b{kw}\b", text, re.IGNORECASE):
+                    found.append({"name": kw, "type": category})
+        return found
 
     async def retrieve_context(
         self,
@@ -136,7 +175,7 @@ class AgentMemory:
 
         # Simple keyword relevance scoring
         query_words = set(query.lower().split())
-        scored = []
+        scored: list[tuple[int, dict[str, Any]]] = []
         for mem in memories:
             content_words = set(mem["content"].lower().split())
             overlap = len(query_words & content_words)

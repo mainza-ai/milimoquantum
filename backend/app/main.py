@@ -13,6 +13,10 @@ from slowapi import _rate_limit_exceeded_handler
 from app.limiter import limiter
 
 from app.config import settings
+from app.db.events import setup_listeners
+
+# Initialize Event Fabric
+setup_listeners()
 from app.llm.ollama_client import ollama_client
 from app.llm.mlx_client import mlx_client
 from app.routes import chat, quantum, projects, settings as settings_routes

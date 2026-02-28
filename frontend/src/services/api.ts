@@ -67,6 +67,23 @@ export async function fetchBibTeX(conversationId: string) {
     return res.json();
 }
 
+export async function fetchErrorMitigation(circuitName: string, method: string, shots: number = 4096) {
+    const res = await fetchWithAuth(`${API_BASE}/quantum/mitigate/${circuitName}?method=${method}&shots=${shots}`, {
+        method: 'POST'
+    });
+    return res.json();
+}
+
+export async function fetchQRNG(length: number = 256) {
+    const res = await fetchWithAuth(`${API_BASE}/qrng/bits/${length}`);
+    return res.json();
+}
+
+export async function fetchHardwareProviders() {
+    const res = await fetchWithAuth(`${API_BASE}/quantum/providers`);
+    return res.json();
+}
+
 // ── HPC & Marketplace ──────────────────────────────────
 
 export async function fetchMarketplacePlugins() {

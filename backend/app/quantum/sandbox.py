@@ -15,6 +15,7 @@ import re
 import signal
 import sys
 import traceback
+import textwrap
 from contextlib import redirect_stdout, redirect_stderr
 from typing import Any
 
@@ -57,12 +58,12 @@ def extract_code_blocks(llm_output: str) -> list[str]:
     blocks = re.findall(pattern, clean_output, re.DOTALL)
 
     if blocks:
-        return blocks
+        return [textwrap.dedent(b) for b in blocks]
 
     # Fallback: any code block that contains 'import' or 'QuantumCircuit'
     pattern = r"```\s*\n(.*?)```"
     generic_blocks = re.findall(pattern, llm_output, re.DOTALL)
-    return [b for b in generic_blocks
+    return [textwrap.dedent(b) for b in generic_blocks
             if "import" in b or "QuantumCircuit" in b or "qiskit" in b.lower()]
 
 
@@ -284,6 +285,9 @@ def execute_code(code: str) -> SandboxResult:
         result.error = str(e)
     except Exception as e:
         tb = traceback.format_exc()
+        # Log the full code causing the error to help debug syntax/indentation
+        if isinstance(e, SyntaxError):
+            logger.error(f"Sandbox SyntaxError in code block:\n---\n{code}\n---")
         # Clean up the traceback to be user-friendly
         result.error = f"{type(e).__name__}: {e}\n\n```\n{tb}\n```"
     finally:

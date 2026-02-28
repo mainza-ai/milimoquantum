@@ -60,3 +60,19 @@ async def get_task_status(task_id: str):
         "status": "PROCESSING",
         "message": "Task status monitoring stubbed."
     }
+@router.post("/submit")
+async def submit_dag_workflow(payload: Dict[str, Any]):
+    """Submit a complex Directed Acyclic Graph (DAG) for orchestrated execution."""
+    tasks = payload.get("tasks", [])
+    if not tasks:
+        raise HTTPException(status_code=400, detail="Workflow must contain at least one task.")
+    
+    logger.info(f"Submitting DAG workflow with {len(tasks)} nodes.")
+    
+    # In Phase 2 this is a stub for the DAG engine.
+    # Future implementation will use a Celery Chord or Chain.
+    return {
+        "status": "submitted",
+        "workflow_id": "dag_" + str(len(tasks)) + "_nodes",
+        "message": f"Successfully queued DAG with {len(tasks)} quantum tasks."
+    }

@@ -23,28 +23,35 @@ except ImportError:
 
 STORAGE_DIR = Path.home() / ".milimoquantum"
 VECTOR_DIR = STORAGE_DIR / "vector_db"
+MODEL_CACHE_DIR = STORAGE_DIR / "models"
 
 # Runtime client
 _client = None
 _collection = None
 
 
-def _get_collection():
-    """Get or create the ChromaDB collection."""
+def _get_collection(dimension: int = 384):
+    """Get or create the ChromaDB collection based on embedding dimension."""
     global _client, _collection
-    if _collection is not None:
+    
+    # Collection name includes dimension to avoid mismatch errors
+    collection_name = f"milimoquantum_{dimension}"
+    
+    if _collection is not None and _collection.name == collection_name:
         return _collection
 
     if not CHROMA_AVAILABLE:
         return None
 
     VECTOR_DIR.mkdir(parents=True, exist_ok=True)
-    _client = chromadb.PersistentClient(path=str(VECTOR_DIR))
+    if _client is None:
+        _client = chromadb.PersistentClient(path=str(VECTOR_DIR))
+    
     _collection = _client.get_or_create_collection(
-        name="milimoquantum",
+        name=collection_name,
         metadata={"hnsw:space": "cosine"},
     )
-    logger.info(f"Vector store initialized — {_collection.count()} documents indexed")
+    logger.info(f"Vector store initialized (dim={dimension}) — {_collection.count()} documents indexed")
     return _collection
 
 
@@ -77,7 +84,11 @@ async def _get_embedding(text: str) -> list[float] | None:
         from sentence_transformers import SentenceTransformer
         # Lazy load the model (cached globally)
         if not hasattr(_get_embedding, "_local_model"):
-            _get_embedding._local_model = SentenceTransformer('all-MiniLM-L6-v2')
+            MODEL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            _get_embedding._local_model = SentenceTransformer(
+                'all-MiniLM-L6-v2', 
+                cache_folder=str(MODEL_CACHE_DIR)
+            )
         model = _get_embedding._local_model
         embedding = model.encode(text, normalize_embeddings=True).tolist()
         logger.debug("Generated embedding via local sentence‑transformer")
@@ -91,10 +102,6 @@ async def _get_embedding(text: str) -> list[float] | None:
 
 async def index_conversation(conversation_id: str, messages: list[dict], title: str = "") -> bool:
     """Index a conversation's messages into the vector store."""
-    collection = _get_collection()
-    if collection is None:
-        return False
-
     # Combine messages into a searchable document
     text_parts = []
     if title:
@@ -112,6 +119,13 @@ async def index_conversation(conversation_id: str, messages: list[dict], title: 
 
     # Generate embedding
     embedding = await _get_embedding(full_text[:2000])  # Limit to 2k chars for embedding
+    
+    # Get dimension from embedding or default to 384
+    dim = len(embedding) if embedding else 384
+    collection = _get_collection(dimension=dim)
+    
+    if collection is None:
+        return False
 
     doc_id = f"conv_{conversation_id}"
     metadata = {
@@ -138,7 +152,7 @@ async def index_conversation(conversation_id: str, messages: list[dict], title: 
             )
         return True
     except Exception as e:
-        logger.error(f"Failed to index conversation {conversation_id}: {e}")
+        logger.error(f"Failed to index conversation {conversation_id} (dim={dim}): {e}")
         return False
 
 

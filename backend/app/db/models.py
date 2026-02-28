@@ -132,3 +132,56 @@ class Project(Base):
     conversation_ids = Column(JSON, default=list)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class BenchmarkResult(Base):
+    """Persistent record of quantum-classical benchmarks."""
+    __tablename__ = "benchmark_results"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    benchmark_name = Column(String(128), nullable=False)
+    problem_size = Column(Integer, nullable=False)
+    backend = Column(String(64), nullable=False)
+    shots = Column(Integer, default=1024)
+
+    # Timings (stored in seconds as per benchmarking.py logic)
+    preparation_time = Column(Float, nullable=True)
+    quantum_exec_time = Column(Float, nullable=True)
+    classical_sim_time = Column(Float, nullable=True)
+
+    # Results & Classification
+    classification = Column(String(32))  # quantum_advantage | classical_superior | quantum_only
+    metrics = Column(JSON, default=dict)  # width, depth, gates
+    result_summary = Column(String(128))
+
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+
+class MarketplacePlugin(Base):
+    """Available plugins in the community marketplace."""
+    __tablename__ = "marketplace_plugins"
+
+    id = Column(String(64), primary_key=True)
+    name = Column(String(256), nullable=False)
+    author = Column(String(128))
+    description = Column(Text)
+    version = Column(String(32))
+    downloads = Column(Integer, default=0)
+    rating = Column(Float, default=0.0)
+    tags = Column(JSON, default=list)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class UserPlugin(Base):
+    """Tracks which plugins a user has installed."""
+    __tablename__ = "user_plugins"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    plugin_id = Column(String(64), ForeignKey("marketplace_plugins.id"), nullable=False)
+    installed_at = Column(DateTime, default=datetime.utcnow)
+
+    # Unique constraint to prevent duplicate installs
+    __table_args__ = (
+        {"sqlite_autoincrement": True},
+    )

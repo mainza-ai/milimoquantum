@@ -1,8 +1,18 @@
 /* Milimo Quantum — Quantum Dashboard */
 import { useState, useEffect } from 'react';
-import { fetchHealth, fetchAnalyticsSummary, fetchCircuitStats, fetchQuantumStatus } from '../../services/api';
+import { fetchHealth, fetchAnalyticsSummary, fetchQuantumStatus } from '../../services/api';
+import { FaultTolerance } from '../quantum/FaultTolerance';
+import { ErrorMitigation } from '../quantum/ErrorMitigation';
+import { QRNGPanel } from '../quantum/QRNGPanel';
+import { HardwareSettings } from '../quantum/HardwareSettings';
 import { CircuitBuilder } from '../quantum/CircuitBuilder';
 import { BlochSphereInteractive } from '../quantum/BlochSphere';
+import { MarketplacePanel } from './MarketplacePanel';
+import { WorkflowBuilder } from '../workflow/WorkflowBuilder';
+import { AcademyPanel } from '../academy/AcademyPanel';
+import { AuditDashboard } from '../admin/AuditDashboard';
+import { HPCPortal } from '../hpc/HPCPortal';
+import { HardwareBrowser } from '../quantum/HardwareBrowser';
 
 interface DashboardProps {
     isOpen: boolean;
@@ -13,9 +23,15 @@ export function QuantumDashboard({ isOpen, onClose }: DashboardProps) {
     const [health, setHealth] = useState<Record<string, unknown> | null>(null);
     const [quantum, setQuantum] = useState<Record<string, unknown> | null>(null);
     const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
-    const [circuits, setCircuits] = useState<Record<string, unknown> | null>(null);
     const [loading, setLoading] = useState(true);
     const [latestResult, setLatestResult] = useState<any>(null);
+    const [selectedCircuit, setSelectedCircuit] = useState<string | undefined>();
+    const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false);
+    const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
+    const [isAcademyOpen, setIsAcademyOpen] = useState(false);
+    const [isAuditOpen, setIsAuditOpen] = useState(false);
+    const [isHPCOpen, setIsHPCOpen] = useState(false);
+    const [isHardwareOpen, setIsHardwareOpen] = useState(false);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -23,13 +39,11 @@ export function QuantumDashboard({ isOpen, onClose }: DashboardProps) {
         Promise.all([
             fetchHealth().catch(() => null),
             fetchQuantumStatus().catch(() => null),
-            fetchAnalyticsSummary().catch(() => null),
-            fetchCircuitStats().catch(() => null),
-        ]).then(([h, q, s, c]) => {
+            fetchAnalyticsSummary().catch(() => null)
+        ]).then(([h, q, s]) => {
             setHealth(h);
             setQuantum(q);
             setSummary(s);
-            setCircuits(c);
         }).finally(() => setLoading(false));
     }, [isOpen]);
 
@@ -41,7 +55,7 @@ export function QuantumDashboard({ isOpen, onClose }: DashboardProps) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <div className="bg-[#0d1117] border border-cyan-500/20 rounded-2xl shadow-2xl
-                w-full max-w-3xl max-h-[85vh] overflow-hidden mx-4 flex flex-col"
+                w-full max-w-4xl max-h-[90vh] overflow-hidden mx-4 flex flex-col"
                 style={{ animation: 'fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)' }}
             >
                 {/* Header */}
@@ -50,133 +64,150 @@ export function QuantumDashboard({ isOpen, onClose }: DashboardProps) {
                     <div className="flex items-center gap-3">
                         <span className="text-2xl">⚛️</span>
                         <div>
-                            <h2 className="text-lg font-semibold text-white">Quantum Dashboard</h2>
-                            <p className="text-xs text-gray-400 mt-0.5">System status & circuit overview</p>
+                            <h2 className="text-lg font-semibold text-white">Quantum Science Hub</h2>
+                            <p className="text-xs text-gray-400 mt-0.5">Logical layer, error suppression & hardware orchestration</p>
                         </div>
                     </div>
-                    <button onClick={onClose}
-                        className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10
-                            flex items-center justify-center text-gray-400 hover:text-white
-                            transition-all cursor-pointer">✕</button>
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => setIsMarketplaceOpen(true)}
+                            className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20
+                                text-xs font-medium hover:bg-cyan-500/20 transition-all cursor-pointer flex items-center gap-2">
+                            <span>🛍️</span> Marketplace
+                        </button>
+                        <button onClick={() => setIsWorkflowOpen(true)}
+                            className="px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20
+                                text-xs font-medium hover:bg-indigo-500/20 transition-all cursor-pointer flex items-center gap-2">
+                            <span>⛓️</span> Designer
+                        </button>
+                        <button onClick={() => setIsAcademyOpen(true)}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20
+                                text-xs font-medium hover:bg-emerald-500/20 transition-all cursor-pointer flex items-center gap-2">
+                            <span>🎓</span> Academy
+                        </button>
+                        <button onClick={() => setIsAuditOpen(true)}
+                            className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20
+                                text-xs font-medium hover:bg-red-500/20 transition-all cursor-pointer flex items-center gap-2">
+                            <span>🛡️</span> Audit
+                        </button>
+                        <button onClick={() => setIsHPCOpen(true)}
+                            className="px-3 py-1.5 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20
+                                text-xs font-medium hover:bg-orange-500/20 transition-all cursor-pointer flex items-center gap-2">
+                            <span>🏎️</span> HPC
+                        </button>
+                        <button onClick={() => setIsHardwareOpen(true)}
+                            className="px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20
+                                text-xs font-medium hover:bg-purple-400 transition-all cursor-pointer flex items-center gap-2">
+                            <span>🛰️</span> Targets
+                        </button>
+                        <button onClick={onClose}
+                            className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10
+                                flex items-center justify-center text-gray-400 hover:text-white
+                                transition-all cursor-pointer">✕</button>
+                    </div>
                 </div>
+
+                <MarketplacePanel
+                    isOpen={isMarketplaceOpen}
+                    onClose={() => setIsMarketplaceOpen(false)}
+                />
+
+                <WorkflowBuilder
+                    isOpen={isWorkflowOpen}
+                    onClose={() => setIsWorkflowOpen(false)}
+                />
+
+                <AcademyPanel
+                    isOpen={isAcademyOpen}
+                    onClose={() => setIsAcademyOpen(false)}
+                />
+
+                <AuditDashboard
+                    isOpen={isAuditOpen}
+                    onClose={() => setIsAuditOpen(false)}
+                />
+
+                <HPCPortal
+                    isOpen={isHPCOpen}
+                    onClose={() => setIsHPCOpen(false)}
+                />
+
+                <HardwareBrowser
+                    isOpen={isHardwareOpen}
+                    onClose={() => setIsHardwareOpen(false)}
+                />
 
                 {loading ? (
                     <div className="flex items-center justify-center py-20 text-gray-400">
                         <div className="animate-spin mr-3 w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full" />
-                        Loading dashboard...
+                        Initializing Science Environment...
                     </div>
                 ) : (
-                    <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                        {/* System Status Row */}
-                        <div className="grid grid-cols-3 gap-3">
-                            <StatusCard
-                                icon="🟢"
-                                label="Backend"
-                                value={health?.status === 'healthy' ? 'Online' : 'Offline'}
-                                ok={health?.status === 'healthy'}
-                            />
-                            <StatusCard
-                                icon="🤖"
-                                label="Ollama"
-                                value={health?.ollama === 'connected' ? 'Connected' : 'Disconnected'}
-                                ok={health?.ollama === 'connected'}
-                            />
-                            <StatusCard
-                                icon="⚛️"
-                                label="Qiskit"
-                                value={health?.qiskit === 'available' ? 'Available' : 'Not Available'}
-                                ok={health?.qiskit === 'available'}
-                            />
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
+                        {/* Status & Hardware Section */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-3 gap-3">
+                                    <StatusCard
+                                        icon="🟢"
+                                        label="Backend"
+                                        value={health?.status === 'healthy' ? 'Online' : 'Offline'}
+                                        ok={health?.status === 'healthy'}
+                                    />
+                                    <StatusCard
+                                        icon="🤖"
+                                        label="Ollama"
+                                        value={health?.ollama === 'connected' ? 'Connected' : 'Disconnected'}
+                                        ok={health?.ollama === 'connected'}
+                                    />
+                                    <StatusCard
+                                        icon="⚛️"
+                                        label="Qiskit"
+                                        value={health?.qiskit === 'available' ? 'Available' : 'Not Available'}
+                                        ok={health?.qiskit === 'available'}
+                                    />
+                                </div>
+                                {summary && (
+                                    <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+                                        <div className="grid grid-cols-4 gap-2">
+                                            <StatBox icon="💬" label="Convs" value={(summary as any).conversations || 0} />
+                                            <StatBox icon="✉️" label="Msgs" value={(summary as any).messages || 0} />
+                                            <StatBox icon="⚛️" label="Runs" value={(summary as any).circuits_generated || 0} />
+                                            <StatBox icon="📁" label="Projs" value={(summary as any).projects || 0} />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <HardwareSettings />
                         </div>
 
-                        {/* Usage Stats */}
-                        {summary && (
-                            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5">
-                                <h3 className="text-sm font-medium text-gray-300 mb-4">Usage Statistics</h3>
-                                <div className="grid grid-cols-4 gap-3">
-                                    <StatBox icon="💬" label="Conversations" value={(summary as any).conversations || 0} />
-                                    <StatBox icon="✉️" label="Messages" value={(summary as any).messages || 0} />
-                                    <StatBox icon="⚛️" label="Circuits Run" value={(summary as any).circuits_generated || 0} />
-                                    <StatBox icon="📁" label="Projects" value={(summary as any).projects || 0} />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Circuit Stats */}
-                        {circuits && (circuits as any).total_circuits > 0 && (
-                            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5">
-                                <h3 className="text-sm font-medium text-gray-300 mb-4">Circuit Metrics</h3>
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div>
-                                        <div className="text-xs text-gray-500 mb-1">Qubit Range</div>
-                                        <div className="text-lg font-bold text-white">
-                                            {(circuits as any).qubit_distribution.min}–{(circuits as any).qubit_distribution.max}
-                                        </div>
-                                        <div className="text-[10px] text-gray-500">
-                                            Avg: {(circuits as any).qubit_distribution.avg}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div className="text-xs text-gray-500 mb-1">Circuit Depth</div>
-                                        <div className="text-lg font-bold text-white">
-                                            {(circuits as any).depth_distribution.min}–{(circuits as any).depth_distribution.max}
-                                        </div>
-                                        <div className="text-[10px] text-gray-500">
-                                            Avg: {(circuits as any).depth_distribution.avg}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div className="text-xs text-gray-500 mb-1">Total Circuits</div>
-                                        <div className="text-lg font-bold text-cyan-400">
-                                            {(circuits as any).total_circuits}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Available Circuits */}
-                        {circuitNames.length > 0 && (
-                            <CircuitTemplates circuitNames={circuitNames} simulators={simulators} onSimulationResult={setLatestResult} />
-                        )}
-
-                        {/* Top Agents */}
-                        {summary && (summary as any).agents_used && Object.keys((summary as any).agents_used).length > 0 && (
-                            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5">
-                                <h3 className="text-sm font-medium text-gray-300 mb-4">Most Used Agents</h3>
-                                <div className="space-y-2">
-                                    {Object.entries((summary as any).agents_used).slice(0, 5).map(([agent, count]) => {
-                                        const total = Object.values((summary as any).agents_used as Record<string, number>)
-                                            .reduce((a: number, b: number) => a + b, 0);
-                                        const pct = total > 0 ? ((count as number) / total) * 100 : 0;
-                                        return (
-                                            <div key={agent} className="flex items-center gap-3">
-                                                <div className="w-20 text-xs text-gray-400 capitalize truncate">{agent}</div>
-                                                <div className="flex-1 h-5 bg-white/[0.03] rounded-md overflow-hidden relative">
-                                                    <div
-                                                        className="h-full rounded-md bg-cyan-500/60 transition-all duration-700"
-                                                        style={{ width: `${Math.max(pct, 3)}%` }}
-                                                    />
-                                                    <span className="absolute right-2 top-0 text-[10px] text-gray-400">
-                                                        {count as number}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Tools: Circuit Builder & Bloch Sphere */}
+                        {/* Middle Tier: Scientific Visibility */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Circuit Builder */}
+                            <FaultTolerance />
+                            <ErrorMitigation circuitName={selectedCircuit} />
+                        </div>
+
+                        {/* Randomness Tier */}
+                        <QRNGPanel />
+
+                        {/* Templates Row */}
+                        {circuitNames.length > 0 && (
+                            <CircuitTemplates
+                                circuitNames={circuitNames}
+                                simulators={simulators}
+                                onSimulationResult={(res) => {
+                                    setLatestResult(res);
+                                    setSelectedCircuit(res.circuitName);
+                                }}
+                            />
+                        )}
+
+                        {/* Circuit Visuals */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5">
                                 <h3 className="text-sm font-medium text-gray-300 mb-4">🛠️ Circuit Builder</h3>
-                                <CircuitBuilder onExport={(code) => navigator.clipboard.writeText(code)} />
+                                <CircuitBuilder onExport={(code: string) => navigator.clipboard.writeText(code)} />
                             </div>
 
-                            {/* Bloch Sphere */}
                             <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5 flex flex-col items-center">
                                 <h3 className="text-sm font-medium text-gray-300 mb-4 self-start">🌐 Bloch Sphere</h3>
                                 <BlochSphereInteractive

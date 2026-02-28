@@ -38,49 +38,65 @@ def save_conversation(conversation_id: str, messages: list[dict], title: str | N
 
     session = get_session()
     try:
-        # Check if conversation exists
+        # 1. Update Conversation Meta
         conv = session.query(Conversation).filter_by(id=conversation_id).first()
         if not conv:
             conv = Conversation(id=conversation_id, title=title)
             session.add(conv)
         else:
             conv.title = title
-            conv.message_count = len(messages)
             conv.updated_at = datetime.utcnow()
-            # Delete existing messages and their artifacts to rewrite
-            msg_ids = session.query(Message.id).filter_by(conversation_id=conversation_id)
-            session.query(Artifact).filter(Artifact.message_id.in_(msg_ids)).delete(synchronize_session=False)
-            session.query(Message).filter_by(conversation_id=conversation_id).delete(synchronize_session=False)
 
-        # Add messages
+        # 2. Map existing messages for quick lookup
+        existing_messages = {m.id: m for m in conv.messages} if conv else {}
+
+        # 3. Process messages
         for msg in messages:
-            db_msg = Message(
-                id=msg.get("id") or _uuid(),
-                conversation_id=conversation_id,
-                role=msg["role"],
-                content=msg["content"],
-                agent=msg.get("agent"),
-                timestamp=datetime.fromisoformat(msg["timestamp"]) if msg.get("timestamp") else datetime.utcnow(),
-            )
-            session.add(db_msg)
-            
-            # Add artifacts if any
-            artifacts = msg.get("artifacts", [])
-            for art in artifacts:
-                db_art = Artifact(
-                    id=art.get("id") or _uuid(),
-                    message_id=db_msg.id,
-                    type=art["type"],
-                    title=art.get("title"),
-                    content=art.get("content"),
-                    language=art.get("language"),
-                    metadata_=art.get("metadata", {}),
+            m_id = msg.get("id") or _uuid()
+            role = msg["role"]
+            content = msg["content"]
+            agent = msg.get("agent")
+            timestamp = datetime.fromisoformat(msg["timestamp"]) if msg.get("timestamp") else datetime.utcnow()
+
+            if m_id in existing_messages:
+                # Update existing message if content changed
+                db_msg = existing_messages[m_id]
+                if db_msg.content != content:
+                    db_msg.content = content
+                    db_msg.timestamp = timestamp # Useful for streaming updates
+            else:
+                # Insert new message
+                db_msg = Message(
+                    id=m_id,
+                    conversation_id=conversation_id,
+                    role=role,
+                    content=content,
+                    agent=agent,
+                    timestamp=timestamp,
                 )
-                session.add(db_art)
+                session.add(db_msg)
+            
+            # 4. Sync artifacts for this message
+            incoming_artifacts = msg.get("artifacts", [])
+            if incoming_artifacts:
+                existing_art_ids = {a.id for a in db_msg.artifacts}
+                for art in incoming_artifacts:
+                    a_id = art.get("id") or _uuid()
+                    if a_id not in existing_art_ids:
+                        db_art = Artifact(
+                            id=a_id,
+                            message_id=db_msg.id,
+                            type=art["type"],
+                            title=art.get("title"),
+                            content=art.get("content"),
+                            language=art.get("language"),
+                            metadata_=art.get("metadata", {}),
+                        )
+                        session.add(db_art)
 
         conv.message_count = len(messages)
         session.commit()
-        logger.debug(f"Saved conversation {conversation_id} ({len(messages)} messages)")
+        logger.debug(f"Saved conversation {conversation_id} (Differential sync complete)")
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to save conversation {conversation_id}: {e}")

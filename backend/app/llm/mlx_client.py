@@ -45,7 +45,8 @@ class MlxClient:
     """Native Apple Silicon MLX Client for local LLMs."""
 
     def __init__(self):
-        self.model_name = "mlx-community/Qwen3.5-35B-A3B-bf16"
+        # self.model_name = "mlx-community/Qwen3.5-35B-A3B-bf16"
+        self.model_name = "mlx-community/GLM-4.7-Flash-4bit"
         self.model = None
         self.tokenizer = None
         self.processor = None # For mlx-vlm
@@ -59,7 +60,7 @@ class MlxClient:
             "max_tokens": 32768
         }
 
-    def load_model(self, model_name: str | None = None, allow_download: bool = False) -> bool:
+    def load_model(self, model_name: str | None = None, allow_download: bool = True) -> bool:
         """Load an MLX model into unified memory.
         
         If allow_download is False (default), only attempt to load from local cache.

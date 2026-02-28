@@ -120,10 +120,25 @@ async def broadcast_p2p(run_data: dict):
     logger.info(f"Broadcasted experiment {run_data.get('run_id')} to peers")
 
 
+# Global event to trigger sync immediately
+_sync_event = asyncio.Event()
+
+def trigger_sync():
+    """Trigger the background sync loop to run immediately."""
+    _sync_event.set()
+
 async def sync_loop():
-    """Background loop to periodically sync offline experiments."""
+    """Background loop to sync offline experiments reactively."""
     while True:
         try:
+            # Wait for event or timeout (fallback poll)
+            try:
+                await asyncio.wait_for(_sync_event.wait(), timeout=60.0)
+                _sync_event.clear()
+                logger.debug("Sync triggered by event")
+            except asyncio.TimeoutError:
+                logger.debug("Sync triggered by periodic poll (60s)")
+
             local_session = get_local_session()
             unsynced = local_session.query(Experiment).filter_by(is_synced=False).all()
             
@@ -135,6 +150,4 @@ async def sync_loop():
             local_session.close()
         except Exception as e:
             logger.error(f"Error in sync loop: {e}")
-            
-        # Poll every 10 seconds
-        await asyncio.sleep(10)
+            await asyncio.sleep(5) # Cooldown on error

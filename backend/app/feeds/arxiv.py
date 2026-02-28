@@ -9,6 +9,8 @@ import logging
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+import ssl
+import certifi
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +45,9 @@ def search_papers(
         url = f"{ARXIV_API}?{urllib.parse.urlencode(params)}"
 
         # Fetch
+        context = ssl.create_default_context(cafile=certifi.where())
         req = urllib.request.Request(url, headers={"User-Agent": "MilimoQuantum/1.0"})
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=10, context=context) as response:
             xml_data = response.read()
 
         # Parse Atom XML

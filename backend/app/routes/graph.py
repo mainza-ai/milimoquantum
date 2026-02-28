@@ -9,6 +9,7 @@ from app.auth import get_current_user
 from fastapi import APIRouter, Depends
 
 from app.graph.client import graph_client
+from app.graph.neo4j_client import neo4j_client
 from app.graph.agent_memory import agent_memory
 
 logger = logging.getLogger(__name__)

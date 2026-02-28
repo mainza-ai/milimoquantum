@@ -8,6 +8,8 @@ from __future__ import annotations
 import json
 import logging
 import urllib.request
+import ssl
+import certifi
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -22,8 +24,9 @@ def search_compound(name: str) -> dict[str, Any] | None:
     """
     try:
         url = f"{PUBCHEM_API}/compound/name/{urllib.request.quote(name)}/JSON"
+        context = ssl.create_default_context(cafile=certifi.where())
         req = urllib.request.Request(url, headers={"User-Agent": "MilimoQuantum/1.0"})
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=10, context=context) as response:
             data = json.loads(response.read())
 
         compound = data.get("PC_Compounds", [{}])[0]

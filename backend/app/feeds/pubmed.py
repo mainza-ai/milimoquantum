@@ -9,6 +9,8 @@ import json
 import logging
 import urllib.parse
 import urllib.request
+import ssl
+import certifi
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -28,8 +30,9 @@ def search_pubmed(query: str, max_results: int = 3) -> list[dict[str, Any]]:
             "sort": "date"
         }
         url = f"{PUBMED_ESEARCH}?{urllib.parse.urlencode(search_params)}"
+        context = ssl.create_default_context(cafile=certifi.where())
         req = urllib.request.Request(url, headers={"User-Agent": "MilimoQuantum/1.0"})
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=10, context=context) as response:
             esearch_data = json.loads(response.read())
             
         idlist = esearch_data.get("esearchresult", {}).get("idlist", [])
@@ -43,8 +46,9 @@ def search_pubmed(query: str, max_results: int = 3) -> list[dict[str, Any]]:
             "retmode": "json"
         }
         sum_url = f"{PUBMED_ESUMMARY}?{urllib.parse.urlencode(summary_params)}"
+        context = ssl.create_default_context(cafile=certifi.where())
         sum_req = urllib.request.Request(sum_url, headers={"User-Agent": "MilimoQuantum/1.0"})
-        with urllib.request.urlopen(sum_req, timeout=10) as response:
+        with urllib.request.urlopen(sum_req, timeout=10, context=context) as response:
             esum_data = json.loads(response.read())
             
         result = esum_data.get("result", {})

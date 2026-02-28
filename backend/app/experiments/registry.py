@@ -82,7 +82,7 @@ def log_run(
         session.commit()
         logger.info(f"Logged run {run_id} for project '{project}' (Local Cache)")
 
-        return {
+        run_data = {
             "run_id": run_id,
             "project": project,
             "circuit_name": circuit_name,
@@ -100,13 +100,18 @@ def log_run(
             "comments": [],
             "shared_with": []
         }
+
+        # 1. Trigger the background sync loop immediately
+        from app.experiments.sync_engine import trigger_sync, broadcast_p2p
+        trigger_sync()
         
-        # Fire-and-forget broadcast via event loop if available
+        # 2. Fire-and-forget broadcast via event loop if available
         try:
+            import asyncio
             loop = asyncio.get_running_loop()
             loop.create_task(broadcast_p2p(run_data))
-        except RuntimeError:
-            pass # No running loop (e.g. CLI script)
+        except (RuntimeError, ValueError):
+            pass # No running loop (e.g. CLI script or already closed)
             
         return run_data
     except Exception as e:

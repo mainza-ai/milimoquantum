@@ -86,10 +86,27 @@ class HPCAdapter:
             "config": {"mpi": use_mpi, "gpu": use_gpu}
         }
         
-        # 2. In a real system, this would dispatch to Slurm/LSF.
-        # Here we configure the backend and execute synchronously for the demo,
-        # but update status to SIMULATING then COMPLETED.
-        
+        # 2. Slurm submission simulation
+        slurm_script = f"""#!/bin/bash
+#SBATCH --job-name=milimo_quantum_{job_id}
+#SBATCH --output=slurm_{job_id}.out
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+{ 'srun ' if use_mpi else '' }python3 -c "print('Simulating quantum execution...')"
+"""
+        try:
+            script_path = f"/tmp/milimo_job_{job_id}.sh"
+            with open(script_path, "w") as f:
+                f.write(slurm_script)
+            logger.info(f"HPC: Generated Slurm script at {script_path}")
+            
+            # Simulate 'sbatch' submission
+            HPC_JOBS[job_id]["status"] = "QUEUED_SLURM"
+            HPC_JOBS[job_id]["script_path"] = script_path
+        except Exception as e:
+            logger.warning(f"HPC Slurm submission failed: {e}")
+
+        # 3. For the demo, we still execute synchronously but update status
         HPC_JOBS[job_id]["status"] = "RUNNING"
         
         try:

@@ -27,7 +27,7 @@ async def quantum_status():
     """Get quantum engine status and platform info."""
     return {
         "qiskit_available": QISKIT_AVAILABLE,
-        "cudaq_available": CUDA_Q_AVAILABLE,
+        "cudaq_available": CUDAQ_AVAILABLE,
         "ibm_quantum": ibm_runtime.get_status(),
         "braket": braket_provider.get_status(),
         "azure_quantum": azure_provider.get_status(),
@@ -105,7 +105,7 @@ async def list_providers():
         },
         "cudaq": {
             "name": "NVIDIA CUDA-Q",
-            "available": CUDA_Q_AVAILABLE,
+            "available": CUDAQ_AVAILABLE,
             "type": "local/remote",
         },
         "ibm_quantum": ibm_runtime.get_status(),
@@ -139,7 +139,7 @@ async def execute_quantum(request: CircuitRequest):
     options = request.options or {}
 
     if request.backend == "cudaq":
-        if not CUDA_Q_AVAILABLE:
+        if not CUDAQ_AVAILABLE:
             return {"error": "CUDA-Q is not available or installed."}
         result = cudaq_executor.execute_code(request.circuit_code, shots=shots)
     elif request.backend.startswith("braket:"):

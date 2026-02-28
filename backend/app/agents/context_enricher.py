@@ -13,6 +13,9 @@ from app.models.schemas import AgentType
 
 logger = logging.getLogger(__name__)
 
+# Intelligence Hub for Phase 2 implementation
+from app.data.hub import hub
+
 # Common stock ticker pattern
 _TICKER_RE = re.compile(r'\b([A-Z]{1,5})\b')
 
@@ -58,29 +61,12 @@ async def enrich_prompt(
     sections: list[str] = [base_prompt]
 
     try:
-        # Agent-specific enrichment
-        if agent_type == AgentType.FINANCE:
-            data = _enrich_finance(message)
-            if data:
-                sections.append(data)
-
-        elif agent_type == AgentType.RESEARCH:
-            data_res = _enrich_research(message)
-            data_med = _enrich_medical(message)
-            if data_res:
-                sections.append(data_res)
-            if data_med:
-                sections.append(data_med)
-
-        elif agent_type == AgentType.CHEMISTRY:
-            data = _enrich_chemistry(message)
-            if data:
-                sections.append(data)
-
-        # Memory enrichment for all agents
-        memory_ctx = await _enrich_from_memory(agent_type, message)
-        if memory_ctx:
-            sections.append(memory_ctx)
+        # Phase 2: Unified Intelligence Hub Context
+        # This hub handles ArXiv, PubMed, PubChem, and Finance feeds
+        # in a non-blocking way and fuses them with graph memory.
+        hub_context = await hub.get_context(message, agent_type=agent_type.value)
+        if hub_context.get("fused_prompt_segment"):
+            sections.append(hub_context["fused_prompt_segment"])
 
     except Exception as e:
         logger.warning(f"Context enrichment error (non-fatal): {e}")
