@@ -157,26 +157,35 @@ class AgentMemory:
         agent_type: str,
         query: str,
         limit: int = 5,
+        global_search: bool = False,
     ) -> list[dict[str, Any]]:
         """Retrieve relevant context for an agent's current query.
 
-        Uses simple keyword matching on local store.
-        # When FalkorDB/Neo4j is available, uses GraphRAG for semantic retrieval.
-        # This is a stub for the unified client.
+        Args:
+            agent_type: The agent to search memory for.
+            query: The user query to match against.
+            limit: Max memories to return.
+            global_search: If True, search across ALL agents' memories.
         """
         from app.graph.client import graph_client
         if graph_client.get_status().get('connected'):
             # TODO: Add specific query routing based on provider here
             pass
             
-        memories = self._local.get(agent_type, [])
-        if not memories:
+        search_pool: list[dict] = []
+        if global_search:
+            for agent_mems in self._local.values():
+                search_pool.extend(agent_mems)
+        else:
+            search_pool = self._local.get(agent_type, [])
+
+        if not search_pool:
             return []
 
         # Simple keyword relevance scoring
         query_words = set(query.lower().split())
         scored: list[tuple[int, dict[str, Any]]] = []
-        for mem in memories:
+        for mem in search_pool:
             content_words = set(mem["content"].lower().split())
             overlap = len(query_words & content_words)
             if overlap > 0:

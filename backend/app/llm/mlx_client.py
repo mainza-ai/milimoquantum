@@ -52,7 +52,9 @@ class MlxClient:
 
     def __init__(self):
         # self.model_name = "mlx-community/Qwen3.5-35B-A3B-bf16"
-        self.model_name = "mlx-community/GLM-4.7-Flash-4bit"
+        # self.model_name = "mlx-community/GLM-4.7-Flash-4bit"
+        # self.model_name = "mlx-community/Qwen3.5-35B-A3B-8bit"
+        self.model_name = "huihui-ai/Huihui-GLM-4.7-Flash-abliterated-mlx-4bit"
         self.model = None
         self.tokenizer = None
         self.processor = None # For mlx-vlm
@@ -63,7 +65,7 @@ class MlxClient:
         self.config = {
             "temperature": 0.7,
             "top_p": 0.9,
-            "max_tokens": 32768
+            "max_tokens": 2048
         }
 
     def load_model(self, model_name: str | None = None, allow_download: bool = True) -> bool:

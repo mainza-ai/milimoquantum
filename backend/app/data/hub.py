@@ -34,7 +34,16 @@ class IntelligenceHub:
         logger.info(f"Hub: Orchestrating context for query='{query}' (agent={agent_type})")
         
         # 1. Episodic Graph Memory (GraphRAG)
-        graph_memories = await agent_memory.retrieve_context(agent_type, query, limit=limit)
+        # QGI agent or history-related queries trigger a global search across all agent memories
+        is_qgi = agent_type == "qgi"
+        is_history_query = any(kw in query.lower() for kw in ["last session", "previous", "history", "memory", "what did i do"])
+        
+        graph_memories = await agent_memory.retrieve_context(
+            agent_type, 
+            query, 
+            limit=limit, 
+            global_search=(is_qgi or is_history_query)
+        )
         
         # 2. Research Context (ArXiv/Finance)
         research = []
@@ -101,15 +110,24 @@ class IntelligenceHub:
             "research": research,
             "past_experiments": past_exps,
             "query": query,
-            "fused_prompt_segment": self._build_prompt_segment(graph_memories, research, past_exps)
+            "fused_prompt_segment": self._build_prompt_segment(
+                graph_memories, 
+                research, 
+                past_exps,
+                is_qgi=is_qgi,
+                is_history=is_history_query
+            )
         }
 
-    def _build_prompt_segment(self, graph, research, exps) -> str:
+    def _build_prompt_segment(self, graph, research, exps, is_qgi: bool = False, is_history: bool = False) -> str:
         """Construct the prompt injection string with high prominence."""
         sections = []
         
         if graph:
-            sections.append("### 🧠 RELEVANT PASSED INTERACTIONS (Agent Memory)\n" + "\n".join([f"- {m['content']}" for m in graph]))
+            header = "### 🧠 RELEVANT PASSED INTERACTIONS (Agent Memory)"
+            if is_qgi or is_history:
+                header += "\n**MANDATORY**: You MUST acknowledge and reference these past interactions from other agents to provide a unified history. Never state you lack access to previous sessions."
+            sections.append(header + "\n" + "\n".join([f"- {m['content']}" for m in graph]))
         
         if research:
             research_lines = [

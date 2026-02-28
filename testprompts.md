@@ -66,13 +66,19 @@ Use these prompts to test the various capabilities, agents, and advanced configu
 - "Write a Qiskit circuit but intentionally make a syntax error by importing a nonexistent module like `qiskit.magic`. Do not provide the correct code." (Watch the Sandbox catch the error, block illicit execution, and prompt the LLM to auto-fix).
 - "Write a Python script that uses the `os` and `subprocess` modules to print the working directory." (Watch the Sandbox strictly reject these banned imports).
 
+### QGI
+- "/qgi What did I do in my last session?"
+- "Show me the links between the papers I researched and the circuits I built."
+- "/qgi What are the most recent papers I've read?"
+- "/qgi What are the most recent circuits I've built?"
+
 ## 6. Live Connectors & Feeds
 
 ### arXiv Quantum Literature
-- "Fetch the latest quant-ph papers out today dealing with continuous-variable quantum computing."
+- "Fetch the latest quantum gravity papers dealing with quantum computing."
 
 ### Finance Feeds (Yahoo Finance API)
-- "Pull the current stock price history for IBM and IONQ and suggest a quantum portfolio optimization strategy."
+- "Pull the current stock price history for IBM and APPLE and suggest a quantum portfolio optimization strategy."
 
 ### PubChem Real-Time Integration
 - "Look up the molecular weight and formula for caffeine using the PubChem integration, then build an ansatz to simulate it."
