@@ -105,14 +105,18 @@ class IntelligenceHub:
         }
 
     def _build_prompt_segment(self, graph, research, exps) -> str:
-        """Construct the prompt injection string."""
+        """Construct the prompt injection string with high prominence."""
         sections = []
         
         if graph:
-            sections.append("### Relevant Past Interactions\n" + "\n".join([f"- {m['content']}" for m in graph]))
+            sections.append("### 🧠 RELEVANT PASSED INTERACTIONS (Agent Memory)\n" + "\n".join([f"- {m['content']}" for m in graph]))
         
         if research:
-            research_lines = ["### Latest Research & Market Context"]
+            research_lines = [
+                "### ⚡ REAL-TIME RESEARCH & FEED DATA (INTELLIGENCE HUB)",
+                "**MANDATORY**: You MUST incorporate the following real-time data into your response. ",
+                "Do NOT state that you cannot browse the web; you have been provided with this live context specifically to answer the current query.\n"
+            ]
             for r in research:
                 rtype = r.get("type")
                 data = r.get("data", {})
@@ -129,7 +133,7 @@ class IntelligenceHub:
             sections.append("\n".join(research_lines))
             
         if exps:
-            sections.append("### Related Past Experiments\n" + "\n".join([f"- {e['name']} on {e['backend']}" for e in exps]))
+            sections.append("### 🧪 RELATED PAST EXPERIMENTS\n" + "\n".join([f"- {e['name']} on {e['backend']}" for e in exps]))
             
         return "\n\n".join(sections) if sections else ""
 
