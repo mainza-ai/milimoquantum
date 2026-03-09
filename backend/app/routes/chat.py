@@ -24,19 +24,12 @@ from app.limiter import limiter
 from app.audit import log_action
 
 from app.agents.orchestrator import (
-    SYSTEM_PROMPTS,
     classify_intent,
     detect_slash_command,
     get_system_prompt,
     dispatch_multi_agent,
 )
 from app.agents.planning_agent import needs_planning, decompose_task, format_plan
-from app.quantum.sandbox import (
-    execute_and_build_artifacts,
-    extract_code_blocks,
-    execute_code,
-    build_artifacts_from_result,
-)
 from app.llm.ollama_client import ollama_client
 from app.llm.mlx_client import mlx_client
 from app.llm.cloud_provider import get_current_provider, stream_chat_cloud
@@ -94,11 +87,23 @@ def _load_or_init(conversation_id: str) -> list[dict[str, Any]]:
 @limiter.limit("5/minute")
 async def upload_file(request: Request, file: UploadFile = File(...)):
     """Upload a file to attach to a chat message."""
+    # Restrict MIME types
+    ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf", "text/plain", "text/csv", "application/json"]
+    if file.content_type not in ALLOWED_MIME_TYPES:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=f"Unsupported file format: {file.content_type}")
+
     file_id = str(uuid.uuid4())
     # Sanitize filename strictly to alphanumeric and common safe characters
     safe_filename = "".join(c for c in (file.filename or "") if c.isalnum() or c in "._-")
     
-    ext = safe_filename.split('.')[-1] if '.' in safe_filename else ''
+    # Restrict extensions
+    ext = safe_filename.split('.')[-1].lower() if '.' in safe_filename else ''
+    ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "pdf", "txt", "csv", "json"}
+    if ext and ext not in ALLOWED_EXTENSIONS:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=f"Unsupported file extension: {ext}")
+
     safe_name = f"{file_id}.{ext}" if ext else file_id
     file_path = UPLOAD_DIR / safe_name
     
@@ -215,7 +220,7 @@ async def send_message(request: Request, payload: ChatRequest):
         # molecule data) and stream it as tokens to the user first.
         # This GUARANTEES the user sees real data regardless of
         # how well the LLM incorporates it.
-        preamble = build_data_preamble(agent_type, clean_message)
+        preamble = await build_data_preamble(agent_type, clean_message)
         if preamble:
             # Stream preamble in word-sized chunks for natural feel
             for chunk in _chunk_text(preamble, 12):
@@ -262,7 +267,6 @@ async def send_message(request: Request, payload: ChatRequest):
         # ── Step 2: Sandbox — Execute via Celery Cluster ────────
         # Extract code from the LLM response, submit to Celery queue,
         # poll for completion, and stream status/artifacts back over SSE.
-        agent_label = AGENT_LABELS.get(agent_type, "Milimo Quantum")
         MAX_RETRIES = 2
 
         async def _stream_llm_generate(prompt: str, sys_prompt: str):
@@ -300,7 +304,7 @@ async def send_message(request: Request, payload: ChatRequest):
 
         try:
             import asyncio
-            from app.quantum.sandbox import extract_code_blocks, build_artifacts_from_result
+            from app.quantum.sandbox import extract_code_blocks
             from app.worker.tasks import run_code_sandbox
             
             code_blocks = extract_code_blocks(full_response)
@@ -397,7 +401,7 @@ async def send_message(request: Request, payload: ChatRequest):
         if all_message_artifacts:
             msgs[-1]["artifacts"] = all_message_artifacts
 
-        storage.save_conversation(conversation_id, msgs)
+        storage.save_conversation(conversation_id, msgs, is_new_append=True)
 
         # ── Step 3: Auto-index for search ──
         try:

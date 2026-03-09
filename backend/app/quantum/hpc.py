@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, Any, Optional
 
-from qiskit import QuantumCircuit, transpile
+from qiskit import transpile
 from app.quantum.hal import hal_config
 from app.quantum.executor import QISKIT_AVAILABLE
 
@@ -50,7 +50,7 @@ class HPCAdapter:
         # MPI support (simulated for local testing unless mpi4py is installed)
         if use_mpi:
             try:
-                import mpi4py
+                import mpi4py  # noqa: F401
                 backend_options["blocking_qubits"] = 20 # chunk size
                 backend_options["blocking_enable"] = True
                 logger.info("HPC: Configured for MPI cluster execution")

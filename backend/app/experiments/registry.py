@@ -6,7 +6,6 @@ shots, transpile options, error mitigation settings, and results.
 """
 from __future__ import annotations
 
-import json
 import hashlib
 import logging
 from datetime import datetime

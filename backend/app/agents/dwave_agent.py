@@ -5,7 +5,6 @@ Generates executable code using dimod + dwave-neal (local simulated annealing).
 """
 from __future__ import annotations
 
-import json
 
 from app.models.schemas import Artifact, ArtifactType
 

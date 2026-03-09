@@ -5,10 +5,9 @@ for research reproducibility.
 """
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from app.auth import get_current_user
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends
 
 router = APIRouter(prefix="/api/citations", tags=["citations"], dependencies=[Depends(get_current_user)])
 

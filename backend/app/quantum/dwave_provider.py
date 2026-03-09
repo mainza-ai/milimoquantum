@@ -4,7 +4,7 @@ Integration with the D-Wave Ocean SDK for Quantum Annealing.
 """
 import logging
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 

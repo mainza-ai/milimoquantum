@@ -7,9 +7,8 @@ from __future__ import annotations
 
 import json
 import logging
-import urllib.request
-import ssl
-import certifi
+import httpx
+import urllib.parse
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -17,17 +16,17 @@ logger = logging.getLogger(__name__)
 PUBCHEM_API = "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
 
 
-def search_compound(name: str) -> dict[str, Any] | None:
+async def search_compound(name: str) -> dict[str, Any] | None:
     """Search PubChem for a compound by name.
 
     Returns dict with: cid, name, formula, weight, smiles, inchi, atoms.
     """
     try:
-        url = f"{PUBCHEM_API}/compound/name/{urllib.request.quote(name)}/JSON"
-        context = ssl.create_default_context(cafile=certifi.where())
-        req = urllib.request.Request(url, headers={"User-Agent": "MilimoQuantum/1.0"})
-        with urllib.request.urlopen(req, timeout=10, context=context) as response:
-            data = json.loads(response.read())
+        url = f"{PUBCHEM_API}/compound/name/{urllib.parse.quote(name)}/JSON"
+        async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": "MilimoQuantum/1.0"}) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
 
         compound = data.get("PC_Compounds", [{}])[0]
         props = {}
@@ -84,16 +83,16 @@ def format_molecule_markdown(compound: dict) -> str:
     qubits = get_molecule_qubits(compound)
     lines = [
         f"## {compound['name']} — Molecular Data",
-        f"",
-        f"| Property | Value |",
-        f"|----------|-------|",
+        "",
+        "| Property | Value |",
+        "|----------|-------|",
         f"| **Formula** | {compound.get('formula', '—')} |",
         f"| **Weight** | {compound.get('weight', '—')} g/mol |",
         f"| **SMILES** | `{compound.get('smiles', '—')}` |",
         f"| **Atoms** | {compound.get('atom_count', '—')} |",
         f"| **PubChem CID** | [{compound.get('cid', '—')}](https://pubchem.ncbi.nlm.nih.gov/compound/{compound.get('cid', '')}) |",
-        f"",
-        f"### VQE Estimation",
+        "",
+        "### VQE Estimation",
         f"- **Estimated qubits:** ~{qubits} (2 per heavy atom)",
         f"- **Feasibility:** {'✅ Laptop simulation' if qubits <= 20 else '⚠️ Needs cloud QPU' if qubits <= 50 else '❌ Beyond current hardware'}",
     ]

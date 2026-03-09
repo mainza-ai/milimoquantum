@@ -67,7 +67,7 @@ class AgentMemory:
 
     async def connect(self) -> bool:
         """Try to connect to the unified graph client for enhanced memory."""
-        from app.graph.client import graph_client
+        from .client import graph_client
         if await graph_client.connect():
             self.use_graph = True
             logger.info(f"AgentMemory connected to {graph_client.active_provider}")
@@ -117,7 +117,7 @@ class AgentMemory:
         # Sync to Graph if available
         if self.use_graph:
             try:
-                from app.graph.client import graph_client
+                from .client import graph_client
                 # 1. Index full interaction
                 await graph_client.index_conversation(
                     conversation_id, 
@@ -167,10 +167,24 @@ class AgentMemory:
             limit: Max memories to return.
             global_search: If True, search across ALL agents' memories.
         """
-        from app.graph.client import graph_client
+        from .client import graph_client
+        graph_memories = []
         if graph_client.get_status().get('connected'):
-            # TODO: Add specific query routing based on provider here
-            pass
+            logger.debug("Graph search active — pulling temporal sub-graphs")
+            try:
+                related = await graph_client.query_related(query, limit=3)
+                for r in related:
+                    concept = r.get("concept")
+                    if concept:
+                        convs = r.get("conversations", [])
+                        graph_memories.append({
+                            "content": f"Graph Insight: We previously discussed '{concept}' in {len(convs)} other contexts.",
+                            "memory_type": "graph_traversal",
+                            "timestamp": time.time(),
+                            "metadata": {"source": "falkordb_temporal"}
+                        })
+            except Exception as e:
+                logger.warning(f"Failed to pull GraphRAG concept relations: {e}")
             
         search_pool: list[dict] = []
         if global_search:
@@ -178,6 +192,9 @@ class AgentMemory:
                 search_pool.extend(agent_mems)
         else:
             search_pool = self._local.get(agent_type, [])
+            
+        # Add graph embeddings to candidate search pool
+        search_pool.extend(graph_memories)
 
         if not search_pool:
             return []

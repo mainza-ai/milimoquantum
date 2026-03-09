@@ -203,7 +203,8 @@ for state, count in sorted(counts.items(), key=lambda x: -x[1])[:6]:
         from qiskit.circuit.library import EfficientSU2
         from qiskit_aer import AerSimulator
         import numpy as np
-        import json, time
+        import json
+        import time
 
         n_qubits = 4
         ansatz = EfficientSU2(num_qubits=n_qubits, reps=2, entanglement="circular")
@@ -279,7 +280,8 @@ print(f"Trainable parameters: {ansatz.num_parameters}")
         from qiskit.circuit.library import EfficientSU2
         from qiskit_aer import AerSimulator
         import numpy as np
-        import json, time
+        import json
+        import time
 
         ansatz = EfficientSU2(num_qubits=4, reps=3, entanglement="full")
         params = np.random.uniform(-np.pi, np.pi, ansatz.num_parameters)

@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 try:
     from huggingface_hub import HfApi
-    from huggingface_hub.utils import RepositoryNotFoundError
     # Required for progress hooking
     from huggingface_hub.utils import tqdm as hf_tqdm
     HF_AVAILABLE = True

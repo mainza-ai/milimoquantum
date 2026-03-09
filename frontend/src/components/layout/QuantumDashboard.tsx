@@ -13,6 +13,7 @@ import { AcademyPanel } from '../academy/AcademyPanel';
 import { AuditDashboard } from '../admin/AuditDashboard';
 import { HPCPortal } from '../hpc/HPCPortal';
 import { HardwareBrowser } from '../quantum/HardwareBrowser';
+import { HpcJobsPanel } from '../quantum/panels/HpcJobsPanel';
 
 interface DashboardProps {
     isOpen: boolean;
@@ -177,7 +178,12 @@ export function QuantumDashboard({ isOpen, onClose }: DashboardProps) {
                                     </div>
                                 )}
                             </div>
-                            <HardwareSettings />
+                            <div className="flex flex-col gap-4">
+                                <HardwareSettings />
+                                <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5 border-l-orange-500/50">
+                                    <HpcJobsPanel />
+                                </div>
+                            </div>
                         </div>
 
                         {/* Middle Tier: Scientific Visibility */}
@@ -225,7 +231,7 @@ export function QuantumDashboard({ isOpen, onClose }: DashboardProps) {
 }
 
 /* ── Executable Circuit Templates ────────────────────── */
-function CircuitTemplates({ circuitNames, simulators, onSimulationResult }: { circuitNames: string[]; simulators: Record<string, unknown>; onSimulationResult?: (data: any) => void; }) {
+function CircuitTemplates({ circuitNames, simulators, onSimulationResult }: { circuitNames: string[]; simulators: Record<string, unknown>; onSimulationResult?: (data: Record<string, unknown>) => void; }) {
     const [running, setRunning] = useState<string | null>(null);
     const [result, setResult] = useState<{ counts?: Record<string, number>; statevector?: { theta: number, phi: number };[key: string]: unknown } | null>(null);
     const [error, setError] = useState<string | null>(null);

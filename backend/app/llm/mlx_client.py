@@ -10,19 +10,21 @@ import asyncio
 import concurrent.futures
 from typing import AsyncGenerator
 
+from app.llm.mlx_manager import mlx_manager
+
 try:
-    from huggingface_hub import hf_hub_download, snapshot_download
+    from huggingface_hub import hf_hub_download
 except ImportError:
     # Fallback if not available at top level
     pass
 
 logger = logging.getLogger(__name__)
-from app.llm.mlx_manager import mlx_manager
 
 # Try to import mlx libraries
 try:
-    import mlx.core as mx
-    MLX_CORE_AVAILABLE = True
+    import importlib.util
+    if importlib.util.find_spec("mlx"):
+        MLX_CORE_AVAILABLE = True
 except ImportError:
     MLX_CORE_AVAILABLE = False
 
@@ -54,7 +56,8 @@ class MlxClient:
         # self.model_name = "mlx-community/Qwen3.5-35B-A3B-bf16"
         # self.model_name = "mlx-community/GLM-4.7-Flash-4bit"
         # self.model_name = "mlx-community/Qwen3.5-35B-A3B-8bit"
-        self.model_name = "huihui-ai/Huihui-GLM-4.7-Flash-abliterated-mlx-4bit"
+        # self.model_name = "huihui-ai/Huihui-GLM-4.7-Flash-abliterated-mlx-4bit"
+        self.model_name = "cs2764/Huihui-GLM-4.7-Flash-abliterated-mlx-8Bit"
         self.model = None
         self.tokenizer = None
         self.processor = None # For mlx-vlm
@@ -65,7 +68,7 @@ class MlxClient:
         self.config = {
             "temperature": 0.7,
             "top_p": 0.9,
-            "max_tokens": 2048
+            "max_tokens": 32768
         }
 
     def load_model(self, model_name: str | None = None, allow_download: bool = True) -> bool:
@@ -100,7 +103,6 @@ class MlxClient:
             logger.info(f"Loading MLX model into memory: {self.model_name}")
             
             # Detect if model is VLM (multimodal)
-            import os
             
             # If the model is already cached, avoid network HEAD requests
             is_cached = self.model_name in local_models
@@ -117,11 +119,11 @@ class MlxClient:
             self.is_vlm = "vision_config" in self.model_config or "visual" in str(self.model_config)
             
             if self.is_vlm and MLX_VLM_AVAILABLE:
-                logger.info(f"Detected multimodal model, loading with mlx-vlm")
+                logger.info("Detected multimodal model, loading with mlx-vlm")
                 # mlx-vlm load also handles local loading if snapshots are present
                 self.model, self.processor = mlx_vlm.load(self.model_name)
             else:
-                logger.info(f"Loading as standard LLM with mlx-lm")
+                logger.info("Loading as standard LLM with mlx-lm")
                 # mlx-lm load also handles local loading efficiently
                 self.model, self.tokenizer = mlx_lm.load(self.model_name)
                 
@@ -241,8 +243,6 @@ class MlxClient:
         # Simple non-blocking generation simulation using mlx-lm generator
         # mlx-lm text generation is synchronous, so we generate it and yield chunks
         # A true async implementation would require running generate in a threadpool
-        import asyncio
-        import concurrent.futures
         import json
 
         loop = asyncio.get_running_loop()
@@ -343,8 +343,6 @@ class MlxClient:
          except Exception:
              formatted_prompt = prompt
              
-         import asyncio
-         import concurrent.futures
          loop = asyncio.get_running_loop()
          
          def _generate():

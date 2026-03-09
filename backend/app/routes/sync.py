@@ -7,8 +7,8 @@ from __future__ import annotations
 import logging
 from typing import Dict
 
-from app.auth import get_current_user
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from app.auth import get_current_user, keycloak_openid, AUTH_ENABLED
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/sync", tags=["sync"], dependencies=[Depends(get_current_user)])
@@ -51,8 +51,23 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 @router.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: str):
+async def websocket_endpoint(websocket: WebSocket, client_id: str, token: str = Query(None)):
     """WebSocket sync endpoint."""
+    
+    # 1. Authorize WebSocket via Query Token instead of Header
+    if AUTH_ENABLED:
+        if not token:
+            await websocket.close(code=1008, reason="Missing token parameter")
+            return
+        try:
+            public_key = "-----BEGIN PUBLIC KEY-----\n" + keycloak_openid.public_key() + "\n-----END PUBLIC KEY-----"
+            options = {"verify_signature": True, "verify_aud": False, "exp": True}
+            keycloak_openid.decode_token(token, key=public_key, options=options)
+        except Exception as e:
+            logger.warning(f"WS auth failed for {client_id}: {e}")
+            await websocket.close(code=1008, reason="Invalid or expired token")
+            return
+
     await manager.connect(websocket, client_id)
     try:
         while True:

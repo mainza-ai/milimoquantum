@@ -205,12 +205,15 @@ for bs, cnt in sorted(counts.items(), key=lambda x: -x[1])[:5]:
         n = 4
         edges = [(0,1), (1,2), (2,3), (3,0), (0,2)]
         qc = QC(n, n)
-        for i in range(n): qc.h(i)
+        for i in range(n): 
+            qc.h(i)
         for layer in range(2):
             gamma = np.pi / (3 * (layer + 1))
             beta = np.pi / (4 * (layer + 1))
-            for (i, j) in edges: qc.rzz(2 * gamma, i, j)
-            for i in range(n): qc.rx(2 * beta, i)
+            for (i, j) in edges: 
+                qc.rzz(2 * gamma, i, j)
+            for i in range(n): 
+                qc.rx(2 * beta, i)
         qc.measure(range(n), range(n))
 
         sim = AerSimulator()

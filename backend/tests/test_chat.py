@@ -4,8 +4,6 @@ Tests the chat endpoints, SSE streaming, agent routing, and auto-retry mechanism
 """
 from __future__ import annotations
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 
 class TestSlashCommands:

@@ -4,7 +4,7 @@ Community agents, optimizers, circuit libraries, and plugins.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Any
+from typing import Any
 from app.auth import get_current_user
 from app.db import get_session
 from app.db.models import MarketplacePlugin, UserPlugin

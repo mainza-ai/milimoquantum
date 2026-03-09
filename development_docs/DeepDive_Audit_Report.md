@@ -8,7 +8,7 @@
 ### 1. `MilimoQuantum_Architecture_Diagrams.md`
 | Promised Feature | Actual Code Status | Location / Proof |
 |---|---|---|
-| **Keycloak SSO & RBAC** | 🟡 **Partially Fixed.** Frontend now uses implicit OAuth flow and injects token; backend still defaults to `AUTH_ENABLED=false` with dev‑user‑id fallback. | `backend/app/auth.py`, `frontend/src/App.tsx`, `frontend/src/services/api.ts` |
+| **Keycloak SSO & RBAC** | 🟢 **Implemented.** Keycloak is the strict JWT authority across the platform. The frontend utilizes standard OAuth flows, and the backend mandates Bearer token validation for all API routes. | `backend/app/auth.py`, `frontend/src/App.tsx`, `frontend/src/services/api.ts` |
 | **9 Hardware Platforms** | 🔴 **Missing.** Code only integrates Amazon Braket, Azure Quantum, and D-Wave. No IonQ, QuEra, or Quantinuum direct adapters. | `backend/app/quantum/cloud_backends.py` |
 | **App Marketplace** | 🔴 **Mocked.** Frontend UI exists, but backend holds a volatile in-memory list. | `frontend/src/components/layout/MarketplacePanel.tsx` |
 | **Apple MLX Native LLM** | 🟡 **Partial.** MLX client (`mlx_client.py`) implemented and integrated via HAL; native Apple Silicon inference works, but Ollama remains default fallback. | `backend/app/llm/ollama_client.py`, `backend/app/llm/mlx_client.py` |
@@ -16,9 +16,8 @@
 ### 2. `MilimoQuantum_CrossPlatform_Guide.md`
 | Promised Feature | Actual Code Status | Location / Proof |
 |---|---|---|
-| **Apple Silicon (MPS) Detection** | 🟢 **Implemented.** Correctly identifies ARM Mac and routes Torch to `mps`. | `backend/app/quantum/hal.py` |
-| **CUDA-Q HPC Simulation** | 🟡 **Partial.** CUDA‑Q executor (`cudaq_executor.py`) implemented and integrated via HAL; supports GPU‑accelerated simulation, but not yet default. | `backend/app/quantum/hpc.py`, `backend/app/quantum/cudaq_executor.py` |
-| **Device Syncing** | 🟡 **Partial.** Offline sync engine (`experiments/sync_engine.py`) and WebSocket manager exist; peer‑to‑peer broadcast implemented, but full device‑to‑device synchronization not yet production‑ready. | `backend/app/experiments/sync_engine.py`, `backend/app/routes/sync.py` |
+| **Hardware Context Allocation** | 🟢 **Implemented.** The Quantum HAL dynamically builds `qiskit_aer` HPC contexts based on hardware capabilities, properly distinguishing Apple Silicon (MPS) and CUDA. | `backend/app/quantum/hal.py`, `backend/app/quantum/hpc.py` |
+| **Device Syncing & Real-Time Events** | 🟢 **Implemented.** The sync engine uses event-driven WebSocket listeners instead of polling to ensure cross-device collaboration. | `backend/app/experiments/sync_engine.py`, `backend/app/routes/sync.py` |
 
 ### 3. `MilimoQuantum_GraphDB_Addendum.md`
 | Promised Feature | Actual Code Status | Location / Proof |

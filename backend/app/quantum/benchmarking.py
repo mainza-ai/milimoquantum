@@ -5,12 +5,10 @@ Run benchmarks to compare quantum vs classical performance and track QPU metrics
 from __future__ import annotations
 
 import time
-import random
 import logging
-import datetime
 from typing import Dict, Any, List
 
-from qiskit import QuantumCircuit, transpile
+from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
 from qiskit.quantum_info import Statevector
 

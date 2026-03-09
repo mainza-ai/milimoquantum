@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/feeds", tags=["feeds"], dependencies=[Depends(ge
 async def search_arxiv(query: str, max_results: int = 5, category: str = "quant-ph"):
     """Search arXiv for quantum computing papers."""
     from app.feeds.arxiv import search_papers
-    papers = search_papers(query, max_results=max_results, category=category)
+    papers = await search_papers(query, max_results=max_results, category=category)
     return {"query": query, "papers": papers, "count": len(papers)}
 
 
@@ -24,7 +24,7 @@ async def search_arxiv(query: str, max_results: int = 5, category: str = "quant-
 async def search_pubchem_compound(name: str):
     """Search PubChem for a compound by name."""
     from app.feeds.pubchem import search_compound, format_molecule_markdown, get_molecule_qubits
-    compound = search_compound(name)
+    compound = await search_compound(name)
     if compound:
         return {
             "compound": compound,

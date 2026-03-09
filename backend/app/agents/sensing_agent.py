@@ -232,6 +232,11 @@ def try_quick_circuit(message: str) -> tuple[list[Artifact], str | None]:
             else:
                 return [], None
 
+            import json
+            from app.quantum.advanced_sims import run_qutip_sensing_simulation
+            
+            qutip_data = run_qutip_sensing_simulation(n_qubits=4, phase=0.523)
+
             artifacts = [
                 Artifact(
                     type=ArtifactType.CODE,
@@ -239,6 +244,11 @@ def try_quick_circuit(message: str) -> tuple[list[Artifact], str | None]:
                     content=code,
                     language="python",
                 ),
+                Artifact(
+                    type=ArtifactType.JSON,
+                    title=f"QuTiP Physics Simulation — {circuit_type.title()}",
+                    content=json.dumps(qutip_data, indent=2),
+                )
             ]
             return artifacts, summary
 

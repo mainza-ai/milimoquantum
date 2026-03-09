@@ -66,7 +66,6 @@ def get_correlation_matrix(symbols: list[str], period: str = "1y") -> dict[str, 
         return _mock_correlation(symbols)
 
     try:
-        import numpy as np
         data = yf.download(symbols, period=period, progress=False)
         if "Close" in data.columns.get_level_values(0):
             closes = data["Close"]

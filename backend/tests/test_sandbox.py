@@ -4,7 +4,6 @@ Tests the code execution sandbox: extraction, execution, patching, and auto-retr
 """
 from __future__ import annotations
 
-import pytest
 from app.quantum.sandbox import (
     extract_code_blocks,
     execute_code,

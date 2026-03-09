@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKey,
@@ -126,6 +125,7 @@ class Project(Base):
     __tablename__ = "projects"
 
     id = Column(String(36), primary_key=True, default=_uuid)
+    tenant_id = Column(String(36), index=True, nullable=False, default="default-tenant")
     name = Column(String(256), nullable=False, default="New Project")
     description = Column(Text, default="")
     tags = Column(JSON, default=list)

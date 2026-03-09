@@ -11,10 +11,10 @@ import logging
 import re
 from app.models.schemas import AgentType
 
-logger = logging.getLogger(__name__)
-
 # Intelligence Hub for Phase 2 implementation
 from app.data.hub import hub
+
+logger = logging.getLogger(__name__)
 
 # Common stock ticker pattern
 _TICKER_RE = re.compile(r'\b([A-Z]{1,5})\b')
@@ -74,7 +74,7 @@ async def enrich_prompt(
     return "\n\n".join(sections)
 
 
-def build_data_preamble(agent_type: AgentType, message: str) -> str | None:
+async def build_data_preamble(agent_type: AgentType, message: str) -> str | None:
     """Build a user-facing markdown data section that is streamed DIRECTLY
     to the user as chat tokens BEFORE the LLM generates its response.
 
@@ -84,21 +84,21 @@ def build_data_preamble(agent_type: AgentType, message: str) -> str | None:
     """
     try:
         if agent_type == AgentType.FINANCE:
-            return _build_finance_preamble(message)
+            return await _build_finance_preamble(message)
         elif agent_type == AgentType.RESEARCH:
-            res = _build_research_preamble(message)
-            med = _build_medical_preamble(message)
+            res = await _build_research_preamble(message)
+            med = await _build_medical_preamble(message)
             if res or med:
                 return "\n".join(filter(None, [res, med]))
             return None
         elif agent_type == AgentType.CHEMISTRY:
-            return _build_chemistry_preamble(message)
+            return await _build_chemistry_preamble(message)
     except Exception as e:
         logger.warning(f"Data preamble build failed (non-fatal): {e}")
     return None
 
 
-def _build_finance_preamble(message: str) -> str | None:
+async def _build_finance_preamble(message: str) -> str | None:
     """Build a rich market data section for the user."""
     tickers = _extract_tickers(message)
     if not tickers:
@@ -184,7 +184,7 @@ def _build_finance_preamble(message: str) -> str | None:
         return None
 
 
-def _build_research_preamble(message: str) -> str | None:
+async def _build_research_preamble(message: str) -> str | None:
     """Build a recent papers section for the user."""
     lower = message.lower()
     skip_words = {"explain", "what", "is", "are", "the", "how", "does", "about", "tell", "me", "research"}
@@ -197,7 +197,7 @@ def _build_research_preamble(message: str) -> str | None:
     try:
         from app.feeds.arxiv import search_papers
 
-        papers = search_papers(query, max_results=3, category="quant-ph")
+        papers = await search_papers(query, max_results=3, category="quant-ph")
         if not papers:
             return None
 
@@ -221,7 +221,7 @@ def _build_research_preamble(message: str) -> str | None:
         logger.warning(f"Research preamble failed: {e}")
         return None
 
-def _build_medical_preamble(message: str) -> str | None:
+async def _build_medical_preamble(message: str) -> str | None:
     """Build a recent medical papers section from PubMed."""
     lower = message.lower()
     # Only trigger if medical terminology is used
@@ -238,7 +238,7 @@ def _build_medical_preamble(message: str) -> str | None:
     try:
         from app.feeds.pubmed import search_pubmed
 
-        papers = search_pubmed(query, max_results=3)
+        papers = await search_pubmed(query, max_results=3)
         if not papers:
             return None
 
@@ -262,7 +262,7 @@ def _build_medical_preamble(message: str) -> str | None:
 
 
 
-def _build_chemistry_preamble(message: str) -> str | None:
+async def _build_chemistry_preamble(message: str) -> str | None:
     """Build a molecular data section for the user."""
     lower = message.lower()
     molecule_name = None
@@ -277,7 +277,7 @@ def _build_chemistry_preamble(message: str) -> str | None:
     try:
         from app.feeds.pubchem import search_compound, get_molecule_qubits
 
-        compound = search_compound(molecule_name)
+        compound = await search_compound(molecule_name)
         if not compound:
             return None
 
@@ -285,8 +285,8 @@ def _build_chemistry_preamble(message: str) -> str | None:
 
         lines = [
             f"## 🧪 Molecule: {molecule_name.title()}\n",
-            f"| Property | Value |",
-            f"|----------|-------|",
+            "| Property | Value |",
+            "|----------|-------|",
             f"| **Formula** | {compound.get('formula', '—')} |",
             f"| **Molecular Weight** | {compound.get('weight', '—')} g/mol |",
             f"| **SMILES** | `{compound.get('smiles', '—')}` |",
@@ -294,9 +294,9 @@ def _build_chemistry_preamble(message: str) -> str | None:
             f"| **Atom Count** | {compound.get('atom_count', '—')} |",
             f"| **PubChem CID** | [{compound.get('cid', '—')}](https://pubchem.ncbi.nlm.nih.gov/compound/{compound.get('cid', '')}) |",
             f"| **Est. VQE Qubits** | ~{qubits} |",
-            f"",
-            f"---\n",
-            f"### VQE Simulation\n",
+            "",
+            "---\n",
+            "### VQE Simulation\n",
         ]
 
         logger.info(f"Chemistry preamble built for {molecule_name}")
@@ -331,14 +331,14 @@ def _extract_tickers(message: str) -> list[str]:
     return tickers[:10]  # Cap at 10 symbols
 
 
-def _enrich_finance(message: str) -> str | None:
+async def _enrich_finance(message: str) -> str | None:
     """Fetch real market data for mentioned stocks."""
     tickers = _extract_tickers(message)
     if not tickers:
         return None
 
     try:
-        from app.feeds import get_stock_prices, get_portfolio_summary
+        from app.feeds import get_stock_prices
 
         prices = get_stock_prices(tickers)
         if not prices:
@@ -391,7 +391,7 @@ def _enrich_finance(message: str) -> str | None:
         return None
 
 
-def _enrich_research(message: str) -> str | None:
+async def _enrich_research(message: str) -> str | None:
     """Fetch relevant arXiv papers for the query."""
     # Extract the research topic (strip common filler words)
     lower = message.lower()
@@ -405,7 +405,7 @@ def _enrich_research(message: str) -> str | None:
     try:
         from app.feeds.arxiv import search_papers
 
-        papers = search_papers(query, max_results=3, category="quant-ph")
+        papers = await search_papers(query, max_results=3, category="quant-ph")
         if not papers:
             return None
 
@@ -431,7 +431,7 @@ def _enrich_research(message: str) -> str | None:
         logger.warning(f"Research enrichment failed: {e}")
         return None
 
-def _enrich_medical(message: str) -> str | None:
+async def _enrich_medical(message: str) -> str | None:
     """Fetch relevant PubMed papers for medical queries."""
     lower = message.lower()
     if not any(w in lower for w in ["drug", "medicine", "protein", "disease", "clinical", "affinity", "receptor", "pubmed"]):
@@ -447,7 +447,7 @@ def _enrich_medical(message: str) -> str | None:
     try:
         from app.feeds.pubmed import search_pubmed
 
-        papers = search_pubmed(query, max_results=3)
+        papers = await search_pubmed(query, max_results=3)
         if not papers:
             return None
 
@@ -475,7 +475,7 @@ def _enrich_medical(message: str) -> str | None:
 
 
 
-def _enrich_chemistry(message: str) -> str | None:
+async def _enrich_chemistry(message: str) -> str | None:
     """Fetch molecular data from PubChem for mentioned molecules."""
     lower = message.lower()
 
@@ -492,7 +492,7 @@ def _enrich_chemistry(message: str) -> str | None:
     try:
         from app.feeds.pubchem import search_compound, get_molecule_qubits
 
-        compound = search_compound(molecule_name)
+        compound = await search_compound(molecule_name)
         if not compound:
             return None
 
@@ -508,9 +508,9 @@ def _enrich_chemistry(message: str) -> str | None:
             f"- **Atom Count:** {compound.get('atom_count', '—')}",
             f"- **PubChem CID:** {compound.get('cid', '—')}",
             f"- **Estimated VQE Qubits:** ~{qubits}",
-            f"",
-            f"Use these values for accurate VQE simulation parameters.",
-            f"Adjust qubit count in your circuit to match this molecule.",
+            "",
+            "Use these values for accurate VQE simulation parameters.",
+            "Adjust qubit count in your circuit to match this molecule.",
             "\n--- END MOLECULE DATA ---\n",
         ]
 

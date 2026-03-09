@@ -5,7 +5,7 @@ API for triggering Celery parameter sweeps and parallel quantum executions.
 from __future__ import annotations
 
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any
 from app.auth import get_current_user
 from fastapi import APIRouter, HTTPException, Depends
 
@@ -69,10 +69,31 @@ async def submit_dag_workflow(payload: Dict[str, Any]):
     
     logger.info(f"Submitting DAG workflow with {len(tasks)} nodes.")
     
-    # In Phase 2 this is a stub for the DAG engine.
-    # Future implementation will use a Celery Chord or Chain.
-    return {
-        "status": "submitted",
-        "workflow_id": "dag_" + str(len(tasks)) + "_nodes",
-        "message": f"Successfully queued DAG with {len(tasks)} quantum tasks."
-    }
+    if not CELERY_AVAILABLE:
+        return {"status": "error", "message": "Celery worker not available to distribute DAG."}
+        
+    try:
+        from celery import chord, group
+        from app.worker.tasks import execute_dag_node, finalize_dag
+        import uuid
+        
+        workflow_id = f"dag_{uuid.uuid4().hex[:8]}"
+        
+        # Build parallel execution group mapped to a sequential finalize callback
+        node_tasks = [execute_dag_node.s(node) for node in tasks]
+        workflow_chord = chord(group(*node_tasks), finalize_dag.s(workflow_id=workflow_id))
+        
+        result = workflow_chord.apply_async()
+        
+        return {
+            "status": "submitted",
+            "workflow_id": workflow_id,
+            "task_id": str(result.id),
+            "message": f"Successfully queued DAG with {len(tasks)} parallel quantum tasks."
+        }
+    except ImportError as e:
+        logger.error(f"Celery missing DAG dependencies: {e}")
+        return {"status": "error", "message": "Celery not properly configured."}
+    except Exception as e:
+        logger.error(f"DAG submission failed: {e}")
+        return {"status": "error", "message": str(e)}

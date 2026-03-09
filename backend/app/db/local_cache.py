@@ -33,7 +33,6 @@ def get_local_engine():
             connect_args={"check_same_thread": False},
         )
         # Ensure schema exists in local cache
-        from app.db import models
         Base.metadata.create_all(_local_engine)
         logger.info(f"Local SQLite cache engine created at {LOCAL_DB_PATH}")
     return _local_engine

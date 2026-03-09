@@ -7,17 +7,15 @@ from __future__ import annotations
 
 import logging
 import urllib.parse
-import urllib.request
+import httpx
 import xml.etree.ElementTree as ET
-import ssl
-import certifi
 
 logger = logging.getLogger(__name__)
 
 ARXIV_API = "http://export.arxiv.org/api/query"
 
 
-def search_papers(
+async def search_papers(
     query: str,
     max_results: int = 5,
     category: str = "quant-ph",
@@ -45,10 +43,10 @@ def search_papers(
         url = f"{ARXIV_API}?{urllib.parse.urlencode(params)}"
 
         # Fetch
-        context = ssl.create_default_context(cafile=certifi.where())
-        req = urllib.request.Request(url, headers={"User-Agent": "MilimoQuantum/1.0"})
-        with urllib.request.urlopen(req, timeout=10, context=context) as response:
-            xml_data = response.read()
+        async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": "MilimoQuantum/1.0"}) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            xml_data = response.text
 
         # Parse Atom XML
         ns = {

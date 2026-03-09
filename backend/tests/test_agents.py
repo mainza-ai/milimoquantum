@@ -4,7 +4,6 @@ Tests that each agent's quick-topic and quick-circuit handlers work correctly.
 """
 from __future__ import annotations
 
-import pytest
 
 
 class TestAgentImports:
@@ -20,19 +19,19 @@ class TestAgentImports:
         assert try_quick_circuit is not None
 
     def test_import_dwave_agent(self):
-        from app.agents.dwave_agent import try_quick_circuit, try_quick_topic
+        from app.agents.dwave_agent import try_quick_circuit
         assert try_quick_circuit is not None
 
     def test_import_sensing_agent(self):
-        from app.agents.sensing_agent import try_quick_circuit, try_quick_topic
+        from app.agents.sensing_agent import try_quick_circuit
         assert try_quick_circuit is not None
 
     def test_import_networking_agent(self):
-        from app.agents.networking_agent import try_quick_circuit, try_quick_topic
+        from app.agents.networking_agent import try_quick_circuit
         assert try_quick_circuit is not None
 
     def test_import_qgi_agent(self):
-        from app.agents.qgi_agent import try_quick_circuit, try_quick_topic
+        from app.agents.qgi_agent import try_quick_circuit
         assert try_quick_circuit is not None
 
 

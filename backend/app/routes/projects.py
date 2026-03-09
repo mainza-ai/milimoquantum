@@ -31,10 +31,11 @@ class ProjectUpdate(BaseModel):
     tags: Optional[List[str]] = None
 
 
-def _create_default_project(session: Session) -> dict:
-    """Create the default project if none exists."""
+def _create_default_project(session: Session, tenant_id: str) -> dict:
+    """Create the default project if none exists for the tenant."""
     project = Project(
-        id="default",
+        id=f"default-{tenant_id}",
+        tenant_id=tenant_id,
         name="My Quantum Lab",
         description="Default quantum computing workspace",
         tags=["general"],
@@ -63,13 +64,14 @@ def _format_project(p: Project) -> dict:
 
 
 @router.get("/")
-async def list_projects():
-    """List all projects."""
+async def list_projects(current_user: dict = Depends(get_current_user)):
+    """List all projects for the current tenant."""
     session = get_session()
+    tenant_id = current_user.get("sub", "default-tenant")
     try:
-        projects = session.query(Project).order_by(Project.updated_at.desc()).all()
+        projects = session.query(Project).filter_by(tenant_id=tenant_id).order_by(Project.updated_at.desc()).all()
         if not projects:
-            default = _create_default_project(session)
+            default = _create_default_project(session, tenant_id)
             return {"projects": [default]}
         return {"projects": [_format_project(p) for p in projects]}
     except Exception as e:
@@ -80,13 +82,15 @@ async def list_projects():
 
 
 @router.post("/")
-async def create_project(data: ProjectCreate):
+async def create_project(data: ProjectCreate, current_user: dict = Depends(get_current_user)):
     """Create a new project."""
     session = get_session()
+    tenant_id = current_user.get("sub", "default-tenant")
     try:
         now = datetime.utcnow()
         project = Project(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             name=data.name,
             description=data.description,
             tags=data.tags,
@@ -96,18 +100,19 @@ async def create_project(data: ProjectCreate):
         )
         session.add(project)
         session.commit()
-        logger.info(f"Created project {project.id}: {project.name}")
+        logger.info(f"Created project {project.id}: {project.name} for tenant {tenant_id}")
         return _format_project(project)
     finally:
         session.close()
 
 
 @router.get("/{project_id}")
-async def get_project(project_id: str):
-    """Get a project by ID."""
+async def get_project(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Get a project by ID with tenant isolation."""
     session = get_session()
+    tenant_id = current_user.get("sub", "default-tenant")
     try:
-        project = session.query(Project).filter_by(id=project_id).first()
+        project = session.query(Project).filter_by(id=project_id, tenant_id=tenant_id).first()
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         return _format_project(project)
@@ -116,11 +121,12 @@ async def get_project(project_id: str):
 
 
 @router.put("/{project_id}")
-async def update_project(project_id: str, data: ProjectUpdate):
-    """Update a project."""
+async def update_project(project_id: str, data: ProjectUpdate, current_user: dict = Depends(get_current_user)):
+    """Update a project with tenant isolation."""
     session = get_session()
+    tenant_id = current_user.get("sub", "default-tenant")
     try:
-        project = session.query(Project).filter_by(id=project_id).first()
+        project = session.query(Project).filter_by(id=project_id, tenant_id=tenant_id).first()
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
@@ -140,11 +146,12 @@ async def update_project(project_id: str, data: ProjectUpdate):
 
 
 @router.delete("/{project_id}")
-async def delete_project(project_id: str):
-    """Delete a project."""
+async def delete_project(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a project with tenant isolation."""
     session = get_session()
+    tenant_id = current_user.get("sub", "default-tenant")
     try:
-        project = session.query(Project).filter_by(id=project_id).first()
+        project = session.query(Project).filter_by(id=project_id, tenant_id=tenant_id).first()
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         session.delete(project)
@@ -156,11 +163,12 @@ async def delete_project(project_id: str):
 
 
 @router.post("/{project_id}/conversations/{conversation_id}")
-async def add_conversation_to_project(project_id: str, conversation_id: str):
+async def add_conversation_to_project(project_id: str, conversation_id: str, current_user: dict = Depends(get_current_user)):
     """Associate a conversation with a project."""
     session = get_session()
+    tenant_id = current_user.get("sub", "default-tenant")
     try:
-        project = session.query(Project).filter_by(id=project_id).first()
+        project = session.query(Project).filter_by(id=project_id, tenant_id=tenant_id).first()
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
@@ -178,11 +186,12 @@ async def add_conversation_to_project(project_id: str, conversation_id: str):
 
 
 @router.delete("/{project_id}/conversations/{conversation_id}")
-async def remove_conversation_from_project(project_id: str, conversation_id: str):
+async def remove_conversation_from_project(project_id: str, conversation_id: str, current_user: dict = Depends(get_current_user)):
     """Remove a conversation from a project."""
     session = get_session()
+    tenant_id = current_user.get("sub", "default-tenant")
     try:
-        project = session.query(Project).filter_by(id=project_id).first()
+        project = session.query(Project).filter_by(id=project_id, tenant_id=tenant_id).first()
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 

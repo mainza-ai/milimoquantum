@@ -7,9 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
 
-from sqlalchemy.orm import Session
 
 from app.db import get_session as get_cloud_session
 from app.db.local_cache import get_local_session
@@ -131,13 +129,10 @@ async def sync_loop():
     """Background loop to sync offline experiments reactively."""
     while True:
         try:
-            # Wait for event or timeout (fallback poll)
-            try:
-                await asyncio.wait_for(_sync_event.wait(), timeout=60.0)
-                _sync_event.clear()
-                logger.debug("Sync triggered by event")
-            except asyncio.TimeoutError:
-                logger.debug("Sync triggered by periodic poll (60s)")
+            # Wait for event permanently without polling
+            await _sync_event.wait()
+            _sync_event.clear()
+            logger.debug("Sync triggered by database event")
 
             local_session = get_local_session()
             unsynced = local_session.query(Experiment).filter_by(is_synced=False).all()

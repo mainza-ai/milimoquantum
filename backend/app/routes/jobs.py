@@ -5,13 +5,12 @@ Endpoints for interacting with the Celery worker cluster.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException, Depends
 from celery.result import AsyncResult
 
 from app.worker.tasks import app
-from app.worker.tasks import execute_quantum_circuit, run_vqe_optimization
+from app.worker.tasks import execute_quantum_circuit
 from app.models.schemas import CircuitRequest
 from app.auth import get_current_user
 
@@ -96,6 +95,5 @@ async def get_job_status(job_id: str):
 @router.delete("/{job_id}/cancel")
 async def cancel_job(job_id: str):
     """Attempt to revoke a running or pending job."""
-    task = AsyncResult(job_id, app=app)
     app.control.revoke(job_id, terminate=True)
     return {"job_id": job_id, "status": "REVOKED"}

@@ -188,7 +188,8 @@ print(f"Trainable parameters: {n_params}")
         from qiskit.circuit.library import ZZFeatureMap, RealAmplitudes
         from qiskit_aer import AerSimulator
         import numpy as np
-        import json, time
+        import json
+        import time
 
         feature_map = ZZFeatureMap(feature_dimension=2, reps=2)
         ansatz = RealAmplitudes(num_qubits=2, reps=2)
@@ -262,7 +263,8 @@ print(f"ZZFeatureMap encoding of {data}:", dict(sorted(counts.items(), key=lambd
         from qiskit import QuantumCircuit as QC, transpile
         from qiskit.circuit.library import ZZFeatureMap
         from qiskit_aer import AerSimulator
-        import json, time
+        import json
+        import time
 
         feature_map = ZZFeatureMap(feature_dimension=4, reps=2, entanglement="linear")
         data = [0.3, 1.5, 0.7, 2.1]

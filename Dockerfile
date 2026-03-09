@@ -1,10 +1,17 @@
-# ── Stage 1: Build Frontend ──────────────────────────
+# ── Stage 1: Build Frontend (production) ─────────────
 FROM node:20-slim AS frontend-build
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 RUN npm run build
+
+# ── Stage 1b: Dev Frontend (no tsc build) ────────────
+FROM node:20-slim AS frontend-dev
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend/ ./
 
 # ── Stage 2: Build Backend ───────────────────────────
 FROM python:3.12-slim AS backend

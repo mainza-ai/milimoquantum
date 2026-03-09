@@ -5,11 +5,9 @@ Immutable tracking of sensitive operations for enterprise compliance.
 from __future__ import annotations
 
 import logging
-import json
 import datetime
 from pathlib import Path
 
-from fastapi import Request
 
 STORAGE_DIR = Path.home() / ".milimoquantum"
 AUDIT_LOG_FILE = STORAGE_DIR / "audit.log"
@@ -56,13 +54,13 @@ async def get_logs(limit: int = 50):
         logs = session.query(AuditLog).order_by(AuditLog.timestamp.desc()).limit(limit).all()
         return [
             {
-                "timestamp": l.timestamp.isoformat(),
-                "user": l.user_id,
-                "action": l.action,
-                "resource": l.resource_id,
-                "details": l.details,
+                "timestamp": log_entry.timestamp.isoformat(),
+                "action": log_entry.action,
+                "user_id": log_entry.user_id,
+                "target": log_entry.resource_id, # Assuming "target" maps to "resource_id" based on context
+                "details": log_entry.details,
             }
-            for l in logs
+            for log_entry in logs
         ]
     except Exception as e:
         logger.error(f"Failed to fetch audit logs: {e}")

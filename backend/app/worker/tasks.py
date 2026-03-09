@@ -5,7 +5,6 @@ Celery tasks for offloading heavy compute workflows.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List
 
 from app.worker.celery_app import app
 
@@ -78,7 +77,6 @@ def run_vqe_optimization(
     max_iter: int = 100,
 ) -> dict:
     """Heavy VQE optimization for chemistry workflows."""
-    import time
     from app.quantum.pennylane_bridge import run_vqe
     
     self.update_state(state="RUNNING", meta={"status": "Initializing Hamiltonian"})
@@ -98,3 +96,18 @@ def run_vqe_optimization(
     except Exception as e:
         logger.error(f"Task {self.request.id} failed: {e}")
         raise e
+
+@app.task(bind=True, name="app.worker.tasks.execute_dag_node")
+def execute_dag_node(self, node_data: dict, *args, **kwargs) -> dict:
+    """Execute a single node within a DAG workflow."""
+    self.update_state(state="RUNNING", meta={"status": f"Executing node {node_data.get('id')}"})
+    import time
+    time.sleep(1)  # Simulate processing
+    return {"node_id": node_data.get("id"), "type": node_data.get("type"), "status": "completed", "input_args": args}
+
+@app.task(bind=True, name="app.worker.tasks.finalize_dag")
+def finalize_dag(self, results: list, workflow_id: str) -> dict:
+    """Callback task summarizing the DAG execution."""
+    self.update_state(state="SUCCESS", meta={"status": "DAG finished"})
+    return {"workflow_id": workflow_id, "status": "completed", "node_results": results}
+

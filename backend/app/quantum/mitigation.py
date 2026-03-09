@@ -250,7 +250,6 @@ def apply_pauli_twirling(
         return {"error": "Qiskit not available for error mitigation"}
 
     import random as _rng
-    import numpy as _np
 
     # Pauli pairs that preserve CX: (before_ctrl, before_tgt, after_ctrl, after_tgt)
     # These satisfy: (P_c ⊗ P_t) · CX · (P_c' ⊗ P_t') = CX  (up to global phase)
@@ -272,8 +271,6 @@ def apply_pauli_twirling(
         ("y", "z", "x", "y"),
         ("z", "y", "y", "x"),  # added for full group coverage
     ]
-
-    PAULI_MAP = {"id": "id", "x": "x", "y": "y", "z": "z"}
 
     def _apply_pauli(qc, qubit, pauli):
         if pauli == "x":

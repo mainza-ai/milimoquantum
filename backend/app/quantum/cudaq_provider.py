@@ -10,8 +10,9 @@ logger = logging.getLogger(__name__)
 
 CUDA_Q_AVAILABLE = False
 try:
-    import cudaq
-    CUDA_Q_AVAILABLE = True
+    import importlib.util
+    if importlib.util.find_spec("cudaq"):
+        CUDA_Q_AVAILABLE = True
 except ImportError:
     pass
 

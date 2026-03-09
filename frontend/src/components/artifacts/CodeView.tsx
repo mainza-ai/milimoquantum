@@ -36,7 +36,7 @@ export function CodeView({ content, language, title }: { content: string; langua
             // 1. Submit job to Celery task queue via sandbox
             const res = await fetch('/api/jobs/execute-code', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                 body: JSON.stringify({ code }),
             });
             const data = await res.json();

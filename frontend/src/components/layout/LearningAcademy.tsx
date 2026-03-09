@@ -77,6 +77,7 @@ export function LearningAcademy({ isOpen, onClose }: { isOpen: boolean; onClose:
 
         await fetch(`/api/academy/progress?lesson_id=${activeLesson.id}&completed=true${quizScore !== undefined ? `&quiz_score=${quizScore}` : ''}`, {
             method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
         setLessons(prev => prev.map(l =>
             l.id === activeLesson.id ? { ...l, completed: true, quiz_score: quizScore ?? null } : l

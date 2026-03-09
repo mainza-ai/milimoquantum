@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from app.db import get_session
-from app.db.models import Conversation, Experiment
+from app.db.models import Experiment
 from app.graph.agent_memory import agent_memory
 from app.agents.arxiv import search_arxiv
 from app.agents.finance import get_market_sentiment
@@ -81,7 +81,7 @@ class IntelligenceHub:
                     potential_compound = words[-1] if words else ""
             
             if potential_compound:
-                compound = await anyio.to_thread.run_sync(search_compound, potential_compound)
+                compound = await search_compound(potential_compound)
                 if compound:
                     research.append({"type": "molecule_data", "data": compound})
 

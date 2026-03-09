@@ -13,7 +13,6 @@ import json
 import logging
 import re
 import signal
-import sys
 import traceback
 import textwrap
 from contextlib import redirect_stdout, redirect_stderr
@@ -426,7 +425,6 @@ def build_artifacts_from_result(
             language="python",
         ))
 
-    import sys
     import io
     from contextlib import redirect_stdout
     
@@ -443,6 +441,9 @@ def build_artifacts_from_result(
             
             with redirect_stdout(dummy_stdout):
                 diagram = str(circuit.draw(output="text"))
+            
+            from qiskit import qasm2
+            qasm_str = qasm2.dumps(circuit)
                 
             suffix = f" ({i+1})" if len(result.circuits) > 1 else ""
             artifacts.append(Artifact(
@@ -451,6 +452,7 @@ def build_artifacts_from_result(
                 content=code.strip(),
                 metadata={
                     "ascii_diagram": diagram,
+                    "qasm": qasm_str,
                     "num_qubits": circuit.num_qubits,
                     "depth": circuit.depth(),
                 },

@@ -21,6 +21,26 @@ class Settings:
     )
     ollama_model: str = ""  # Auto-detected from Ollama at startup
 
+    # Cloud LLM Models (Configurable via ENV)
+    anthropic_models: list[str] = field(
+        default_factory=lambda: os.getenv("ANTHROPIC_MODELS", "claude-sonnet-4-20250514,claude-opus-4-20250514,claude-3-5-haiku-20241022").split(",")
+    )
+    openai_models: list[str] = field(
+        default_factory=lambda: os.getenv("OPENAI_MODELS", "gpt-4o,gpt-4o-mini,o1,o3-mini").split(",")
+    )
+    gemini_models: list[str] = field(
+        default_factory=lambda: os.getenv("GEMINI_MODELS", "gemini-2.0-flash,gemini-1.5-pro").split(",")
+    )
+    cohere_models: list[str] = field(
+        default_factory=lambda: os.getenv("COHERE_MODELS", "command-r-plus,command-r,command-light").split(",")
+    )
+    mistral_models: list[str] = field(
+        default_factory=lambda: os.getenv("MISTRAL_MODELS", "mistral-large-latest,mistral-medium-latest,codestral-latest").split(",")
+    )
+    deepseek_models: list[str] = field(
+        default_factory=lambda: os.getenv("DEEPSEEK_MODELS", "deepseek-chat,deepseek-coder,deepseek-reasoner").split(",")
+    )
+
     # Quantum
     default_shots: int = 1024
     max_qubits_local: int = 28

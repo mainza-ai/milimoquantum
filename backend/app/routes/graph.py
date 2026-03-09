@@ -47,7 +47,6 @@ async def graph_query(cypher: str, limit: int = 25):
 @router.post("/index")
 async def index_conversations():
     """Re-index all conversations into the knowledge graph."""
-    from app import storage
     from pathlib import Path
 
     conversations_dir = Path.home() / ".milimoquantum" / "conversations"

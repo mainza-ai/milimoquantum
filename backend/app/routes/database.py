@@ -29,7 +29,7 @@ async def db_status():
         }
         session.close()
         connected = True
-    except Exception as e:
+    except Exception:
         stats = {}
         connected = False
 

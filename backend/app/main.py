@@ -9,16 +9,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.limiter import limiter
-
 from app.config import settings
 from app.db.events import setup_listeners
-
-# Initialize Event Fabric
-setup_listeners()
 from app.llm.ollama_client import ollama_client
 from app.llm.mlx_client import mlx_client
+from app.quantum.hal import hal_config
+from app.quantum.executor import QISKIT_AVAILABLE
 from app.routes import chat, quantum, projects, settings as settings_routes
 from app.routes import analytics, search, collaboration
 from app.routes import benchmarks, citations, audit
@@ -26,22 +25,24 @@ from app.routes import hpc, marketplace
 from app.routes import graph as graph_routes
 from app.routes import academy
 from app.routes import feeds as feeds_routes
-from app.routes import ibm as ibm_routes
-from app.routes import export as export_routes
-from app.routes import experiments as experiments_routes
 from app.routes import database as database_routes
+from app.routes import experiments as experiments_routes
+from app.routes import export as export_routes
+from app.routes import ibm as ibm_routes
 from app.routes import jobs as jobs_routes
-from app.routes import sync as sync_routes
 from app.routes import qrng as qrng_routes
+from app.routes import sync as sync_routes
 from app.routes import workflows as workflows_routes
 from app.auth import router as auth_router
+
+# Initialize Event Fabric
+setup_listeners()
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
 )
 logger = logging.getLogger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -56,7 +57,7 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to initialize database: {e}")
 
     # Start LLM based on HAL
-    from app.quantum.hal import hal_config
+        logger.warning("Qiskit not installed — quantum execution disabled")
     if hal_config.llm_backend == "mlx":
         # Start MLX on Apple Silicon
         if mlx_client.load_model():
@@ -81,8 +82,7 @@ async def lifespan(app: FastAPI):
     # Log platform info
     logger.info(f"🖥  Platform: {hal_config.os_name} {hal_config.arch}")
     logger.info(f"⚡ GPU: {hal_config.gpu_name or 'None'}")
-
-    from app.quantum.executor import QISKIT_AVAILABLE
+    
     if QISKIT_AVAILABLE:
         logger.info("✅ Qiskit loaded — quantum execution ready")
     else:
@@ -139,6 +139,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+
+class CSRFMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+            # Require custom header to prevent simple form-based cross-site requests
+            if request.headers.get("X-Requested-With") != "XMLHttpRequest":
+                return JSONResponse(
+                    status_code=403, 
+                    content={"detail": "CSRF verification failed: Missing X-Requested-With header"}
+                )
+        return await call_next(request)
+
+app.add_middleware(CSRFMiddleware)
 
 # Register routes
 app.include_router(chat.router)

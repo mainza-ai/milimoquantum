@@ -23,7 +23,7 @@ try:
                         msg = json.loads(decoded[5:])
                         if 'content' in msg:
                             print(msg['content'], end='', flush=True)
-                    except:
+                    except Exception:
                         pass
         print("\n\nTest Finished Successfully.")
 except Exception as e:

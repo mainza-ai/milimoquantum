@@ -106,12 +106,19 @@ const LABEL_WIDTH = 40;
 
 interface CircuitVisualizerProps {
     code: string;
+    qasm?: string;
     simulating?: boolean;
 }
 
-export function CircuitVisualizer({ code, simulating = false }: CircuitVisualizerProps) {
+export function CircuitVisualizer({ code, qasm, simulating = false }: CircuitVisualizerProps) {
     const [tooltip, setTooltip] = useState<TooltipState | null>(null);
-    const { numQubits, gates } = useMemo(() => parseCircuit(code), [code]);
+    const { numQubits, gates } = useMemo(() => {
+        // Prioritize structured QASM from backend if available
+        if (qasm) {
+            return parseCircuit(qasm);
+        }
+        return parseCircuit(code);
+    }, [code, qasm]);
 
     if (gates.length === 0) {
         return (

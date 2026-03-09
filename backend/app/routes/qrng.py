@@ -4,7 +4,6 @@ Exposes the quantum random number generator to the outside world.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Any
 from app.auth import get_current_user
 from fastapi import APIRouter, Depends
 

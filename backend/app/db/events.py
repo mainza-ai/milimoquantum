@@ -6,8 +6,8 @@ This eliminates polling by triggering sync/broadcast immediately on commit.
 import logging
 from sqlalchemy import event
 from sqlalchemy.orm import Session
-from app.db.models import Experiment, Conversation, Message
-from app.experiments.sync_engine import trigger_sync, broadcast_p2p
+from app.db.models import Experiment
+from app.experiments.sync_engine import trigger_sync
 
 logger = logging.getLogger(__name__)
 

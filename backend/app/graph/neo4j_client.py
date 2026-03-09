@@ -27,7 +27,10 @@ class Neo4jClient:
     def __init__(self):
         self.uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
         self.user = os.getenv("NEO4J_USER", "neo4j")
-        self.password = os.getenv("NEO4J_PASSWORD", "milimo-quantum-graph")
+        self.password = os.getenv("NEO4J_PASSWORD", "milimopassword")
+        
+        if not self.password and NEO4J_AVAILABLE:
+            logger.warning("NEO4J_PASSWORD is not set in the environment.")
         self.driver = None
         self.connected = False
 

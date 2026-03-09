@@ -13,36 +13,38 @@ from typing import AsyncIterator
 
 logger = logging.getLogger(__name__)
 
+from app.config import settings
+
 # ── Provider Configuration ──────────────────────────────
 CLOUD_PROVIDERS = {
     "anthropic": {
         "name": "Anthropic Claude",
-        "models": ["claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-3-5-haiku-20241022"],
+        "models": settings.anthropic_models,
         "env_key": "ANTHROPIC_API_KEY",
     },
     "openai": {
         "name": "OpenAI",
-        "models": ["gpt-4o", "gpt-4o-mini", "o1", "o3-mini"],
+        "models": settings.openai_models,
         "env_key": "OPENAI_API_KEY",
     },
     "gemini": {
         "name": "Google Gemini",
-        "models": ["gemini-2.0-flash", "gemini-1.5-pro"],
+        "models": settings.gemini_models,
         "env_key": "GOOGLE_API_KEY",
     },
     "cohere": {
         "name": "Cohere Command R+",
-        "models": ["command-r-plus", "command-r", "command-light"],
+        "models": settings.cohere_models,
         "env_key": "COHERE_API_KEY",
     },
     "mistral": {
         "name": "Mistral AI",
-        "models": ["mistral-large-latest", "mistral-medium-latest", "codestral-latest"],
+        "models": settings.mistral_models,
         "env_key": "MISTRAL_API_KEY",
     },
     "deepseek": {
         "name": "DeepSeek",
-        "models": ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
+        "models": settings.deepseek_models,
         "env_key": "DEEPSEEK_API_KEY",
     },
 }
@@ -93,7 +95,7 @@ def _save_cloud_settings() -> None:
     if _CLOUD_SETTINGS_FILE.exists():
         try:
             existing = json.loads(_CLOUD_SETTINGS_FILE.read_text(encoding="utf-8"))
-        except:
+        except Exception:
             existing = {}
     else:
         existing = {}
@@ -214,7 +216,7 @@ async def _stream_anthropic(messages: list[dict], system_prompt: str) -> AsyncIt
     formatted = [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] in ("user", "assistant")]
 
     async with client.messages.stream(
-        model=_active_model or "claude-sonnet-4-20250514",
+        model=_active_model or settings.anthropic_models[0],
         max_tokens=4096,
         system=system_prompt,
         messages=formatted,
@@ -232,7 +234,7 @@ async def _stream_openai(messages: list[dict], system_prompt: str) -> AsyncItera
     formatted += [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] in ("user", "assistant")]
 
     stream = await client.chat.completions.create(
-        model=_active_model or "gpt-4o",
+        model=_active_model or settings.openai_models[0],
         messages=formatted,
         max_tokens=4096,
         stream=True,
@@ -257,7 +259,7 @@ async def _stream_gemini(messages: list[dict], system_prompt: str) -> AsyncItera
 
     config = {"system_instruction": system_prompt} if system_prompt else {}
     response = client.models.generate_content_stream(
-        model=_active_model or "gemini-2.0-flash",
+        model=_active_model or settings.gemini_models[0],
         contents=[*formatted_history, {"role": "user", "parts": [{"text": last_msg}]}],
         config=config,
     )
@@ -281,7 +283,7 @@ async def _stream_cohere(messages: list[dict], system_prompt: str) -> AsyncItera
             "https://api.cohere.ai/v2/chat",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={
-                "model": _active_model or "command-r-plus",
+                "model": _active_model or settings.cohere_models[0],
                 "messages": formatted,
                 "stream": True,
             },
@@ -313,7 +315,7 @@ async def _stream_mistral(messages: list[dict], system_prompt: str) -> AsyncIter
             "https://api.mistral.ai/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={
-                "model": _active_model or "mistral-large-latest",
+                "model": _active_model or settings.mistral_models[0],
                 "messages": formatted,
                 "stream": True,
             },
@@ -342,7 +344,7 @@ async def _stream_deepseek(messages: list[dict], system_prompt: str) -> AsyncIte
     formatted += [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] in ("user", "assistant")]
 
     stream = await client.chat.completions.create(
-        model=_active_model or "deepseek-chat",
+        model=_active_model or settings.deepseek_models[0],
         messages=formatted,
         max_tokens=4096,
         stream=True,

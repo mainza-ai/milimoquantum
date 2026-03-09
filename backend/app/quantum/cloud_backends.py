@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -200,5 +199,10 @@ def get_cloud_quantum_status() -> dict:
             "available": is_azure_available(),
             "env_var": "AZURE_QUANTUM_RESOURCE_ID",
             "configured": bool(os.environ.get("AZURE_QUANTUM_RESOURCE_ID")),
+        },
+        "google_quantum": {
+            "available": is_google_available(),
+            "env_vars": ["GOOGLE_APPLICATION_CREDENTIALS"],
+            "configured": bool(os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")),
         },
     }

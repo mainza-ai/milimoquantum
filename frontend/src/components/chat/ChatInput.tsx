@@ -67,6 +67,7 @@ export function ChatInput({ onSend, isStreaming, activeAgent }: ChatInputProps) 
         try {
             const res = await fetch('/api/chat/upload', {
                 method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 body: formData
             });
             const data = await res.json();

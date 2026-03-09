@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from app.db import init_db
 from app.experiments.registry import log_run

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional, List
+from typing import Optional
 
 from fastapi import Depends, HTTPException, status, APIRouter
 from fastapi.security import OAuth2PasswordBearer
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 KC_SERVER_URL = os.environ.get("KC_SERVER_URL", "http://localhost:8080/")
 KC_REALM_NAME = os.environ.get("KC_REALM_NAME", "milimo-realm")
 KC_CLIENT_ID = os.environ.get("KC_CLIENT_ID", "milimo-client")
-AUTH_ENABLED = os.environ.get("AUTH_ENABLED", "false").lower() == "true"
+AUTH_ENABLED = os.environ.get("AUTH_ENABLED", "true").lower() == "true"
 
 # OAuth2 scheme for Swagger UI
 oauth2_scheme = OAuth2PasswordBearer(
@@ -44,13 +44,14 @@ if AUTH_ENABLED:
 
 async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> dict:
     """Validate token and return current user."""
-    # If auth is disabled, return a mock user (Local development only)
+    # If auth is disabled, raise an error instead of using a mock user
     if not AUTH_ENABLED:
-        return {
-            "sub": "local-dev-id", 
-            "preferred_username": "local_dev", 
-            "realm_access": {"roles": ["admin", "researcher"]}
-        }
+        logger.warning("AUTH_ENABLED is false, but dev-user-id fallback has been removed for security.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication is required but disabled in the configuration.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     if not token:
         raise HTTPException(
@@ -66,6 +67,8 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> dic
         )
 
     try:
+        from jose import jwt as jose_jwt
+
         # Get public key for signature validation from Keycloak
         public_key = (
             "-----BEGIN PUBLIC KEY-----\n" 
@@ -73,12 +76,12 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> dic
             + "\n-----END PUBLIC KEY-----"
         )
         
-        # Decode and verify token
-        options = {"verify_signature": True, "verify_aud": False, "exp": True}
-        token_info = keycloak_openid.decode_token(
+        # Decode the JWT directly with python-jose (avoids keycloak lib version issue)
+        token_info = jose_jwt.decode(
             token,
-            key=public_key,
-            options=options,
+            public_key,
+            algorithms=["RS256"],
+            options={"verify_aud": False},
         )
         return token_info
         
@@ -90,10 +93,10 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> dic
             headers={"WWW-Authenticate": "Bearer"},
         )
     except Exception as e:
-        logger.error(f"Authentication error: {e}")
+        logger.error(f"Authentication error ({type(e).__name__}): {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired or invalid",
+            detail=f"Session expired or invalid",
         )
 
 

@@ -4,10 +4,11 @@ Executes circuits via Qiskit Aer with HAL-selected backend options.
 """
 from __future__ import annotations
 
-import io
 import logging
 import time
 from typing import Any
+
+from app.quantum.hal import hal_config
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +22,6 @@ try:
     logger.info("Qiskit loaded successfully")
 except ImportError:
     logger.warning("Qiskit not installed — quantum execution disabled")
-
-from app.quantum.hal import hal_config
 
 
 def execute_circuit(

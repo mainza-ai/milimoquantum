@@ -6,7 +6,7 @@ export function CircuitView({ content, metadata }: { content: string; metadata?:
             {/* Interactive SVG circuit */}
             <div className="bg-black/40 border border-mq-border rounded-2xl p-4 overflow-x-auto glow-inset">
                 <p className="text-[10px] text-mq-text-tertiary uppercase tracking-wider mb-3 font-medium">Interactive Circuit Diagram</p>
-                <CircuitVisualizer code={content} />
+                <CircuitVisualizer code={content} qasm={metadata?.qasm} />
             </div>
 
             {/* Raw circuit text */}

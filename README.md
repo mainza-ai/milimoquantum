@@ -96,7 +96,7 @@ If you wish to use the ultra-fast Apple Silicon MLX models via Unified Memory on
    ```
 
 #### Initialize Authentication (Required)
-Regardless of your deployment method, once the Docker infrastructure is running, you must configure the Keycloak realm, client, and admin user to log in:
+Regardless of your deployment method, once the Docker infrastructure is running, you must configure the Keycloak realm, client, and admin user to log in. Keycloak acts as the strict JWT authority for the platform—unauthenticated access is strictly blocked.
 ```bash
 ./setup-keycloak.sh
 ```

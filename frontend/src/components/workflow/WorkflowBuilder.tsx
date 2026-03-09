@@ -1,18 +1,86 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import {
+    ReactFlow,
+    Controls,
+    Background,
+    applyNodeChanges,
+    applyEdgeChanges,
+    addEdge,
+    type Node,
+    type Edge,
+    type NodeChange,
+    type EdgeChange,
+    type Connection
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 
-interface WorkflowTask {
-    id: string;
-    name: string;
-    type: string;
-    dependencies: string[];
-}
+const initialNodes: Node[] = [
+    {
+        id: '1',
+        type: 'default',
+        data: { label: 'Initialize GHZ State [circuit]' },
+        position: { x: 250, y: 50 },
+        style: { background: '#0d1117', color: 'white', border: '1px solid rgba(34,211,238,0.3)', borderRadius: '8px' }
+    },
+    {
+        id: '2',
+        type: 'default',
+        data: { label: 'ZNE Error Mitigation [mitigation]' },
+        position: { x: 250, y: 150 },
+        style: { background: '#0d1117', color: 'white', border: '1px solid rgba(34,211,238,0.3)', borderRadius: '8px' }
+    },
+    {
+        id: '3',
+        type: 'default',
+        data: { label: 'Analyze Fidelity [analysis]' },
+        position: { x: 250, y: 250 },
+        style: { background: '#0d1117', color: 'white', border: '1px solid rgba(34,211,238,0.3)', borderRadius: '8px' }
+    }
+];
+
+const initialEdges: Edge[] = [
+    { id: '1-2', source: '1', target: '2', animated: true, style: { stroke: '#22d3ee' } },
+    { id: '2-3', source: '2', target: '3', animated: true, style: { stroke: '#22d3ee' } }
+];
 
 export const WorkflowBuilder: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-    const [tasks] = useState<WorkflowTask[]>([
-        { id: '1', name: 'Initialize GHZ State', type: 'circuit', dependencies: [] },
-        { id: '2', name: 'ZNE Error Mitigation', type: 'mitigation', dependencies: ['1'] },
-        { id: '3', name: 'Analyze Fidelity', type: 'analysis', dependencies: ['2'] }
-    ]);
+    const [nodes, setNodes] = useState<Node[]>(initialNodes);
+    const [edges, setEdges] = useState<Edge[]>(initialEdges);
+
+    const onNodesChange = useCallback(
+        (changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)),
+        []
+    );
+    const onEdgesChange = useCallback(
+        (changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+        []
+    );
+    const onConnect = useCallback(
+        (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#22d3ee' } }, eds)),
+        []
+    );
+
+    const handleDeploy = async () => {
+        try {
+            const payload = {
+                tasks: nodes.map(n => ({ id: n.id, type: n.type, label: n.data.label }))
+            };
+            const response = await fetch('/api/workflows/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` // simple fallback
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            alert(`Deployed Workflow ID: ${data.workflow_id}`);
+            onClose();
+        } catch (e) {
+            console.error('Failed to deploy workflow:', e);
+            alert('Deployment failed. Check console.');
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -30,51 +98,32 @@ export const WorkflowBuilder: React.FC<{ isOpen: boolean; onClose: () => void }>
                     <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-lg text-gray-400 transition-colors">✕</button>
                 </div>
 
-                {/* Canvas Area */}
-                <div className="flex-1 overflow-auto bg-[#05070a] relative p-8">
-                    <div className="flex flex-col gap-12 items-center">
-                        {tasks.map((task, idx) => (
-                            <React.Fragment key={task.id}>
-                                <div
-                                    className="w-64 p-4 rounded-xl border border-cyan-500/30 bg-[#0d1117] relative group hover:border-cyan-400/60 transition-all shadow-lg"
-                                >
-                                    <div className="absolute -top-3 left-4 px-2 py-0.5 rounded bg-cyan-900/50 border border-cyan-500/30 text-[10px] uppercase font-bold text-cyan-300">
-                                        {task.type}
-                                    </div>
-                                    <h4 className="text-sm font-medium text-white mb-2">{task.name}</h4>
-                                    <div className="flex gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                        <span className="text-[10px] text-gray-500">Ready</span>
-                                    </div>
-
-                                    {/* Connectors */}
-                                    {idx < tasks.length - 1 && (
-                                        <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 h-12 w-0.5 bg-cyan-500/20 group-hover:bg-cyan-500/40 transition-colors">
-                                            <div className="absolute bottom-0 -left-1 w-2.5 h-2.5 border-b-2 border-r-2 border-cyan-500/40 -rotate-45"></div>
-                                        </div>
-                                    )}
-                                </div>
-                            </React.Fragment>
-                        ))}
-
-                        <button
-                            className="mt-4 px-6 py-3 rounded-xl border-2 border-dashed border-cyan-500/20 text-cyan-500/60 hover:border-cyan-500/40 hover:text-cyan-400 transition-all flex items-center gap-2 text-sm"
-                            onClick={() => { }}
-                        >
-                            <span>+</span> Add Task Node
-                        </button>
-                    </div>
+                {/* React Flow Canvas Area */}
+                <div className="flex-1 w-full relative bg-[#05070a]">
+                    <ReactFlow
+                        nodes={nodes}
+                        edges={edges}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={onEdgesChange}
+                        onConnect={onConnect}
+                        colorMode="dark"
+                        fitView
+                    >
+                        <Background gap={12} size={1} color="#22d3ee" className="opacity-10" />
+                        <Controls className="bg-[#0b0e14] border-cyan-500/20 fill-white" />
+                    </ReactFlow>
                 </div>
 
                 {/* Footer */}
                 <div className="px-6 py-4 border-t border-cyan-500/10 flex items-center justify-between bg-[#0d1117]">
                     <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span>Nodes: {tasks.length}</span>
-                        <span>Est. Execution Time: ~42s</span>
+                        <span>Nodes: {nodes.length}</span>
+                        <span>Drag to connect nodes. Build sequential or parallel execution paths.</span>
                     </div>
                     <div className="flex gap-3">
                         <button className="px-4 py-2 text-sm font-medium text-gray-400 border border-white/5 rounded-lg hover:bg-white/5 transition-colors">Save Draft</button>
                         <button
+                            onClick={handleDeploy}
                             className="px-6 py-2 text-sm font-bold text-black bg-cyan-400 rounded-lg hover:bg-cyan-300 transition-colors shadow-[0_0_15px_rgba(34,211,238,0.4)]"
                         >
                             Deploy Pipeline
@@ -85,3 +134,4 @@ export const WorkflowBuilder: React.FC<{ isOpen: boolean; onClose: () => void }>
         </div>
     );
 };
+

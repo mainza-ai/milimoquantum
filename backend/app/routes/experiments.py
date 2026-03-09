@@ -1,7 +1,6 @@
 """Milimo Quantum — Experiment Registry & Notebook Routes."""
 from __future__ import annotations
 
-import json
 import logging
 
 from fastapi import APIRouter, Depends

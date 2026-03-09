@@ -4,12 +4,9 @@ JSON file-based persistence for conversations.
 """
 from __future__ import annotations
 
-import json
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +18,7 @@ def _ensure_dir():
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def save_conversation(conversation_id: str, messages: list[dict], title: str | None = None) -> None:
+def save_conversation(conversation_id: str, messages: list[dict], title: str | None = None, is_new_append: bool = False) -> None:
     """Save a conversation to the database."""
     from app.db import get_session
     from app.db.models import Conversation, Message, Artifact
@@ -48,10 +45,12 @@ def save_conversation(conversation_id: str, messages: list[dict], title: str | N
             conv.updated_at = datetime.utcnow()
 
         # 2. Map existing messages for quick lookup
+        # If it's a new append stream, only process the last 2 messages (user + assistant) to avoid destructive re-inserts and O(N) looping
+        messages_to_process = messages[-2:] if is_new_append and len(messages) >= 2 else messages
         existing_messages = {m.id: m for m in conv.messages} if conv else {}
 
         # 3. Process messages
-        for msg in messages:
+        for msg in messages_to_process:
             m_id = msg.get("id") or _uuid()
             role = msg["role"]
             content = msg["content"]

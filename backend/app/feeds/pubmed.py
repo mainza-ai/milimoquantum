@@ -8,9 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import urllib.parse
-import urllib.request
-import ssl
-import certifi
+import httpx
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -18,7 +16,7 @@ logger = logging.getLogger(__name__)
 PUBMED_ESEARCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
 PUBMED_ESUMMARY = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
 
-def search_pubmed(query: str, max_results: int = 3) -> list[dict[str, Any]]:
+async def search_pubmed(query: str, max_results: int = 3) -> list[dict[str, Any]]:
     """Search PubMed and return latest paper metadata."""
     try:
         # Step 1: ESearch to get UIDs
@@ -30,10 +28,10 @@ def search_pubmed(query: str, max_results: int = 3) -> list[dict[str, Any]]:
             "sort": "date"
         }
         url = f"{PUBMED_ESEARCH}?{urllib.parse.urlencode(search_params)}"
-        context = ssl.create_default_context(cafile=certifi.where())
-        req = urllib.request.Request(url, headers={"User-Agent": "MilimoQuantum/1.0"})
-        with urllib.request.urlopen(req, timeout=10, context=context) as response:
-            esearch_data = json.loads(response.read())
+        async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": "MilimoQuantum/1.0"}) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            esearch_data = response.json()
             
         idlist = esearch_data.get("esearchresult", {}).get("idlist", [])
         if not idlist:
@@ -46,10 +44,10 @@ def search_pubmed(query: str, max_results: int = 3) -> list[dict[str, Any]]:
             "retmode": "json"
         }
         sum_url = f"{PUBMED_ESUMMARY}?{urllib.parse.urlencode(summary_params)}"
-        context = ssl.create_default_context(cafile=certifi.where())
-        sum_req = urllib.request.Request(sum_url, headers={"User-Agent": "MilimoQuantum/1.0"})
-        with urllib.request.urlopen(sum_req, timeout=10, context=context) as response:
-            esum_data = json.loads(response.read())
+        async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": "MilimoQuantum/1.0"}) as client:
+            sum_response = await client.get(sum_url)
+            sum_response.raise_for_status()
+            esum_data = sum_response.json()
             
         result = esum_data.get("result", {})
         papers = []

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchSettings, fetchModels, updateSettings, fetchCloudProviders, setCloudProvider, fetchMLXModels, searchMLXModels, pullMLXModel } from '../../services/api';
+import { CloudProviderPanel } from '../quantum/panels/CloudProviderPanel';
 
 interface CloudProvider {
     id: string;
@@ -50,7 +51,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     );
 
     useEffect(() => {
-        let interval: any;
+        let interval: ReturnType<typeof setInterval>;
         if (mlxDownloading) {
             interval = setInterval(() => {
                 import('../../services/api').then(({ fetchMLXPullStatus }) => {

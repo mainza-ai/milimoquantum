@@ -7,16 +7,13 @@ from __future__ import annotations
 
 import json
 import logging
-import hashlib
 from pathlib import Path
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
 CHROMA_AVAILABLE = False
 try:
     import chromadb
-    from chromadb.config import Settings as ChromaSettings
     CHROMA_AVAILABLE = True
 except ImportError:
     logger.info("chromadb not installed — vector search disabled. Install: pip install chromadb")

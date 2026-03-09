@@ -7,7 +7,6 @@ while leveraging Qiskit's hardware access and simulation infrastructure.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -92,10 +91,10 @@ def run_vqe_pennylane(
         # Ansatz circuit
         @qml.qnode(dev, interface="autograd")
         def cost_fn(params):
-            for l in range(layers):
+            for layer in range(layers):
                 for i in range(num_qubits):
-                    qml.RY(params[l, i, 0], wires=i)
-                    qml.RZ(params[l, i, 1], wires=i)
+                    qml.RY(params[layer, i, 0], wires=i)
+                    qml.RZ(params[layer, i, 1], wires=i)
                 for i in range(num_qubits - 1):
                     qml.CNOT(wires=[i, i + 1])
             return qml.expval(H)
@@ -152,9 +151,9 @@ def run_qml_classifier(
             for i in range(min(n_features, n_qubits)):
                 qml.RY(x[i], wires=i)
             # Variational layers
-            for l in range(layers):
+            for layer in range(layers):
                 for i in range(n_qubits):
-                    qml.Rot(*weights[l, i], wires=i)
+                    qml.Rot(*weights[layer, i], wires=i)
                 for i in range(n_qubits - 1):
                     qml.CNOT(wires=[i, i + 1])
             return qml.expval(qml.PauliZ(0))

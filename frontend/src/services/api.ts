@@ -10,6 +10,12 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
         headers.set('Authorization', `Bearer ${token}`);
     }
 
+    // CSRF Protection Header
+    const method = options.method?.toUpperCase() || 'GET';
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+        headers.set('X-Requested-With', 'XMLHttpRequest');
+    }
+
     return fetch(url, { ...options, headers });
 }
 
@@ -233,7 +239,7 @@ export async function fetchMLXConfig() {
     return res.json();
 }
 
-export async function updateMLXConfig(config: any) {
+export async function updateMLXConfig(config: Record<string, unknown>) {
     const res = await fetchWithAuth(`${API_BASE}/settings/mlx/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

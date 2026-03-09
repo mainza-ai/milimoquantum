@@ -6,7 +6,7 @@ for fault-tolerant quantum computing.
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Literal, Tuple, Any
+from typing import Dict, List, Literal, Any
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 

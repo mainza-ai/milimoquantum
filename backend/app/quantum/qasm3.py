@@ -157,7 +157,7 @@ def _build_qasm3_fallback(code: str) -> str:
         args = [a.strip() for a in args_str.split(",") if a.strip()]
 
         if gate == "measure_all":
-            lines.append(f"c = measure q;")
+            lines.append("c = measure q;")
         elif gate == "measure":
             qubit_args = [a for a in args if a.isdigit()]
             if len(qubit_args) >= 2:

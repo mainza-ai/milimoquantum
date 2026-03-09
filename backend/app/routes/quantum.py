@@ -1,7 +1,6 @@
 """Milimo Quantum — Quantum Execution Routes."""
 from __future__ import annotations
 
-import json
 from app.auth import get_current_user
 from fastapi import APIRouter, Depends
 
@@ -9,7 +8,6 @@ from app.quantum.executor import (
     CIRCUIT_LIBRARY,
     QISKIT_AVAILABLE,
     execute_circuit,
-    create_bell_state,
     execute_circuit_code,
 )
 from app.quantum.cudaq_executor import CUDAQ_AVAILABLE
@@ -208,7 +206,7 @@ async def execute_with_mitigation(circuit_name: str, method: str = "zne", shots:
     elif method == "twirling":
         return apply_pauli_twirling(circuit, shots=shots)
     else:
-        return {"success": True, "method": method, "counts": result.get_counts()}
+        return {"success": False, "error": f"Method {method} not supported"}
 
 
 # ── OpenQASM 3 ─────────────────────────────────────────
@@ -466,6 +464,17 @@ async def azure_run(data: dict):
         shots=data.get("shots", 1000),
     )
 
+
+@router.post("/cloud-backends/dispatch")
+async def cloud_dispatch(data: dict):
+    """Dynamically route a job to best cloud hardware provider."""
+    from app.quantum.cloud_backends import dispatch_quantum_job
+    provider = data.get("provider", "local")
+    return dispatch_quantum_job(
+        provider_id=provider,
+        qiskit_code=data.get("code", ""),
+        shots=data.get("shots", 1000)
+    )
 
 # ── Vector Store (Semantic Search) ────────────────────
 @router.get("/vector-store/status")

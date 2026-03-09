@@ -5,14 +5,9 @@ Routes user intents to specialized agents based on LLM classification.
 from __future__ import annotations
 
 import logging
-import re
 
 from app.models.schemas import AgentType
 
-from app.llm.cloud_provider import get_current_provider, stream_chat_cloud
-from app.llm.ollama_client import ollama_client
-from app.llm.mlx_client import mlx_client
-from app.graph.agent_memory import agent_memory
 
 logger = logging.getLogger(__name__)
 

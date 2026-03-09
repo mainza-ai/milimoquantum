@@ -7,13 +7,12 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
 BRAKET_AVAILABLE = False
 try:
-    from braket.aws import AwsDevice, AwsQuantumTask
+    from braket.aws import AwsDevice
     from braket.circuits import Circuit as BraketCircuit
     from braket.devices import LocalSimulator
     BRAKET_AVAILABLE = True
