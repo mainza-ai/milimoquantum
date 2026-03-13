@@ -1,0 +1,5 @@
+commit	val_bpb	memory_gb	status	description
+ba6ebf6	0.005112	8.3	keep	Quantum Baseline (Milimo Experiment Shards)
+test123	0.004200	0.0	manual	Manual Run (Unit Test)
+ba6ebf6	1.609186	0.0	manual	Manual Run (Real System Test)
+ba6ebf6	0.003577	0.0	manual	Manual Run (Optimize a 4-qubit GHZ state preparation circuit to maximize fidelity on my local simulator while strictly minimizing T-gate count)
