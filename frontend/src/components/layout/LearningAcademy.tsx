@@ -1,5 +1,6 @@
 /* Milimo Quantum — Learning Academy Component */
 import { useState, useEffect, useCallback } from 'react';
+import { fetchWithAuth } from '../../services/api';
 
 interface LessonSummary {
     id: string;
@@ -39,7 +40,7 @@ export function LearningAcademy({ isOpen, onClose }: { isOpen: boolean; onClose:
     useEffect(() => {
         if (!isOpen) return;
         setLoading(true);
-        fetch('/api/academy/lessons')
+        fetchWithAuth('/api/academy/lessons')
             .then(r => r.json())
             .then(data => setLessons(data.lessons || []))
             .catch(() => { })
@@ -47,7 +48,7 @@ export function LearningAcademy({ isOpen, onClose }: { isOpen: boolean; onClose:
     }, [isOpen]);
 
     const openLesson = useCallback((id: string) => {
-        fetch(`/api/academy/lessons/${id}`)
+        fetchWithAuth(`/api/academy/lessons/${id}`)
             .then(r => r.json())
             .then(data => {
                 setActiveLesson(data);
@@ -75,9 +76,8 @@ export function LearningAcademy({ isOpen, onClose }: { isOpen: boolean; onClose:
             quizScore = Math.round((correct / quizSections.length) * 100);
         }
 
-        await fetch(`/api/academy/progress?lesson_id=${activeLesson.id}&completed=true${quizScore !== undefined ? `&quiz_score=${quizScore}` : ''}`, {
+        await fetchWithAuth(`/api/academy/progress?lesson_id=${activeLesson.id}&completed=true${quizScore !== undefined ? `&quiz_score=${quizScore}` : ''}`, {
             method: 'POST',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
         setLessons(prev => prev.map(l =>
             l.id === activeLesson.id ? { ...l, completed: true, quiz_score: quizScore ?? null } : l

@@ -81,7 +81,11 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> dic
             token,
             public_key,
             algorithms=["RS256"],
-            options={"verify_aud": False},
+            options={
+                "verify_aud": False,
+                "verify_at_hash": False,
+                "leeway": 3600 # 1 hour of clock drift/expiration leeway
+            },
         )
         return token_info
         
@@ -93,7 +97,13 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> dic
             headers={"WWW-Authenticate": "Bearer"},
         )
     except Exception as e:
-        logger.error(f"Authentication error ({type(e).__name__}): {e}")
+        # Debug: Log unverified claims to see iat/exp
+        try:
+            unverified = jose_jwt.get_unverified_claims(token)
+            logger.error(f"Authentication error ({type(e).__name__}): {e}. Claims: exp={unverified.get('exp')}, iat={unverified.get('iat')}")
+        except:
+            logger.error(f"Authentication error ({type(e).__name__}): {e}")
+            
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Session expired or invalid",

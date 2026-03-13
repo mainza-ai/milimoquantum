@@ -20,21 +20,32 @@ router = APIRouter(prefix="/api/analytics", tags=["analytics"], dependencies=[De
 
 
 @router.get("/summary")
-async def analytics_summary():
-    """Overall platform usage statistics."""
+async def analytics_summary(project_id: str | None = None):
+    """Overall platform usage statistics, optionally scoped by project."""
     session = get_session()
     try:
-        conv_count = session.query(Conversation).count()
-        message_count = session.query(Message).count()
-        circuit_count = session.query(Artifact).filter(
+        query_conv = session.query(Conversation)
+        query_msg = session.query(Message)
+        query_art = session.query(Artifact)
+        
+        if project_id:
+            query_conv = query_conv.filter_by(project_id=project_id)
+            query_msg = query_msg.join(Conversation).filter(Conversation.project_id == project_id)
+            query_art = query_art.join(Message).join(Conversation).filter(Conversation.project_id == project_id)
+            project_count = 1
+        else:
+            project_count = session.query(Project).count()
+
+        conv_count = query_conv.count()
+        message_count = query_msg.count()
+        circuit_count = query_art.filter(
             Artifact.type.in_(["circuit", "code", "results"])
         ).count()
-        project_count = session.query(Project).count()
 
         agent_counter = Counter()
-        agents = session.query(Message.agent).filter(Message.agent.isnot(None)).all()
-        for (agent,) in agents:
-            agent_counter[agent] += 1
+        agents = query_msg.filter(Message.agent.isnot(None)).all()
+        for msg in agents:
+            agent_counter[msg.agent] += 1
 
         top_agent = agent_counter.most_common(1)[0][0] if agent_counter else None
 
@@ -57,16 +68,23 @@ async def analytics_summary():
 
 
 @router.get("/agents")
-async def agent_usage():
-    """Per-agent usage breakdown."""
+async def agent_usage(project_id: str | None = None):
+    """Per-agent usage breakdown, optionally scoped by project."""
     session = get_session()
     try:
-        agents_data = session.query(Message.agent, func.sum(func.length(Message.content)).label("total_chars"))\
-            .filter(Message.agent.isnot(None))\
-            .group_by(Message.agent).all()
+        query_msg = session.query(Message.agent, func.sum(func.length(Message.content)).label("total_chars"))\
+            .filter(Message.agent.isnot(None))
         
+        query_count = session.query(Message.agent).filter(Message.agent.isnot(None))
+
+        if project_id:
+            query_msg = query_msg.join(Conversation).filter(Conversation.project_id == project_id)
+            query_count = query_count.join(Conversation).filter(Conversation.project_id == project_id)
+
+        agents_data = query_msg.group_by(Message.agent).all()
+        messages = query_count.all()
+
         agent_counter = Counter()
-        messages = session.query(Message.agent).filter(Message.agent.isnot(None)).all()
         for (a,) in messages:
             agent_counter[a] += 1
 
@@ -90,11 +108,15 @@ async def agent_usage():
 
 
 @router.get("/circuits")
-async def circuit_stats():
-    """Circuit metadata collected from conversation artifacts."""
+async def circuit_stats(project_id: str | None = None):
+    """Circuit metadata collected from conversation artifacts, optionally scoped by project."""
     session = get_session()
     try:
-        artifacts = session.query(Artifact).filter(Artifact.metadata_.isnot(None)).all()
+        query_art = session.query(Artifact).filter(Artifact.metadata_.isnot(None))
+        if project_id:
+            query_art = query_art.join(Message).join(Conversation).filter(Conversation.project_id == project_id)
+            
+        artifacts = query_art.all()
         qubit_counts = []
         depth_counts = []
         circuit_types = Counter()
@@ -145,11 +167,15 @@ async def circuit_stats():
 
 
 @router.get("/activity")
-async def recent_activity(limit: int = 20):
-    """Recent conversation activity, newest first."""
+async def recent_activity(limit: int = 20, project_id: str | None = None):
+    """Recent conversation activity, optionally filtered by project."""
     session = get_session()
     try:
-        convs = session.query(Conversation).order_by(desc(Conversation.updated_at)).limit(limit).all()
+        query = session.query(Conversation)
+        if project_id:
+            query = query.filter_by(project_id=project_id)
+            
+        convs = query.order_by(desc(Conversation.updated_at)).limit(limit).all()
         activities = []
         for c in convs:
             # Find the last agent message

@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import Editor from '@monaco-editor/react';
+import { fetchWithAuth } from '../../services/api';
 
 export function CodeView({ content, language, title }: { content: string; language?: string; title?: string }) {
     const [copied, setCopied] = useState(false);
@@ -34,9 +35,9 @@ export function CodeView({ content, language, title }: { content: string; langua
         setRunResult(null);
         try {
             // 1. Submit job to Celery task queue via sandbox
-            const res = await fetch('/api/jobs/execute-code', {
+            const res = await fetchWithAuth('/api/jobs/execute-code', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code }),
             });
             const data = await res.json();
@@ -53,7 +54,7 @@ export function CodeView({ content, language, title }: { content: string; langua
             // 2. Poll for Status
             const pollInterval = setInterval(async () => {
                 try {
-                    const statusRes = await fetch(`/api/jobs/${jobId}/status`);
+                    const statusRes = await fetchWithAuth(`/api/jobs/${jobId}/status`);
                     const statusData = await statusRes.json();
 
                     if (statusData.status === 'SUCCESS') {

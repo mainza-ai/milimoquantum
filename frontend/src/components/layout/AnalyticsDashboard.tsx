@@ -1,5 +1,6 @@
 /* Milimo Quantum — Analytics Dashboard */
 import { useState, useEffect } from 'react';
+import { fetchWithAuth } from '../../services/api';
 
 interface SummaryData {
     conversations: number;
@@ -35,10 +36,10 @@ export function AnalyticsDashboard({ isOpen, onClose }: { isOpen: boolean; onClo
         if (!isOpen) return;
         setLoading(true);
         Promise.all([
-            fetch('/api/analytics/summary').then(r => r.json()),
-            fetch('/api/analytics/agents').then(r => r.json()),
-            fetch('/api/analytics/activity').then(r => r.json()),
-            fetch('/api/graph/status').then(r => r.json()).catch(() => null),
+            fetchWithAuth('/api/analytics/summary').then(r => r.json()),
+            fetchWithAuth('/api/analytics/agents').then(r => r.json()),
+            fetchWithAuth('/api/analytics/activity').then(r => r.json()),
+            fetchWithAuth('/api/graph/status').then(r => r.json()).catch(() => null),
         ])
             .then(([sum, ag, act, graph]) => {
                 setSummary(sum);

@@ -1,5 +1,5 @@
-/* Milimo Quantum — API Service Tests */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { fetchWithAuth } from '../services/api';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -23,7 +23,7 @@ describe('API Service', () => {
             json: async () => ({ ollama_model: 'llama3.2', default_shots: 1024 }),
         });
 
-        const response = await fetch('/api/settings');
+        const response = await fetchWithAuth('/api/settings');
         const data = await response.json();
 
         expect(data.ollama_model).toBe('llama3.2');
@@ -39,7 +39,7 @@ describe('API Service', () => {
             }),
         });
 
-        const response = await fetch('/api/quantum/execute', {
+        const response = await fetchWithAuth('/api/quantum/execute', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -69,7 +69,7 @@ describe('API Service', () => {
             }),
         });
 
-        const response = await fetch('/api/settings/cloud-providers');
+        const response = await fetchWithAuth('/api/settings/cloud-providers');
         const data = await response.json();
 
         expect(data.providers).toHaveLength(6);
@@ -89,7 +89,7 @@ describe('API Service', () => {
             }),
         });
 
-        const response = await fetch('/api/experiments/projects');
+        const response = await fetchWithAuth('/api/experiments/projects');
         const data = await response.json();
 
         expect(data.projects).toBeInstanceOf(Array);
@@ -104,7 +104,7 @@ describe('API Service', () => {
             }),
         });
 
-        const response = await fetch('/api/quantum/citations/bibtex', {
+        const response = await fetchWithAuth('/api/quantum/citations/bibtex', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ algorithms: ['grover'] }),

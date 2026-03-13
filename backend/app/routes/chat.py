@@ -38,7 +38,7 @@ from app import storage
 from app.auth import get_current_user
 
 # Agent type → human-readable label for artifact titles
-AGENT_LABELS: dict[AgentType, str] = {
+AGENT_LABELS: dict[str, str] = {
     AgentType.CODE: "Code Agent",
     AgentType.RESEARCH: "Research",
     AgentType.CHEMISTRY: "Chemistry",
@@ -55,6 +55,7 @@ AGENT_LABELS: dict[AgentType, str] = {
     AgentType.FAULT_TOLERANCE: "Fault Tolerance Lab",
     AgentType.PLANNING: "Planning",
     AgentType.ORCHESTRATOR: "Milimo Quantum",
+    AgentType.AUTORESEARCH_ANALYZER: "Autoresearch Analyzer",
 }
 
 UPLOAD_DIR = Path.home() / ".milimoquantum" / "uploads"
@@ -121,7 +122,7 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
 
 @router.post("/send")
 @limiter.limit("10/minute")
-async def send_message(request: Request, payload: ChatRequest):
+async def send_message(request: Request, payload: ChatRequest, current_user = Depends(get_current_user)):
     """Send a message and get a streaming SSE response."""
     conversation_id = payload.conversation_id or str(uuid.uuid4())
     msgs = _load_or_init(conversation_id)
@@ -158,7 +159,8 @@ async def send_message(request: Request, payload: ChatRequest):
 
     # Audit log
     await log_action("user", "chat_message", f"conversation/{conversation_id}",
-                     {"agent": agent_type, "length": len(payload.message)})
+                     {"agent": agent_type, "length": len(payload.message)},
+                     project_id=payload.project_id)
 
     async def event_stream():
         """Generate SSE events."""
@@ -206,7 +208,7 @@ async def send_message(request: Request, payload: ChatRequest):
         # what the user is asking about.
         from app.agents.context_enricher import enrich_prompt, save_interaction_memory, build_data_preamble
         base_prompt = get_system_prompt(agent_type)  # explain-level aware
-        system_prompt = await enrich_prompt(agent_type, clean_message, base_prompt)
+        system_prompt = await enrich_prompt(agent_type, clean_message, base_prompt, project_id=payload.project_id)
         history = msgs[-20:]
 
         # Per-agent model override
@@ -236,14 +238,14 @@ async def send_message(request: Request, payload: ChatRequest):
             ):
                 # parse the json to extract content for the full response accumulation
                 try:
-                    payload = json.loads(token_str)
-                    if "message" in payload and "content" in payload["message"]:
-                        token_content = payload["message"]["content"]
+                    token_data = json.loads(token_str)
+                    if "message" in token_data and "content" in token_data["message"]:
+                        token_content = token_data["message"]["content"]
                         full_response += token_content
                         # MLX client already yields formatted API JSON strings
                         yield f"event: token\ndata: {json.dumps({'content': token_content})}\n\n"
-                    elif "error" in payload:
-                        yield f"event: token\ndata: {json.dumps({'content': payload['error']})}\n\n"
+                    elif "error" in token_data:
+                        yield f"event: token\ndata: {json.dumps({'content': token_data['error']})}\n\n"
                 except Exception:
                     # just stream the raw string if not json
                     full_response += str(token_str)
@@ -281,12 +283,12 @@ async def send_message(request: Request, payload: ChatRequest):
                 ):
                     # parse the json to extract content
                     try:
-                        payload = json.loads(token_str)
-                        if "message" in payload and "content" in payload["message"]:
-                            token_content = payload["message"]["content"]
+                        token_data = json.loads(token_str)
+                        if "message" in token_data and "content" in token_data["message"]:
+                            token_content = token_data["message"]["content"]
                             yield token_content
-                        elif "error" in payload:
-                            yield payload["error"]
+                        elif "error" in token_data:
+                            yield token_data["error"]
                     except Exception:
                         yield str(token_str)
             elif cloud.get("provider") != "ollama" and cloud.get("provider"):
@@ -374,6 +376,15 @@ async def send_message(request: Request, payload: ChatRequest):
                             
                             sandbox_error = None
                             if attempt > 1:
+                                # Replace original code block with corrected version if it was a retry
+                                original_code = code_blocks[0]
+                                code_pattern = f"```python\n{original_code}\n```"
+                                if code_pattern in full_response:
+                                    full_response = full_response.replace(code_pattern, f"```python\n{code_to_run}\n```")
+                                else:
+                                    # Fallback for generic blocks or minor whitespace mismatches
+                                    full_response = full_response.replace(original_code, code_to_run)
+                                    
                                 fix_notice = f"\n✅ *Code auto-corrected on attempt {attempt-1}.*\n"
                                 yield f"event: token\ndata: {json.dumps({'content': fix_notice})}\n\n"
                                 full_response += fix_notice
@@ -401,7 +412,16 @@ async def send_message(request: Request, payload: ChatRequest):
         if all_message_artifacts:
             msgs[-1]["artifacts"] = all_message_artifacts
 
-        storage.save_conversation(conversation_id, msgs, is_new_append=True)
+        # Setup message IDs for graph linkage
+        from datetime import datetime
+        if len(msgs) >= 2 and "id" not in msgs[-2]:
+            msgs[-2]["id"] = str(uuid.uuid4())
+            msgs[-2]["timestamp"] = datetime.utcnow().isoformat()
+        if "id" not in msgs[-1]:
+            msgs[-1]["id"] = str(uuid.uuid4())
+            msgs[-1]["timestamp"] = datetime.utcnow().isoformat()
+
+        storage.save_conversation(conversation_id, msgs, is_new_append=True, project_id=payload.project_id)
 
         # ── Step 3: Auto-index for search ──
         try:
@@ -417,16 +437,38 @@ async def send_message(request: Request, payload: ChatRequest):
         except Exception as e:
             logger.warning(f"Search indexing failed (non-critical): {e}")
 
-        # ── Step 4: Save to agent memory ──
+        # ── Step 4: Save to agent memory & Graph ──
         try:
-            summary_text = str(full_response)[:300] if full_response else ""
+            # Reconstruct full response for graph
+            artifact_codes = [a.get("content", "") for a in all_message_artifacts if hasattr(a, "get")]
+            code_str = "\n".join(artifact_codes) if artifact_codes else ""
+            graph_text = f"User: {clean_message}\nAssistant: {full_response}\nCode executed: {code_str}"
+            
             await save_interaction_memory(
-                agent_type, conversation_id, clean_message, summary_text
+                agent_type, 
+                conversation_id, 
+                clean_message, 
+                graph_text,
+                user_id=str(current_user.get("sub", "default")),
+                message_id=msgs[-1]["id"],
+                message_timestamp=msgs[-1]["timestamp"],
+                project_id=payload.project_id
             )
-        except Exception:
-            pass  # Memory saving is best-effort
+            
+            # Index Artifacts
+            from app.graph.client import graph_client
+            for art in all_message_artifacts:
+                a_id = art.get("id") or str(uuid.uuid4())
+                art["id"] = a_id
+                code = art.get("content", "")
+                await graph_client.index_artifact(
+                    a_id, msgs[-1]["id"], conversation_id, code, art.get("metadata", {})
+                )
+        except Exception as e:
+            logger.warning(f"Memory / Graph indexing failed (non-critical): {e}")
 
-        yield f"event: done\ndata: {json.dumps({'conversation_id': conversation_id, 'agent': agent_type.value})}\n\n"
+        agent_val = agent_type.value if hasattr(agent_type, 'value') else agent_type
+        yield f"event: done\ndata: {json.dumps({'conversation_id': conversation_id, 'agent': agent_val})}\n\n"
 
     return StreamingResponse(
         event_stream(),
@@ -436,15 +478,15 @@ async def send_message(request: Request, payload: ChatRequest):
 
 
 @router.get("/conversations")
-async def list_conversations_endpoint():
-    """List all conversations (from disk)."""
-    return {"conversations": storage.list_conversations()}
+async def list_conversations_endpoint(project_id: str | None = None):
+    """List conversations (from disk), optionally filtered by project."""
+    return {"conversations": storage.list_conversations(project_id=project_id)}
 
 
 @router.get("/conversations/{conversation_id}")
-async def get_conversation(conversation_id: str):
-    """Get messages for a conversation."""
-    data = storage.load_conversation(conversation_id)
+async def get_conversation(conversation_id: str, project_id: str | None = None):
+    """Get messages for a conversation, with project isolation check."""
+    data = storage.load_conversation(conversation_id, project_id=project_id)
     if data and "messages" in data:
         return {"messages": data["messages"], "title": data.get("title", "Untitled")}
     return {"messages": []}

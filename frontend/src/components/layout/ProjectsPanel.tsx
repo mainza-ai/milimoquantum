@@ -1,6 +1,7 @@
 /* Milimo Quantum — Project Management Panel */
 import { useState, useEffect } from 'react';
 import { fetchProjects, createProject, deleteProject, addConversationToProject } from '../../services/api';
+import { useProject } from '../../contexts/ProjectContext';
 
 interface Project {
     id: string;
@@ -19,6 +20,7 @@ interface ProjectsPanelProps {
 }
 
 export function ProjectsPanel({ isOpen, onClose, currentConversationId }: ProjectsPanelProps) {
+    const { activeProjectId, setActiveProjectId } = useProject();
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
@@ -55,6 +57,9 @@ export function ProjectsPanel({ isOpen, onClose, currentConversationId }: Projec
 
     const handleDelete = async (id: string) => {
         await deleteProject(id);
+        if (activeProjectId === id) {
+            setActiveProjectId(null);
+        }
         refresh();
     };
 
@@ -64,6 +69,14 @@ export function ProjectsPanel({ isOpen, onClose, currentConversationId }: Projec
         setLinked(projectId);
         setTimeout(() => setLinked(null), 2000);
         refresh();
+    };
+
+    const handleActivate = (projectId: string) => {
+        if (activeProjectId === projectId) {
+            setActiveProjectId(null);
+        } else {
+            setActiveProjectId(projectId);
+        }
     };
 
     if (!isOpen) return null;
@@ -154,10 +167,13 @@ export function ProjectsPanel({ isOpen, onClose, currentConversationId }: Projec
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {projects.map(project => (
+                            {projects.map(project => {
+                                const isActive = activeProjectId === project.id;
+                                return (
                                 <div key={project.id}
-                                    className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5
-                                        hover:border-cyan-500/20 transition-all group relative"
+                                    className={`bg-white/[0.02] border rounded-xl p-5
+                                        hover:border-cyan-500/20 transition-all group relative
+                                        ${isActive ? 'border-cyan-500/40 bg-cyan-500/[0.03]' : 'border-white/[0.06]'}`}
                                 >
                                     <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/0 via-transparent to-purple-500/0
                                         group-hover:from-cyan-500/[0.03] group-hover:to-purple-500/[0.03]
@@ -165,20 +181,32 @@ export function ProjectsPanel({ isOpen, onClose, currentConversationId }: Projec
 
                                     <div className="flex justify-between items-start relative z-10">
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="text-base font-semibold text-white group-hover:text-cyan-400 transition-colors">
-                                                {project.name}
-                                            </h3>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className={`text-base font-semibold group-hover:text-cyan-400 transition-colors ${isActive ? 'text-cyan-400' : 'text-white'}`}>
+                                                    {project.name}
+                                                </h3>
+                                                {isActive && (
+                                                    <span className="px-1.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-400 text-[8px] font-bold uppercase tracking-wider">Active</span>
+                                                )}
+                                            </div>
                                             {project.description && (
                                                 <p className="text-sm text-gray-400 mt-1 leading-relaxed">{project.description}</p>
                                             )}
                                         </div>
                                         <div className="flex gap-1.5 shrink-0 ml-3">
+                                            <button
+                                                onClick={() => handleActivate(project.id)}
+                                                className={`px-2.5 py-1 rounded-lg text-[10px] font-medium cursor-pointer transition-all border
+                                                    ${isActive 
+                                                        ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20' 
+                                                        : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20 hover:bg-cyan-500/20'}`}
+                                            >{isActive ? 'Deactivate' : 'Activate'}</button>
                                             {currentConversationId && (
                                                 <button
                                                     onClick={() => handleLink(project.id)}
                                                     className="px-2.5 py-1 rounded-lg text-[10px] font-medium cursor-pointer
-                                                        bg-cyan-500/10 text-cyan-400 border border-cyan-500/20
-                                                        hover:bg-cyan-500/20 transition-all"
+                                                        bg-white/5 text-gray-400 border border-white/10
+                                                        hover:bg-white/10 transition-all"
                                                 >{linked === project.id ? '✓ Linked' : '+ Link Chat'}</button>
                                             )}
                                             <button
@@ -209,7 +237,8 @@ export function ProjectsPanel({ isOpen, onClose, currentConversationId }: Projec
                                         )}
                                     </div>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

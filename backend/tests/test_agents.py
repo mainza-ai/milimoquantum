@@ -34,6 +34,10 @@ class TestAgentImports:
         from app.agents.qgi_agent import try_quick_circuit
         assert try_quick_circuit is not None
 
+    def test_import_results_analyzer_agent(self):
+        from app.agents.results_analyzer_agent import try_quick_topic
+        assert try_quick_topic is not None
+
 
 class TestOrchestrator:
     """Test the orchestrator's intent classifier and slash commands."""

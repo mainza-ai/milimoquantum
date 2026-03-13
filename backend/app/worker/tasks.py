@@ -47,7 +47,9 @@ def run_code_sandbox(self, code: str) -> dict:
     self.update_state(state="RUNNING", meta={"status": "Executing Sandbox Code"})
     try:
         result = execute_code(code)
-        artifacts = build_artifacts_from_result(result, code, agent_label="Re-run")
+        # Use the patched code if available, ensuring artifacts match the executed version
+        code_to_use = result.code if getattr(result, 'code', None) else code
+        artifacts = build_artifacts_from_result(result, code_to_use, agent_label="Re-run")
 
         return {
             "success": result.error is None,
@@ -62,7 +64,7 @@ def run_code_sandbox(self, code: str) -> dict:
                     "metadata": a.metadata,
                 }
                 for a in artifacts
-            ],
+            ] if result.error is None else [],
         }
     except Exception as e:
         logger.error(f"Task {self.request.id} sandbox failed: {e}")

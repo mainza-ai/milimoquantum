@@ -7,12 +7,12 @@ from __future__ import annotations
 import logging
 
 from app.models.schemas import AgentType
-
+from app.extensions.registry import registry
 
 logger = logging.getLogger(__name__)
 
 # Slash command mapping
-SLASH_COMMANDS: dict[str, AgentType] = {
+SLASH_COMMANDS: dict[str, str] = {
     "/code": AgentType.CODE,
     "/circuit": AgentType.CODE,
     "/research": AgentType.RESEARCH,
@@ -32,11 +32,13 @@ SLASH_COMMANDS: dict[str, AgentType] = {
     "/benchmark": AgentType.BENCHMARKING,
     "/ft": AgentType.FAULT_TOLERANCE,
     "/error_correction": AgentType.FAULT_TOLERANCE,
+    "/analyze": AgentType.AUTORESEARCH_ANALYZER,
+    "/explain": AgentType.AUTORESEARCH_ANALYZER,
 }
 
 # Keyword-based intent patterns (fallback when LLM is unavailable)
 # Order matters: more specific intents must come before generic ones
-INTENT_PATTERNS: list[tuple[list[str], AgentType]] = [
+INTENT_PATTERNS: list[tuple[list[str], str]] = [
     # Highly specific dimensions
     (["benchmark", "clops", "quantum advantage", "supremacy", "fidelity",
       "metrics", "volume", "benchpress"],
@@ -74,6 +76,8 @@ INTENT_PATTERNS: list[tuple[list[str], AgentType]] = [
      AgentType.PLANNING),
     (["graph", "knowledge graph", "neo4j", "quantum graph intelligence", "qgi"],
      AgentType.QGI),
+    (["analyze results", "explain results", "performance summary", "training progress", "bpb trend"],
+     AgentType.AUTORESEARCH_ANALYZER),
 
     # Less specific / mostly generic
     (["circuit", "qiskit", "qubit", "gate", "bell state", "ghz", "qft",
@@ -86,17 +90,18 @@ INTENT_PATTERNS: list[tuple[list[str], AgentType]] = [
 ]
 
 
-def detect_slash_command(message: str) -> tuple[AgentType | None, str]:
+def detect_slash_command(message: str) -> tuple[str | None, str]:
     """Extract slash command and remaining message."""
     message = message.strip()
-    for cmd, agent in SLASH_COMMANDS.items():
+    all_commands = {**SLASH_COMMANDS, **registry.get_all_slash_commands()}
+    for cmd, agent in all_commands.items():
         if message.lower().startswith(cmd):
             remaining = message[len(cmd):].strip()
             return agent, remaining if remaining else message
     return None, message
 
 
-def classify_intent(message: str) -> AgentType:
+def classify_intent(message: str) -> str:
     """Classify user intent via keyword matching."""
     lower = message.lower()
 
@@ -106,7 +111,8 @@ def classify_intent(message: str) -> AgentType:
         return agent
 
     # Keyword matching
-    for keywords, agent_type in INTENT_PATTERNS:
+    all_patterns = INTENT_PATTERNS + registry.get_all_intent_patterns()
+    for keywords, agent_type in all_patterns:
         if any(kw in lower for kw in keywords):
             return agent_type
 
@@ -114,16 +120,29 @@ def classify_intent(message: str) -> AgentType:
     return AgentType.ORCHESTRATOR
 
 
-def dispatch_to_agent(agent_type: AgentType, query: str) -> dict:
+def dispatch_to_agent(agent_type: str, query: str) -> dict:
     """Dispatch a sub-query to a specific agent's quick handler.
 
     Returns dict with 'response' text and optional 'artifacts' list.
     Used by the planning agent for multi-step workflows.
     """
+    # Check extensions registry first
+    ext = registry.get_extension_by_agent(agent_type)
+    if ext:
+        if ext.dispatch_handler:
+            return ext.dispatch_handler(query)
+        return {
+            "response": f"[{agent_type}] Needs LLM processing: {query}",
+            "artifacts": [],
+            "needs_llm": True,
+            "system_prompt": ext.system_prompt
+        }
+
     from app.agents import (
         code_agent, research_agent, chemistry_agent, finance_agent,
         optimization_agent, crypto_agent, qml_agent, climate_agent,
         dwave_agent, sensing_agent, networking_agent, qgi_agent,
+        results_analyzer_agent,
     )
 
     agent_map = {
@@ -139,6 +158,7 @@ def dispatch_to_agent(agent_type: AgentType, query: str) -> dict:
         AgentType.SENSING: sensing_agent,
         AgentType.NETWORKING: networking_agent,
         AgentType.QGI: qgi_agent,
+        AgentType.AUTORESEARCH_ANALYZER: results_analyzer_agent,
     }
 
     module = agent_map.get(agent_type)
@@ -202,7 +222,7 @@ def dispatch_multi_agent(steps: list[dict]) -> list[dict]:
 
         result = dispatch_to_agent(agent_type, instruction)
         result["step"] = step.get("step", len(results) + 1)
-        result["agent"] = agent_type.value
+        result["agent"] = agent_type.value if hasattr(agent_type, 'value') else agent_type
         
         response_text = result.get("response", "")
         
@@ -266,10 +286,16 @@ EXPLAIN_LEVEL_PROMPTS = {
 }
 
 
-def get_system_prompt(agent_type: AgentType) -> str:
+def get_system_prompt(agent_type: str) -> str:
     """Get system prompt for an agent, adjusted for explain level."""
     from app.config import settings
-    base = SYSTEM_PROMPTS.get(agent_type, SYSTEM_PROMPTS[AgentType.ORCHESTRATOR])
+    
+    ext = registry.get_extension_by_agent(agent_type)
+    if ext:
+        base = ext.system_prompt
+    else:
+        base = SYSTEM_PROMPTS.get(agent_type, SYSTEM_PROMPTS[AgentType.ORCHESTRATOR])
+        
     level_mod = EXPLAIN_LEVEL_PROMPTS.get(settings.explain_level, "")
     return base + level_mod
 

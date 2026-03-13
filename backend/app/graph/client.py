@@ -127,10 +127,10 @@ class UnifiedGraphClient:
             except Exception as e:
                 logger.error(f"Kuzu schema error: {e}")
             
-    async def index_conversation(self, conversation_id: str, messages: list[dict], agent_type: str | None = None):
+    async def index_conversation(self, conversation_id: str, messages: list[dict], agent_type: str | None = None, project_id: str | None = None):
         """Index a conversation to the active graph DB."""
         if self.active_provider == "neo4j":
-            await self.neo4j.index_conversation(conversation_id, messages, agent_type)
+            await self.neo4j.index_conversation(conversation_id, messages, agent_type, project_id=project_id)
         elif self.active_provider == "falkordb" and self.falkor_driver:
             try:
                 params = {"id": conversation_id, "count": len(messages)}
@@ -157,10 +157,19 @@ class UnifiedGraphClient:
             except Exception as e:
                  logger.error(f"Kuzu index error: {e}")
             
-    async def query_related(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
+    async def index_artifact(self, artifact_id: str, message_id: str, conversation_id: str, code: str, result_metadata: dict):
+        """Index a generated artifact into the active graph DB."""
+        if self.active_provider == "neo4j":
+            await self.neo4j.index_artifact(artifact_id, message_id, conversation_id, code, result_metadata)
+        elif self.active_provider == "falkordb" and self.falkor_driver:
+            pass # Skipping falkordb implementation for now as requested fix targets neo_4j
+        elif self.active_provider == "kuzu" and self.kuzu_conn:
+            pass # Skipping kuzu implementation for now
+            
+    async def query_related(self, query: str, limit: int = 10, project_id: str | None = None) -> list[dict[str, Any]]:
         """Query related concepts and conversations from the graph DB."""
         if self.active_provider == "neo4j":
-            return await self.neo4j.query_related(query, limit)
+            return await self.neo4j.query_related(query, limit, project_id=project_id)
         elif self.active_provider == "falkordb" and self.falkor_driver:
             try:
                 res = self.falkor_driver.query(

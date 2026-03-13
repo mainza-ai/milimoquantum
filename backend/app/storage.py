@@ -18,10 +18,10 @@ def _ensure_dir():
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def save_conversation(conversation_id: str, messages: list[dict], title: str | None = None, is_new_append: bool = False) -> None:
+def save_conversation(conversation_id: str, messages: list[dict], title: str | None = None, is_new_append: bool = False, project_id: str | None = None) -> None:
     """Save a conversation to the database."""
     from app.db import get_session
-    from app.db.models import Conversation, Message, Artifact
+    from app.db.models import Conversation, Message, Artifact, Project
 
     if not title:
         for msg in messages:
@@ -38,11 +38,13 @@ def save_conversation(conversation_id: str, messages: list[dict], title: str | N
         # 1. Update Conversation Meta
         conv = session.query(Conversation).filter_by(id=conversation_id).first()
         if not conv:
-            conv = Conversation(id=conversation_id, title=title)
+            conv = Conversation(id=conversation_id, title=title, project_id=project_id)
             session.add(conv)
         else:
             conv.title = title
             conv.updated_at = datetime.utcnow()
+            if project_id:
+                conv.project_id = project_id
 
         # 2. Map existing messages for quick lookup
         # If it's a new append stream, only process the last 2 messages (user + assistant) to avoid destructive re-inserts and O(N) looping
@@ -103,14 +105,18 @@ def save_conversation(conversation_id: str, messages: list[dict], title: str | N
         session.close()
 
 
-def load_conversation(conversation_id: str) -> dict | None:
+def load_conversation(conversation_id: str, project_id: str | None = None) -> dict | None:
     """Load a conversation from the database."""
     from app.db import get_session
     from app.db.models import Conversation
 
     session = get_session()
     try:
-        conv = session.query(Conversation).filter_by(id=conversation_id).first()
+        query = session.query(Conversation).filter_by(id=conversation_id)
+        if project_id:
+            query = query.filter_by(project_id=project_id)
+        
+        conv = query.first()
         if not conv:
             return None
 
@@ -140,6 +146,7 @@ def load_conversation(conversation_id: str) -> dict | None:
         return {
             "id": conv.id,
             "title": conv.title,
+            "project_id": conv.project_id,
             "created_at": conv.created_at.isoformat(),
             "updated_at": conv.updated_at.isoformat(),
             "message_count": conv.message_count,
@@ -152,18 +159,23 @@ def load_conversation(conversation_id: str) -> dict | None:
         session.close()
 
 
-def list_conversations() -> list[dict]:
-    """List all saved conversations with summary info."""
+def list_conversations(project_id: str | None = None) -> list[dict]:
+    """List saved conversations with summary info, optionally filtered by project."""
     from app.db import get_session
     from app.db.models import Conversation
 
     session = get_session()
     try:
-        convos = session.query(Conversation).order_by(Conversation.updated_at.desc()).all()
+        query = session.query(Conversation)
+        if project_id:
+            query = query.filter_by(project_id=project_id)
+        
+        convos = query.order_by(Conversation.updated_at.desc()).all()
         return [
             {
                 "id": c.id,
                 "title": c.title,
+                "project_id": c.project_id,
                 "message_count": c.message_count,
                 "updated_at": c.updated_at.isoformat(),
                 "created_at": c.created_at.isoformat(),
@@ -177,14 +189,18 @@ def list_conversations() -> list[dict]:
         session.close()
 
 
-def delete_conversation(conversation_id: str) -> bool:
+def delete_conversation(conversation_id: str, project_id: str | None = None) -> bool:
     """Delete a conversation from the database."""
     from app.db import get_session
     from app.db.models import Conversation
 
     session = get_session()
     try:
-        conv = session.query(Conversation).filter_by(id=conversation_id).first()
+        query = session.query(Conversation).filter_by(id=conversation_id)
+        if project_id:
+            query = query.filter_by(project_id=project_id)
+            
+        conv = query.first()
         if conv:
             session.delete(conv)
             session.commit()

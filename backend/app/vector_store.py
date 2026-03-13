@@ -110,7 +110,7 @@ async def _get_embedding(text: str) -> list[float] | None:
     return None
 
 
-async def index_conversation(conversation_id: str, messages: list[dict], title: str = "") -> bool:
+async def index_conversation(conversation_id: str, messages: list[dict], title: str = "", project_id: str | None = None) -> bool:
     """Index a conversation's messages into the vector store."""
     # Combine messages into a searchable document
     text_parts = []
@@ -143,6 +143,7 @@ async def index_conversation(conversation_id: str, messages: list[dict], title: 
         "conversation_id": conversation_id,
         "title": title or "Untitled",
         "message_count": len(messages),
+        "project_id": project_id or "default",
     }
 
     try:
@@ -166,7 +167,7 @@ async def index_conversation(conversation_id: str, messages: list[dict], title: 
         return False
 
 
-async def index_experiment(experiment_id: str, description: str, results: dict) -> bool:
+async def index_experiment(experiment_id: str, description: str, results: dict, project_id: str | None = None) -> bool:
     """Index an experiment result into the vector store."""
     collection = _get_collection()
     if collection is None:
@@ -179,6 +180,7 @@ async def index_experiment(experiment_id: str, description: str, results: dict) 
     metadata = {
         "type": "experiment",
         "experiment_id": experiment_id,
+        "project_id": project_id or "default",
     }
 
     try:
@@ -192,16 +194,14 @@ async def index_experiment(experiment_id: str, description: str, results: dict) 
         return False
 
 
-async def search(query: str, n_results: int = 10, doc_type: str | None = None) -> list[dict]:
-    """Semantic search across indexed content.
+async def search(query: str, n_results: int = 10, doc_type: str | None = None, project_id: str | None = None) -> list[dict]:
+    """Semantic search across indexed content with project isolation.
 
     Args:
         query: Natural language search query.
         n_results: Maximum number of results to return.
         doc_type: Filter by type ('conversation' or 'experiment').
-
-    Returns:
-        List of search results with scores.
+        project_id: Filter by project.
     """
     collection = _get_collection()
     if collection is None:
@@ -211,7 +211,15 @@ async def search(query: str, n_results: int = 10, doc_type: str | None = None) -
         return []
 
     try:
-        where_filter = {"type": doc_type} if doc_type else None
+        where_filter = {}
+        if doc_type:
+            where_filter["type"] = doc_type
+        if project_id:
+            where_filter["project_id"] = project_id
+            
+        if not where_filter:
+            where_filter = None
+            
         embedding = await _get_embedding(query)
 
         if embedding:
@@ -240,6 +248,7 @@ async def search(query: str, n_results: int = 10, doc_type: str | None = None) -
                     "title": metadata.get("title", ""),
                     "preview": document[:200] + "..." if len(document) > 200 else document,
                     "metadata": metadata,
+                    "project_id": metadata.get("project_id"),
                 })
         return items
     except Exception as e:
@@ -248,10 +257,10 @@ async def search(query: str, n_results: int = 10, doc_type: str | None = None) -
 
 
 async def reindex_all() -> dict:
-    """Re-index all conversations from disk."""
+    """Re-index all conversations from disk, preserving project_id linkage."""
     from app.storage import list_conversations, load_conversation
 
-    convos = list_conversations()
+    convos = list_conversations() # Fetches all
     indexed = 0
     failed = 0
 
@@ -263,6 +272,7 @@ async def reindex_all() -> dict:
                 conv_id,
                 data.get("messages", []),
                 data.get("title", ""),
+                project_id=data.get("project_id"),
             )
             if success:
                 indexed += 1

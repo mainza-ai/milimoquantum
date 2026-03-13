@@ -3,13 +3,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { ChatArea } from './components/layout/ChatArea';
 import { ArtifactPanel } from './components/layout/ArtifactPanel';
-import SettingsPanel from './components/layout/SettingsPanel';
-import { AnalyticsDashboard } from './components/layout/AnalyticsDashboard';
-import { SearchPanel } from './components/layout/SearchPanel';
-import { MarketplacePanel } from './components/layout/MarketplacePanel';
-import { ProjectsPanel } from './components/layout/ProjectsPanel';
-import { QuantumDashboard } from './components/layout/QuantumDashboard';
-import { LearningAcademy } from './components/layout/LearningAcademy';
+import { WorkspaceManager } from './components/layout/WorkspaceManager';
 import { useChat } from './hooks/useChat';
 import type { Artifact, AgentType } from './types';
 import { fetchCurrentUser } from './services/api';
@@ -18,13 +12,6 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [analyticsOpen, setAnalyticsOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [marketplaceOpen, setMarketplaceOpen] = useState(false);
-  const [projectsOpen, setProjectsOpen] = useState(false);
-  const [dashboardOpen, setDashboardOpen] = useState(false);
-  const [academyOpen, setAcademyOpen] = useState(false);
 
   // Apply persisted theme on mount
   useEffect(() => {
@@ -126,13 +113,6 @@ function App() {
         onAgentSelect={handleAgentSelect}
         onNewChat={clearChat}
         onLoadConversation={loadConversation}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onOpenAnalytics={() => setAnalyticsOpen(true)}
-        onOpenSearch={() => setSearchOpen(true)}
-        onOpenMarketplace={() => setMarketplaceOpen(true)}
-        onOpenProjects={() => setProjectsOpen(true)}
-        onOpenDashboard={() => setDashboardOpen(true)}
-        onOpenAcademy={() => setAcademyOpen(true)}
         currentConversationId={conversationId}
       />
 
@@ -151,48 +131,10 @@ function App() {
         onClose={() => setActiveArtifact(null)}
       />
 
-      {/* Settings Modal */}
-      <SettingsPanel
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-      />
-
-      {/* Analytics Dashboard Modal */}
-      <AnalyticsDashboard
-        isOpen={analyticsOpen}
-        onClose={() => setAnalyticsOpen(false)}
-      />
-
-      {/* Search Panel Modal */}
-      <SearchPanel
-        isOpen={searchOpen}
-        onClose={() => setSearchOpen(false)}
-        onLoadConversation={loadConversation}
-      />
-
-      {/* Marketplace Modal */}
-      <MarketplacePanel
-        isOpen={marketplaceOpen}
-        onClose={() => setMarketplaceOpen(false)}
-      />
-
-      {/* Projects Modal */}
-      <ProjectsPanel
-        isOpen={projectsOpen}
-        onClose={() => setProjectsOpen(false)}
+      {/* Dynamic Panel Manager */}
+      <WorkspaceManager 
         currentConversationId={conversationId}
-      />
-
-      {/* Quantum Dashboard Modal */}
-      <QuantumDashboard
-        isOpen={dashboardOpen}
-        onClose={() => setDashboardOpen(false)}
-      />
-
-      {/* Learning Academy Modal */}
-      <LearningAcademy
-        isOpen={academyOpen}
-        onClose={() => setAcademyOpen(false)}
+        loadConversation={loadConversation}
       />
     </div>
   );

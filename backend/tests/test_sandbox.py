@@ -130,6 +130,15 @@ counts = result.get_counts()
         assert result.error is not None
         assert "not allowed" in result.error
 
+    def test_execute_captures_patched_code(self):
+        # This code uses a deprecated import that _patch_common_mistakes should fix
+        code = "from qiskit import AerSimulator\nqc = QuantumCircuit(2)\nprint('ok')"
+        result = execute_code(code)
+        assert result.error is None
+        assert result.code is not None
+        assert "from qiskit_aer import AerSimulator" in result.code
+        assert "from qiskit import" not in result.code or "AerSimulator" not in result.code.split("import")[1]
+
 
 class TestExecuteAndBuildArtifacts:
     """Test the full pipeline."""

@@ -84,6 +84,7 @@ def search_similar(
     query: str,
     n_results: int = 5,
     filter_metadata: dict | None = None,
+    project_id: str | None = None,
 ) -> dict:
     """Search for similar experiments using semantic similarity.
 
@@ -100,7 +101,13 @@ def search_similar(
         return {"results": [], "message": "No experiments indexed yet"}
 
     try:
-        where = filter_metadata if filter_metadata else None
+        where = filter_metadata or {}
+        if project_id:
+            where["project_id"] = project_id
+            
+        if not where:
+            where = None
+
         results = collection.query(
             query_texts=[query],
             n_results=min(n_results, collection.count()),
@@ -128,13 +135,14 @@ def search_similar(
 def get_context_for_agent(
     query: str,
     n_results: int = 3,
+    project_id: str | None = None,
 ) -> str:
     """Get relevant context from past experiments for agent prompts.
 
     Returns a formatted string of relevant past experiments that can be
     injected into agent system prompts for context-aware responses.
     """
-    result = search_similar(query, n_results=n_results)
+    result = search_similar(query, n_results=n_results, project_id=project_id)
 
     if "error" in result or not result.get("results"):
         return ""

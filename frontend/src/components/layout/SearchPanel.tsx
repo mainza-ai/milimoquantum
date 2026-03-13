@@ -1,5 +1,6 @@
 /* Milimo Quantum — Semantic Search Panel */
 import { useState, useCallback } from 'react';
+import { fetchWithAuth } from '../../services/api';
 
 interface SearchResult {
     id: string;
@@ -20,7 +21,7 @@ export function SearchPanel({ isOpen, onClose, onLoadConversation }: { isOpen: b
         setLoading(true);
         setSearched(true);
         try {
-            const res = await fetch(`/api/search/?q=${encodeURIComponent(query)}&n=10`);
+            const res = await fetchWithAuth(`/api/search/?q=${encodeURIComponent(query)}&n=10`);
             const data = await res.json();
             setResults(data.results || []);
         } catch {

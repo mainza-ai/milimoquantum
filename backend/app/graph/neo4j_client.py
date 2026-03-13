@@ -8,9 +8,36 @@ from __future__ import annotations
 
 import logging
 import os
+import datetime
 from typing import Any
+import json
 
 logger = logging.getLogger(__name__)
+
+async def extract_concepts_with_llm(text: str) -> list[str]:
+    """Extract quantum concepts from text using LLM, with fallback to basic noun chunks."""
+    try:
+        from app.llm.ollama_client import ollama_client
+        prompt = f"Extract all quantum computing concepts, algorithms, named techniques, and scientific entities from the following text. Return ONLY a JSON array of lowercase strings. Text: {text[:2000]}"
+        response = await ollama_client.generate(prompt=prompt, system_prompt="You are a JSON entity extractor. Return ONLY a JSON array of strings.")
+        
+        start = response.find('[')
+        end = response.rfind(']')
+        if start != -1 and end != -1:
+            concepts = json.loads(response[start:end+1])
+            if isinstance(concepts, list):
+                return [str(c).lower() for c in concepts]
+    except Exception as e:
+        logger.warning(f"LLM concept extraction failed: {e}")
+        
+    try:
+        import spacy
+        nlp = spacy.load("en_core_web_sm")
+        doc = nlp(text)
+        return list(set(chunk.text.lower() for chunk in doc.noun_chunks if len(chunk.text) > 3))
+    except Exception:
+        return ["quantum", "algorithm"]
+
 
 # ── Neo4j Availability ──────────────────────────────────
 NEO4J_AVAILABLE = False
@@ -96,6 +123,7 @@ class Neo4jClient:
             "CREATE CONSTRAINT IF NOT EXISTS FOR (c:Concept) REQUIRE c.name IS UNIQUE",
             "CREATE CONSTRAINT IF NOT EXISTS FOR (e:Experiment) REQUIRE e.id IS UNIQUE",
             "CREATE CONSTRAINT IF NOT EXISTS FOR (conv:Conversation) REQUIRE conv.id IS UNIQUE",
+            "CREATE CONSTRAINT IF NOT EXISTS FOR (p:Project) REQUIRE p.id IS UNIQUE",
             "CREATE INDEX IF NOT EXISTS FOR (c:Circuit) ON (c.type)",
             "CREATE INDEX IF NOT EXISTS FOR (a:Agent) ON (a.type)",
         ]
@@ -103,77 +131,113 @@ class Neo4jClient:
             await self.execute_query(q)
         logger.info("Neo4j schema ensured")
 
+    async def index_artifact(self, artifact_id: str, message_id: str, conversation_id: str, code: str, result_metadata: dict):
+        """Index a generated artifact (circuit code) into the knowledge graph."""
+        if not self.connected:
+            return
+        try:
+            # TODO: add index
+            await self.execute_query(
+                """
+                MERGE (a:Artifact {id: $art_id, code: $code})
+                WITH a
+                MATCH (m:Message {id: $msg_id})
+                MATCH (conv:Conversation {id: $conv_id})
+                MERGE (m)-[:PRODUCED]->(a)
+                MERGE (a)-[:BELONGS_TO]->(conv)
+                WITH a, conv
+                MATCH (conv)-[:DISCUSSED]->(c:Concept)
+                MERGE (a)-[:DEMONSTRATES]->(c)
+                """,
+                {"art_id": artifact_id, "code": code, "msg_id": message_id, "conv_id": conversation_id}
+            )
+        except Exception as e:
+            logger.warning(f"Neo4j failed to index artifact: {e}")
+
     async def index_conversation(
         self,
         conversation_id: str,
         messages: list[dict],
         agent_type: str | None = None,
+        user_id: str = "default",
+        message_id: str = "none",
+        message_timestamp: str = "",
+        project_id: str | None = None
     ):
-        """Index a conversation into the knowledge graph.
-
-        Creates nodes for: Conversation, Agent, Concept (extracted from content).
-        Creates edges for: DISCUSSED, USED_AGENT, CONTAINS_CIRCUIT.
-        """
+        """Index a conversation into the knowledge graph."""
         if not self.connected:
             return
 
-        # Create conversation node
-        await self.execute_query(
-            """
-            MERGE (conv:Conversation {id: $id})
-            SET conv.message_count = $count,
-                conv.updated_at = datetime()
-            """,
-            {"id": conversation_id, "count": len(messages)},
-        )
-
-        # Link agent
-        if agent_type:
+        try:
+            # Create project, conversation & user node
+            # TODO: add index
             await self.execute_query(
                 """
-                MERGE (a:Agent {type: $type})
-                WITH a
-                MATCH (conv:Conversation {id: $conv_id})
-                MERGE (conv)-[:USED_AGENT]->(a)
+                MERGE (u:User {id: $user_id})
+                MERGE (conv:Conversation {id: $conv_id})
+                SET conv.message_count = $count,
+                    conv.updated_at = datetime()
+                MERGE (u)-[:PARTICIPATED_IN]->(conv)
+                WITH conv
+                WHERE $project_id IS NOT NULL
+                MERGE (p:Project {id: $project_id})
+                MERGE (p)-[:CONTAINS]->(conv)
                 """,
-                {"type": agent_type, "conv_id": conversation_id},
+                {"conv_id": conversation_id, "count": len(messages), "user_id": user_id, "project_id": project_id},
             )
 
-        # Extract and link concepts from message content
-        concept_keywords = {
-            "entanglement": "Entanglement",
-            "superposition": "Superposition",
-            "bell state": "Bell State",
-            "ghz": "GHZ State",
-            "grover": "Grover's Algorithm",
-            "shor": "Shor's Algorithm",
-            "vqe": "VQE",
-            "qaoa": "QAOA",
-            "qft": "QFT",
-            "error correction": "Error Correction",
-            "surface code": "Surface Code",
-            "teleportation": "Teleportation",
-            "qkd": "QKD",
-            "bb84": "BB84 Protocol",
-            "annealing": "Quantum Annealing",
-            "qubo": "QUBO",
-        }
+            # Create message node for granularity
+            timestamp_val = message_timestamp or str(datetime.datetime.utcnow())
+            # TODO: add index
+            await self.execute_query(
+                """
+                MATCH (conv:Conversation {id: $conv_id})
+                MERGE (m:Message {id: $msg_id, timestamp: $ts, role: 'assistant'})
+                MERGE (conv)-[:HAS_MESSAGE]->(m)
+                """,
+                {"conv_id": conversation_id, "msg_id": message_id, "ts": timestamp_val}
+            )
 
-        all_text = " ".join(m.get("content", "") for m in messages).lower()
-        for keyword, concept_name in concept_keywords.items():
-            if keyword in all_text:
+            # Link agent
+            if agent_type:
                 await self.execute_query(
                     """
-                    MERGE (c:Concept {name: $name})
-                    WITH c
+                    MERGE (a:Agent {type: $type})
+                    WITH a
                     MATCH (conv:Conversation {id: $conv_id})
-                    MERGE (conv)-[:DISCUSSED]->(c)
+                    MERGE (conv)-[:USED_AGENT]->(a)
                     """,
-                    {"name": concept_name, "conv_id": conversation_id},
+                    {"type": agent_type, "conv_id": conversation_id},
                 )
 
+            # Extract and link concepts from message content
+            all_text = " ".join(m.get("content", "") for m in messages).lower()
+            concepts = await extract_concepts_with_llm(all_text)
+
+            for concept_name in concepts:
+                # TODO: add index
+                await self.execute_query(
+                    """
+                    MATCH (conv:Conversation {id: $conv_id})
+                    MATCH (m:Message {id: $msg_id})
+                    MATCH (u:User {id: $user_id})
+                    MERGE (c:Concept {name: $name})
+                    MERGE (conv)-[:DISCUSSED]->(c)
+                    MERGE (m)-[:SURFACED]->(c)
+                    MERGE (u)-[:EXPLORED]->(c)
+                    """,
+                    {"name": concept_name, "conv_id": conversation_id, "msg_id": message_id, "user_id": user_id},
+                )
+                
+            # Example query for Top 5 concepts by user:
+            # MATCH (:User {id: $uid})-[:EXPLORED]->(c:Concept) RETURN c.name, count(*) AS freq ORDER BY freq DESC LIMIT 5
+            # Example query for temporal concept retrieval:
+            # MATCH (conv:Conversation {id: $cid})-[:HAS_MESSAGE]->(m:Message)-[:SURFACED]->(c:Concept) RETURN m.timestamp, c.name ORDER BY m.timestamp ASC
+        except Exception as e:
+            logger.warning(f"Neo4j conversation index failed: {e}")
+
     async def query_related(
-        self, query: str, limit: int = 10
+        self, query: str, limit: int = 10, project_id: str | None = None
     ) -> list[dict[str, Any]]:
         """Find conversations and concepts related to a query via graph traversal."""
         if not self.connected:
@@ -185,13 +249,14 @@ class Neo4jClient:
             MATCH (c:Concept)
             WHERE toLower(c.name) CONTAINS toLower($query)
             OPTIONAL MATCH (c)<-[:DISCUSSED]-(conv:Conversation)
+            WHERE $project_id IS NULL OR conv.project_id = $project_id
             OPTIONAL MATCH (conv)-[:USED_AGENT]->(a:Agent)
             RETURN c.name AS concept,
                    collect(DISTINCT conv.id)[0..5] AS conversations,
                    collect(DISTINCT a.type)[0..3] AS agents
             LIMIT $limit
             """,
-            {"query": query, "limit": limit},
+            {"query": query, "limit": limit, "project_id": project_id},
         )
 
     async def get_graph_stats(self) -> dict:

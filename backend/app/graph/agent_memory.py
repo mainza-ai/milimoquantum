@@ -84,6 +84,10 @@ class AgentMemory:
         content: str,
         metadata: dict[str, Any] | None = None,
         memory_type: str = "interaction",
+        user_id: str = "default",
+        message_id: str = "none",
+        message_timestamp: str = "",
+        project_id: str | None = None
     ):
         """Store an episodic memory for an agent.
 
@@ -93,10 +97,15 @@ class AgentMemory:
             content: The content to remember (summary, key fact, preference)
             metadata: Additional metadata (circuit type, qubit count, etc.)
             memory_type: Type of memory: interaction, preference, result, insight
+            user_id: The user performing the interaction
+            message_id: The specific message id
+            message_timestamp: The specific message timestamp
         """
+        local_content = content[:2000]
         entry = {
             "conversation_id": conversation_id,
-            "content": content[:2000],  # Cap content length
+            "project_id": project_id,
+            "content": local_content,  # Cap content length locally only
             "metadata": metadata or {},
             "memory_type": memory_type,
             "timestamp": time.time(),
@@ -111,18 +120,22 @@ class AgentMemory:
 
         # Persist
         self._save_agent(agent_type)
-        content_snippet: str = str(content)[:60]
+        content_snippet: str = str(local_content)[:60]
         logger.debug(f"[{agent_type}] Stored memory: {content_snippet}...")
 
         # Sync to Graph if available
         if self.use_graph:
             try:
                 from .client import graph_client
-                # 1. Index full interaction
+                # 1. Index full interaction with full context and identifiers
                 await graph_client.index_conversation(
                     conversation_id, 
                     [{"role": "assistant", "content": content, "timestamp": entry["timestamp"]}],
-                    agent_type=agent_type
+                    agent_type=agent_type,
+                    user_id=user_id,
+                    message_id=message_id,
+                    message_timestamp=message_timestamp,
+                    project_id=project_id
                 )
                 
                 # 2. Extract and Index Entities (Phase 2 GraphRAG)
@@ -158,6 +171,7 @@ class AgentMemory:
         query: str,
         limit: int = 5,
         global_search: bool = False,
+        project_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Retrieve relevant context for an agent's current query.
 
@@ -196,6 +210,10 @@ class AgentMemory:
         # Add graph embeddings to candidate search pool
         search_pool.extend(graph_memories)
 
+        # Filter by project_id if provided
+        if project_id and not global_search:
+            search_pool = [m for m in search_pool if m.get("project_id") == project_id]
+        
         if not search_pool:
             return []
 

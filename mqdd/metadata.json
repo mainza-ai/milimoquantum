@@ -1,0 +1,7 @@
+{
+  "name": "Milimo Quantum Drug Discovery (MQDD)",
+  "description": "An AI-native system that fuses Gemini 2.5 Pro, multimodal APIs, and quantum simulation capabilities to accelerate the discovery of new medicines. This platform acts as an AI Co-Scientist with a multi-agent framework for literature review, molecular design, and analysis.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

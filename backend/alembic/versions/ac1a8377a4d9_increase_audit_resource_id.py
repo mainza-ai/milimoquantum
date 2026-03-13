@@ -20,7 +20,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.alter_column('audit_logs', 'resource_id',
+    with op.batch_alter_table('audit_logs', schema=None) as batch_op:
+        batch_op.alter_column('resource_id',
                existing_type=sa.VARCHAR(length=36),
                type_=sa.String(length=128),
                existing_nullable=True)
@@ -28,7 +29,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.alter_column('audit_logs', 'resource_id',
+    with op.batch_alter_table('audit_logs', schema=None) as batch_op:
+        batch_op.alter_column('resource_id',
                existing_type=sa.String(length=128),
                type_=sa.VARCHAR(length=36),
                existing_nullable=True)

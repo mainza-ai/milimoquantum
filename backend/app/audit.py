@@ -20,7 +20,7 @@ def _ensure_log_file():
         AUDIT_LOG_FILE.parent.mkdir(parents=True)
 
 
-async def log_action(user: str, action: str, resource: str, details: dict = None):
+async def log_action(user: str, action: str, resource: str, details: dict = None, project_id: str = None):
     """Append an immutable log entry to the database."""
     from app.db import get_session
     from app.db.models import AuditLog
@@ -33,6 +33,7 @@ async def log_action(user: str, action: str, resource: str, details: dict = None
             resource_type="system",
             resource_id=resource,
             details=details or {},
+            project_id=project_id,
             timestamp=datetime.datetime.now(datetime.timezone.utc),
         )
         session.add(log)
@@ -58,6 +59,7 @@ async def get_logs(limit: int = 50):
                 "action": log_entry.action,
                 "user_id": log_entry.user_id,
                 "target": log_entry.resource_id, # Assuming "target" maps to "resource_id" based on context
+                "project_id": log_entry.project_id,
                 "details": log_entry.details,
             }
             for log_entry in logs

@@ -1,11 +1,13 @@
 /* Milimo Quantum — Chat Hook */
 import { useState, useCallback, useRef } from 'react';
 import { streamChat, fetchConversation } from '../services/api';
+import { useProject } from '../contexts/ProjectContext';
 import type { ChatMessage, Artifact, AgentType } from '../types';
 
 let msgCounter = 0;
 
 export function useChat() {
+    const { activeProjectId } = useProject();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isStreaming, setIsStreaming] = useState(false);
     const [artifacts, setArtifacts] = useState<Artifact[]>([]);
@@ -52,6 +54,7 @@ export function useChat() {
                 conversationId,
                 agent,
                 fileId,
+                activeProjectId,
                 // onToken
                 (token: string) => {
                     streamingRef.current += token;
@@ -107,7 +110,7 @@ export function useChat() {
                 },
             );
         },
-        [isStreaming, conversationId, activeAgent],
+        [isStreaming, conversationId, activeAgent, activeProjectId],
     );
 
     const clearChat = useCallback(() => {

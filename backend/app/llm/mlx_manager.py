@@ -109,6 +109,39 @@ class MlxManager:
             logger.error(f"HF Search Error: {e}")
             return []
 
+    def get_latest_model(self) -> str | None:
+        """Get the most recently downloaded model from the local HF cache."""
+        cache_dir = os.path.expanduser("~/.cache/huggingface/hub")
+        if not os.path.exists(cache_dir):
+            return None
+            
+        try:
+            # Find all model directories
+            items = []
+            for d in os.listdir(cache_dir):
+                if d.startswith("models--"):
+                    full_path = os.path.join(cache_dir, d)
+                    if os.path.isdir(full_path):
+                        items.append(full_path)
+            
+            if not items:
+                return None
+            
+            # Sort by modification time (most recent first)
+            items.sort(key=os.path.getmtime, reverse=True)
+            
+            # Convert the most recent directory back to model ID
+            latest_dir = os.path.basename(items[0])
+            parts = latest_dir.split("--")
+            if len(parts) >= 3:
+                author = parts[1]
+                repo = parts[2]
+                return f"{author}/{repo}"
+        except Exception as e:
+            logger.error(f"Error finding latest model: {e}")
+            
+        return None
+
     def get_local_models(self) -> List[str]:
         """Scan the local HuggingFace cache directory for downloaded models."""
         # HF stores models in ~/.cache/huggingface/hub/models--<author>--<repo>

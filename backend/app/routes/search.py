@@ -12,15 +12,16 @@ router = APIRouter(prefix="/api/search", tags=["search"], dependencies=[Depends(
 
 
 @router.get("/")
-async def semantic_search(q: str, n: int = 10, type: str | None = None):
-    """Semantic search across experiments and conversations.
+async def semantic_search(q: str, n: int = 10, type: str | None = None, project_id: str | None = None):
+    """Semantic search across experiments and conversations, scoped by project.
 
     Query params:
         q: natural language query
         n: max results (default 10)
         type: filter by 'conversation' or 'experiment'
+        project_id: filter by project workspace
     """
-    results = await search(q, n_results=n, doc_type=type)
+    results = await search(q, n_results=n, doc_type=type, project_id=project_id)
     return {"query": q, "results": results, "count": len(results)}
 
 

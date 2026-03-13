@@ -18,8 +18,10 @@ try:
     from qiskit import QuantumCircuit, transpile
     from qiskit.visualization import circuit_drawer
     from qiskit_aer import AerSimulator
+    from qiskit.primitives import StatevectorEstimator
+    from qiskit.quantum_info import SparsePauliOp
     QISKIT_AVAILABLE = True
-    logger.info("Qiskit loaded successfully")
+    logger.info("Qiskit loaded successfully with Primitives v1.4")
 except ImportError:
     logger.warning("Qiskit not installed — quantum execution disabled")
 
@@ -136,6 +138,26 @@ def execute_circuit(
         "execution_time_ms": round(float(elapsed), 2),
         "backend": f"aer_{backend_opts.get('method', 'auto')}",
     }
+
+
+def run_estimator(
+    circuit: QuantumCircuit,
+    observables: SparsePauliOp | list[SparsePauliOp] | Any,
+    precision: float = 1e-3
+) -> Any:
+    """Run Qiskit Estimator to get expectation values."""
+    if not QISKIT_AVAILABLE:
+        return {"error": "Qiskit is not installed."}
+    
+    try:
+        estimator = StatevectorEstimator()
+        job = estimator.run([(circuit, observables)], precision=precision)
+        result = job.result()
+        # Return expectation values (usually a numpy array or single float)
+        return result[0].data.evs
+    except Exception as e:
+        logger.error(f"Estimator error: {e}")
+        return {"error": str(e)}
 
 
 def execute_circuit_code(

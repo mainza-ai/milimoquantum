@@ -1,5 +1,6 @@
 /* Milimo Quantum — Chat Input */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { fetchWithAuth } from '../../services/api';
 import type { AgentType } from '../../types';
 import { AGENTS } from '../../types';
 
@@ -65,7 +66,7 @@ export function ChatInput({ onSend, isStreaming, activeAgent }: ChatInputProps) 
         formData.append('file', file);
 
         try {
-            const res = await fetch('/api/chat/upload', {
+            const res = await fetchWithAuth('/api/chat/upload', {
                 method: 'POST',
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 body: formData

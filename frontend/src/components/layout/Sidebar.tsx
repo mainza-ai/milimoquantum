@@ -3,6 +3,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { AGENTS } from '../../types';
 import type { AgentType, HealthStatus } from '../../types';
 import { fetchHealth, fetchConversations, deleteConversation } from '../../services/api';
+import { useProject } from '../../contexts/ProjectContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { extensionRegistry } from '../../extensions/registry';
 
 interface ConversationSummary {
     id: string;
@@ -17,13 +20,6 @@ interface SidebarProps {
     onAgentSelect: (agent: AgentType) => void;
     onNewChat: () => void;
     onLoadConversation: (id: string) => void;
-    onOpenSettings: () => void;
-    onOpenAnalytics?: () => void;
-    onOpenSearch?: () => void;
-    onOpenMarketplace?: () => void;
-    onOpenProjects?: () => void;
-    onOpenDashboard?: () => void;
-    onOpenAcademy?: () => void;
     currentConversationId?: string;
 }
 
@@ -53,19 +49,20 @@ export function Sidebar({
     onAgentSelect,
     onNewChat,
     onLoadConversation,
-    onOpenSettings,
-    onOpenAnalytics,
-    onOpenSearch,
-    onOpenProjects,
-    onOpenDashboard,
-    onOpenMarketplace,
-    onOpenAcademy,
     currentConversationId,
 }: SidebarProps) {
+    const { openExtension } = useWorkspace();
+    const { activeProjectId, activeProject, clearActiveProject } = useProject();
     const [health, setHealth] = useState<HealthStatus | null>(null);
     const [conversations, setConversations] = useState<ConversationSummary[]>([]);
     const [agentPickerOpen, setAgentPickerOpen] = useState(false);
     const pickerRef = useRef<HTMLDivElement>(null);
+
+    const refreshConversations = useCallback(() => {
+        fetchConversations(activeProjectId)
+            .then((data) => setConversations(data.conversations || []))
+            .catch(() => { });
+    }, [activeProjectId]);
 
     useEffect(() => {
         fetchHealth().then(setHealth).catch(() => setHealth(null));
@@ -75,7 +72,7 @@ export function Sidebar({
             refreshConversations();
         }, 15000);
         return () => clearInterval(interval);
-    }, []);
+    }, [refreshConversations]);
 
     // Close agent picker on outside click
     useEffect(() => {
@@ -87,12 +84,6 @@ export function Sidebar({
         if (agentPickerOpen) document.addEventListener('mousedown', handleClick);
         return () => document.removeEventListener('mousedown', handleClick);
     }, [agentPickerOpen]);
-
-    const refreshConversations = useCallback(() => {
-        fetchConversations()
-            .then((data) => setConversations(data.conversations || []))
-            .catch(() => { });
-    }, []);
 
     async function handleDelete(id: string, e: React.MouseEvent) {
         e.stopPropagation();
@@ -148,6 +139,28 @@ export function Sidebar({
                             New chat
                         </button>
                     </div>
+
+                    {/* ── Active Project Badge ── */}
+                    {activeProject && (
+                        <div className="px-3 pb-2">
+                            <div className="flex items-center justify-between px-3 py-2 rounded-xl
+                                bg-cyan-500/10 border border-cyan-500/20 group/proj">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <span className="text-xs">📁</span>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider leading-none">Project</span>
+                                        <span className="text-[12px] text-white font-medium truncate leading-tight mt-0.5">{activeProject.name}</span>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={clearActiveProject}
+                                    className="w-5 h-5 rounded-md hover:bg-cyan-500/20 flex items-center justify-center
+                                        text-cyan-400/50 hover:text-cyan-400 transition-all opacity-0 group-hover/proj:opacity-100 cursor-pointer"
+                                    title="Clear Active Project"
+                                >✕</button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* ── Agent Selector (compact) ── */}
                     <div className="px-3 pb-2 relative" ref={pickerRef}>
@@ -273,17 +286,18 @@ export function Sidebar({
 
                         {/* Quick access icons */}
                         <div className="flex items-center gap-0.5 mb-1">
-                            <FooterButton icon="🔍" label="Search" onClick={onOpenSearch} />
-                            <FooterButton icon="📊" label="Analytics" onClick={onOpenAnalytics} />
-                            <FooterButton icon="📁" label="Projects" onClick={onOpenProjects} />
-                            <FooterButton icon="⚛️" label="Dashboard" onClick={onOpenDashboard} />
-                            <FooterButton icon="🎓" label="Academy" onClick={onOpenAcademy} />
-                            <FooterButton icon="🏪" label="Marketplace" onClick={onOpenMarketplace} />
+                            {['mqdd', 'autoresearch', 'search', 'analytics', 'projects', 'dashboard', 'academy', 'marketplace'].map(id => {
+                                const ext = extensionRegistry.get(id);
+                                if (!ext) return null;
+                                return (
+                                    <FooterButton key={id} icon={ext.icon} label={ext.name} onClick={() => openExtension(id)} />
+                                );
+                            })}
                         </div>
 
                         {/* Settings */}
                         <button
-                            onClick={onOpenSettings}
+                            onClick={() => openExtension('settings')}
                             className="w-full py-2 px-3 rounded-lg text-[12px]
                                 text-[#8a8a9a] hover:text-[#c0c0d0] hover:bg-white/[0.04]
                                 transition-all duration-150 flex items-center gap-2.5 cursor-pointer"

@@ -3,12 +3,15 @@
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 
+# Ensure Docker Desktop bin is in PATH for official binaries and plugins on macOS
+export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
+
 echo "🏗  Rebuilding Milimo Quantum Docker Images..."
 
 max_retries=3
 retry_count=0
 while [ $retry_count -lt $max_retries ]; do
-    if docker compose build --no-cache; then
+    if docker-compose build --no-cache; then
         echo "✅ Docker build succeeded."
         break
     else

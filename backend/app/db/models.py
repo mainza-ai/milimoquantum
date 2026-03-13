@@ -44,11 +44,13 @@ class Conversation(Base):
     id = Column(String(36), primary_key=True, default=_uuid)
     title = Column(String(256), default="New Conversation")
     user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
     message_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="conversations")
+    project = relationship("Project", back_populates="conversations")
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
 
 
@@ -92,6 +94,7 @@ class Experiment(Base):
     project = Column(String(128), default="default")
     name = Column(String(256), nullable=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
     agent = Column(String(32), nullable=True)
     circuit_code = Column(Text, nullable=True)
     backend = Column(String(64), default="aer_simulator")
@@ -104,6 +107,7 @@ class Experiment(Base):
     is_synced = Column(Boolean, default=False)
 
     user = relationship("User", back_populates="experiments")
+    project_rel = relationship("Project", back_populates="experiments")
 
 
 class AuditLog(Base):
@@ -116,8 +120,11 @@ class AuditLog(Base):
     action = Column(String(64), nullable=False)  # create | read | update | delete | execute
     resource_type = Column(String(32), nullable=False)  # conversation | experiment | circuit
     resource_id = Column(String(128), nullable=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
     details = Column(JSON, default=dict)
     ip_address = Column(String(45), nullable=True)
+
+    project = relationship("Project", back_populates="audit_logs")
 
 
 class Project(Base):
@@ -129,9 +136,14 @@ class Project(Base):
     name = Column(String(256), nullable=False, default="New Project")
     description = Column(Text, default="")
     tags = Column(JSON, default=list)
-    conversation_ids = Column(JSON, default=list)
+    conversation_ids = Column(JSON, default=list)  # Kept for legacy, logic moving to relationships
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    conversations = relationship("Conversation", back_populates="project")
+    experiments = relationship("Experiment", back_populates="project_rel")
+    audit_logs = relationship("AuditLog", back_populates="project")
+    benchmarks = relationship("BenchmarkResult", back_populates="project")
 
 
 class BenchmarkResult(Base):
@@ -149,12 +161,14 @@ class BenchmarkResult(Base):
     quantum_exec_time = Column(Float, nullable=True)
     classical_sim_time = Column(Float, nullable=True)
 
-    # Results & Classification
     classification = Column(String(32))  # quantum_advantage | classical_superior | quantum_only
     metrics = Column(JSON, default=dict)  # width, depth, gates
     result_summary = Column(String(128))
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
 
     timestamp = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="benchmarks")
 
 
 class MarketplacePlugin(Base):

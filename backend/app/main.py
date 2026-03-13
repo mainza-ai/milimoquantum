@@ -35,6 +35,12 @@ from app.routes import sync as sync_routes
 from app.routes import workflows as workflows_routes
 from app.auth import router as auth_router
 
+# Load Extensions
+from app.extensions.mqdd.extension import setup_extension as setup_mqdd
+from app.extensions.autoresearch.extension import setup_extension as setup_autoresearch
+setup_mqdd()
+setup_autoresearch()
+
 # Initialize Event Fabric
 setup_listeners()
 
@@ -180,6 +186,11 @@ app.include_router(sync_routes.router)
 app.include_router(qrng_routes.router)
 app.include_router(workflows_routes.router)
 app.include_router(auth_router)
+
+from app.extensions.mqdd.extension import mqdd_router
+from app.extensions.autoresearch.extension import autoresearch_router
+app.include_router(mqdd_router)
+app.include_router(autoresearch_router)
 
 
 @app.get("/")

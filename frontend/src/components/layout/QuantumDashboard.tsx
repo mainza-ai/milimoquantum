@@ -1,6 +1,6 @@
 /* Milimo Quantum — Quantum Dashboard */
 import { useState, useEffect } from 'react';
-import { fetchHealth, fetchAnalyticsSummary, fetchQuantumStatus } from '../../services/api';
+import { fetchHealth, fetchAnalyticsSummary, fetchQuantumStatus, fetchWithAuth } from '../../services/api';
 import { FaultTolerance } from '../quantum/FaultTolerance';
 import { ErrorMitigation } from '../quantum/ErrorMitigation';
 import { QRNGPanel } from '../quantum/QRNGPanel';
@@ -202,7 +202,7 @@ export function QuantumDashboard({ isOpen, onClose }: DashboardProps) {
                                 simulators={simulators}
                                 onSimulationResult={(res) => {
                                     setLatestResult(res);
-                                    setSelectedCircuit(res.circuitName);
+                                    setSelectedCircuit(res.circuitName as any as string | undefined);
                                 }}
                             />
                         )}
@@ -241,7 +241,7 @@ function CircuitTemplates({ circuitNames, simulators, onSimulationResult }: { ci
         setResult(null);
         setError(null);
         try {
-            const res = await fetch(`/api/quantum/execute/${name}?shots=1024`);
+            const res = await fetchWithAuth(`/api/quantum/execute/${name}?shots=1024`);
             const data = await res.json();
             if (data.error) {
                 setError(data.error);

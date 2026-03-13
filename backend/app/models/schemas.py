@@ -28,6 +28,7 @@ class AgentType(str, Enum):
     DWAVE = "dwave"
     BENCHMARKING = "benchmarking"
     FAULT_TOLERANCE = "fault_tolerance"
+    AUTORESEARCH_ANALYZER = "autoresearch_analyzer"
 
 class MessageRole(str, Enum):
     USER = "user"
@@ -42,6 +43,11 @@ class ArtifactType(str, Enum):
     NOTEBOOK = "notebook"
     REPORT = "report"
     WORKFLOW = "workflow"
+    CIRCUIT_SVG = "circuit_svg"
+    DASHBOARD = "dashboard"
+    ANALYSIS = "analysis"
+    JSON = "json"
+    SVG = "svg"
 
 
 # ── Chat ───────────────────────────────────────────────────────────
@@ -50,7 +56,7 @@ class ChatMessage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     role: MessageRole
     content: str
-    agent: AgentType | None = None
+    agent: str | None = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     artifacts: list[Artifact] = []
 
@@ -67,7 +73,8 @@ class Artifact(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     conversation_id: str | None = None
-    agent: AgentType | None = None
+    project_id: str | None = None
+    agent: str | None = None
     attached_file_id: str | None = None
 
 

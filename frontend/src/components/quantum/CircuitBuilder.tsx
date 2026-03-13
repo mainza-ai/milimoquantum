@@ -5,6 +5,7 @@
  */
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { CircuitVisualizer } from './CircuitVisualizer';
+import { fetchWithAuth } from '../../services/api';
 
 /* ── Gate Palette ──────────────────────────────────────── */
 const GATE_PALETTE = [
@@ -214,9 +215,9 @@ export function CircuitBuilder({ onExport, onSendToChat }: CircuitBuilderProps) 
         setSimResult(null);
         const runnableCode = generateRunnableCode();
         try {
-            const res = await fetch('/api/jobs/execute-code', {
+            const res = await fetchWithAuth('/api/jobs/execute-code', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code: runnableCode }),
             });
             const data = await res.json();
@@ -228,7 +229,7 @@ export function CircuitBuilder({ onExport, onSendToChat }: CircuitBuilderProps) 
             setSimResult('⏳ Queued for execution...');
             const pollInterval = setInterval(async () => {
                 try {
-                    const statusRes = await fetch(`/api/jobs/${data.job_id}/status`);
+                    const statusRes = await fetchWithAuth(`/api/jobs/${data.job_id}/status`);
                     const statusData = await statusRes.json();
                     if (statusData.status === 'SUCCESS') {
                         clearInterval(pollInterval);

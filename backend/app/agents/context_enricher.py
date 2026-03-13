@@ -52,6 +52,7 @@ async def enrich_prompt(
     agent_type: AgentType,
     message: str,
     base_prompt: str,
+    project_id: str | None = None
 ) -> str:
     """Enrich an agent's system prompt with live context data.
 
@@ -64,7 +65,7 @@ async def enrich_prompt(
         # Phase 2: Unified Intelligence Hub Context
         # This hub handles ArXiv, PubMed, PubChem, and Finance feeds
         # in a non-blocking way and fuses them with graph memory.
-        hub_context = await hub.get_context(message, agent_type=agent_type.value)
+        hub_context = await hub.get_context(message, agent_type=agent_type.value, project_id=project_id)
         if hub_context.get("fused_prompt_segment"):
             sections.append(hub_context["fused_prompt_segment"])
 
@@ -105,7 +106,7 @@ async def _build_finance_preamble(message: str) -> str | None:
         return None
 
     try:
-        from app.feeds import get_stock_prices, get_portfolio_summary
+        from app.feeds.finance import get_stock_prices, get_portfolio_summary
 
         prices = get_stock_prices(tickers)
         if not prices:
@@ -338,7 +339,7 @@ async def _enrich_finance(message: str) -> str | None:
         return None
 
     try:
-        from app.feeds import get_stock_prices
+        from app.feeds.finance import get_stock_prices
 
         prices = get_stock_prices(tickers)
         if not prices:
@@ -543,19 +544,28 @@ async def save_interaction_memory(
     conversation_id: str,
     user_message: str,
     response_summary: str,
+    user_id: str = "default",
+    message_id: str = "none",
+    message_timestamp: str = "",
+    project_id: str | None = None
 ):
     """Save a summary of the interaction to agent memory for future context."""
     try:
         from app.graph.agent_memory import agent_memory
 
-        # Generate a concise memory entry
-        content = f"User asked: {user_message[:200]}. Response covered: {response_summary[:300]}"
+        # Pass the full response_summary (graph_text) directly;
+        # agent_memory will handle truncation for the local JSON backup.
+        # This fixes the aggressive memory truncation gap for the graph.
         await agent_memory.add_memory(
             agent_type=agent_type.value,
             conversation_id=conversation_id,
-            content=content,
+            content=response_summary,
             metadata={"agent": agent_type.value},
             memory_type="interaction",
+            user_id=user_id,
+            message_id=message_id,
+            message_timestamp=message_timestamp,
+            project_id=project_id
         )
     except Exception as e:
         logger.debug(f"Memory save failed (non-critical): {e}")

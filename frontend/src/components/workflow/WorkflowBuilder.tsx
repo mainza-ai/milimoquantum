@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { fetchWithAuth } from '../../services/api';
 import {
     ReactFlow,
     Controls,
@@ -65,11 +66,10 @@ export const WorkflowBuilder: React.FC<{ isOpen: boolean; onClose: () => void }>
             const payload = {
                 tasks: nodes.map(n => ({ id: n.id, type: n.type, label: n.data.label }))
             };
-            const response = await fetch('/api/workflows/submit', {
+            const response = await fetchWithAuth('/api/workflows/submit', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}` // simple fallback
                 },
                 body: JSON.stringify(payload)
             });

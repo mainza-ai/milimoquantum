@@ -49,7 +49,8 @@ def _create_default_project(session: Session, tenant_id: str) -> dict:
 def _format_project(p: Project) -> dict:
     # Ensure tags and arrays are always lists
     tags = p.tags if isinstance(p.tags, list) else (list(p.tags) if p.tags else [])
-    convs = p.conversation_ids if isinstance(p.conversation_ids, list) else (list(p.conversation_ids) if p.conversation_ids else [])
+    # Sync: Get conversation IDs from the direct relationship
+    convs = [c.id for c in p.conversations]
     
     return {
         "id": p.id,
@@ -179,6 +180,13 @@ async def add_conversation_to_project(project_id: str, conversation_id: str, cur
             new_convs.append(conversation_id)
             project.conversation_ids = new_convs
             project.updated_at = datetime.utcnow()
+            
+            # Strong Linkage: Update the conversation record directly
+            from app.db.models import Conversation
+            conv_record = session.query(Conversation).filter_by(id=conversation_id).first()
+            if conv_record:
+                conv_record.project_id = project_id
+            
             session.commit()
         return {"added": True}
     finally:
@@ -201,6 +209,13 @@ async def remove_conversation_from_project(project_id: str, conversation_id: str
             new_convs.remove(conversation_id)
             project.conversation_ids = new_convs
             project.updated_at = datetime.utcnow()
+            
+            # Strong Linkage: Unlink the conversation
+            from app.db.models import Conversation
+            conv_record = session.query(Conversation).filter_by(id=conversation_id).first()
+            if conv_record and conv_record.project_id == project_id:
+                conv_record.project_id = None
+                
             session.commit()
         return {"removed": True}
     finally:

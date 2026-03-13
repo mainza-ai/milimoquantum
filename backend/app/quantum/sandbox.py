@@ -140,6 +140,7 @@ class SandboxResult:
         self.counts: list[dict] = []        # Measurement count dicts
         self.stdout: str = ""
         self.stderr: str = ""
+        self.code: str | None = None        # The final code that was executed (after patching)
         self.error: str | None = None
         self.variables: dict[str, Any] = {} # Named results
         self.execution_time_ms: float = 0
@@ -205,6 +206,15 @@ def _patch_common_mistakes(code: str) -> str:
         code,
     )
 
+    # Fix: Duplicate qubit arguments in gate calls like qc.cx(0, 0)
+    # This prevents: CircuitError: 'duplicate qubit arguments'
+    # Pattern matches common gates: cx, swap, cz, cp, crx, cry, crz, cu, ch
+    code = re.sub(
+        r'(\w+)\.(cx|swap|cz|cp|crx|cry|crz|cu|ch)\s*\(\s*(\d+)\s*,\s*\3\s*',
+        r'# \1.\2(\3, \3 # Fixed: duplicate qubits removed',
+        code,
+    )
+
     return code
 
 
@@ -228,6 +238,7 @@ def execute_code(code: str) -> SandboxResult:
 
     # Auto-fix common LLM mistakes
     code = _patch_common_mistakes(code)
+    result.code = code
 
     # Prepare isolated namespace with essential Qiskit imports pre-loaded
     # This prevents NameError for common symbols the LLM forgets to import

@@ -2,7 +2,7 @@
 
 const API_BASE = '/api';
 
-async function fetchWithAuth(url: string, options: RequestInit = {}) {
+export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     const token = localStorage.getItem('mq_token');
     const headers = new Headers(options.headers || {});
 
@@ -109,8 +109,9 @@ export async function checkHpcStatus() {
 
 // ── Conversations ──────────────────────────────────────
 
-export async function fetchConversations() {
-    const res = await fetchWithAuth(`${API_BASE}/chat/conversations`);
+export async function fetchConversations(projectId?: string | null) {
+    const params = projectId ? `?project_id=${projectId}` : '';
+    const res = await fetchWithAuth(`${API_BASE}/chat/conversations${params}`);
     return res.json();
 }
 
@@ -253,6 +254,7 @@ export function streamChat(
     conversationId?: string,
     agent?: string,
     fileId?: string,
+    projectId?: string | null,
     onToken: (token: string) => void = () => { },
     onArtifact: (artifact: unknown) => void = () => { },
     onDone: (data: unknown) => void = () => { },
@@ -261,6 +263,7 @@ export function streamChat(
     const body = JSON.stringify({
         message,
         conversation_id: conversationId,
+        project_id: projectId || null,
         agent: agent || null,
         attached_file_id: fileId || null,
     });
@@ -341,9 +344,13 @@ export async function fetchGraphStats() {
     return res.json();
 }
 
-export async function fetchAgentMemory(agentType: string, query?: string) {
-    const params = query ? `?query=${encodeURIComponent(query)}` : '';
-    const res = await fetchWithAuth(`${API_BASE}/graph/memory/${agentType}${params}`);
+export async function fetchAgentMemory(agentType: string, query?: string, projectId?: string | null) {
+    const params = new URLSearchParams();
+    if (query) params.append('query', query);
+    if (projectId) params.append('project_id', projectId);
+    
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetchWithAuth(`${API_BASE}/graph/memory/${agentType}${queryString}`);
     return res.json();
 }
 

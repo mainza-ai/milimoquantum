@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchSettings, fetchModels, updateSettings, fetchCloudProviders, setCloudProvider, fetchMLXModels, searchMLXModels, pullMLXModel } from '../../services/api';
-import { CloudProviderPanel } from '../quantum/panels/CloudProviderPanel';
+import { fetchSettings, fetchModels, updateSettings, fetchCloudProviders, setCloudProvider, fetchMLXModels, searchMLXModels, pullMLXModel, fetchWithAuth } from '../../services/api';
 
 interface CloudProvider {
     id: string;
@@ -124,12 +123,10 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 explain_level: explainLevel,
             });
             // Save agent models separately
-            const token = localStorage.getItem('mq_token');
-            await fetch('/api/settings/agent-models', {
+            await fetchWithAuth('/api/settings/agent-models', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
                 body: JSON.stringify({ agent_models: agentModels }),
             });
@@ -271,7 +268,10 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                             Unload from Memory
                                         </button>
                                     </div>
-                                    <div className="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/[0.08] text-[#3ecfef] text-sm font-mono truncate">
+                                    <div 
+                                        className="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/[0.08] text-[#3ecfef] text-sm font-mono break-all"
+                                        title={activeMlxModel || "No model currently loaded"}
+                                    >
                                         {activeMlxModel || "No model currently loaded"}
                                     </div>
                                 </div>
@@ -342,12 +342,12 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                             <span className="text-xs text-[#636370] italic">No MLX models discovered in ~/.cache/huggingface/hub/</span>
                                         ) : (
                                             mlxModels.map(m => (
-                                                <div key={m} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04]">
-                                                    <span className="text-xs text-white  truncate max-w-[200px]">{m}</span>
+                                                <div key={m} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04]" title={m}>
+                                                    <span className="text-xs text-white break-all flex-1 pr-2">{m}</span>
                                                     <button
                                                         disabled={activeMlxModel === m || mlxDownloading !== null}
                                                         onClick={() => handleMlxPull(m)}
-                                                        className="px-2 py-1 text-[10px] font-medium rounded-lg bg-white/[0.05] text-white hover:bg-white/[0.1] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                        className="px-2 py-1 text-[10px] font-medium rounded-lg bg-white/[0.05] text-white hover:bg-white/[0.1] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
                                                     >
                                                         {mlxDownloading === m ? 'Loading...' : (activeMlxModel === m ? 'Loaded' : 'Load')}
                                                     </button>
@@ -399,9 +399,9 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                             return (
                                                 <div key={m.id} className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between hover:border-purple-500/30 transition-colors">
                                                     <div className="flex flex-col">
-                                                        <span className="text-sm text-white font-medium">{m.id.split('/')[1]}</span>
+                                                        <span className="text-sm text-white font-medium break-all" title={m.id}>{m.id}</span>
                                                         <span className="text-[10px] text-[#636370]">
-                                                            {m.id.split('/')[0]} · {m.downloads} DLs
+                                                            {m.downloads} DLs
                                                             {m.size_mb ? ` · ${m.size_mb >= 1024 ? (m.size_mb / 1024).toFixed(1) + ' GB' : m.size_mb + ' MB'}` : ''}
                                                         </span>
                                                     </div>
@@ -440,18 +440,26 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                             <div>
                                 <label className="block text-sm font-medium text-[#a1a1aa] mb-1.5">LLM Model</label>
                                 {models.length > 0 ? (
-                                    <select
-                                        value={model}
-                                        onChange={(e) => setModel(e.target.value)}
-                                        className="w-full px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
-                                            text-white text-sm focus:outline-none focus:border-[#3ecfef]/40
-                                            transition-colors appearance-none cursor-pointer"
-                                    >
-                                        <option value="" className="bg-[#0c0c14] text-[#3ecfef]">✨ Auto-detect latest model</option>
-                                        {models.map((m) => (
-                                            <option key={m} value={m} className="bg-[#0c0c14]">{m}</option>
-                                        ))}
-                                    </select>
+                                    <>
+                                        <select
+                                            value={model}
+                                            onChange={(e) => setModel(e.target.value)}
+                                            className="w-full px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
+                                                text-white text-sm focus:outline-none focus:border-[#3ecfef]/40
+                                                transition-colors appearance-none cursor-pointer"
+                                        >
+                                            <option value="" className="bg-[#0c0c14] text-[#3ecfef]">✨ Auto-detect latest model</option>
+                                            {models.map((m) => (
+                                                <option key={m} value={m} className="bg-[#0c0c14]" title={m}>{m}</option>
+                                            ))}
+                                        </select>
+                                        {model && (
+                                            <div className="mt-1.5 px-3 py-1 rounded bg-white/[0.02] border border-white/[0.04]">
+                                                <span className="text-[10px] text-[#636370] uppercase tracking-wider block mb-0.5">Full Name</span>
+                                                <span className="text-xs text-[#3ecfef] font-mono break-all">{model}</span>
+                                            </div>
+                                        )}
+                                    </>
                                 ) : (
                                     <input
                                         value={model}
@@ -553,7 +561,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                                 >
                                                     <option value="" className="bg-[#0c0c14]">Default</option>
                                                     {models.map((m) => (
-                                                        <option key={m} value={m} className="bg-[#0c0c14]">{m}</option>
+                                                        <option key={m} value={m} className="bg-[#0c0c14]" title={m}>{m}</option>
                                                     ))}
                                                 </select>
                                             </div>

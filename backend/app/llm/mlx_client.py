@@ -53,11 +53,8 @@ class MlxClient:
     """Native Apple Silicon MLX Client for local LLMs."""
 
     def __init__(self):
-        # self.model_name = "mlx-community/Qwen3.5-35B-A3B-bf16"
-        # self.model_name = "mlx-community/GLM-4.7-Flash-4bit"
-        # self.model_name = "mlx-community/Qwen3.5-35B-A3B-8bit"
-        # self.model_name = "huihui-ai/Huihui-GLM-4.7-Flash-abliterated-mlx-4bit"
-        self.model_name = "cs2764/Huihui-GLM-4.7-Flash-abliterated-mlx-8Bit"
+        # Detect the most recently pulled model from cache as the startup default
+        self.model_name = mlx_manager.get_latest_model() or "mlx-community/Qwen2.5-7B-Instruct-4bit"
         self.model = None
         self.tokenizer = None
         self.processor = None # For mlx-vlm
@@ -70,6 +67,9 @@ class MlxClient:
             "top_p": 0.9,
             "max_tokens": 32768
         }
+        self._lock = asyncio.Lock()
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
 
     def load_model(self, model_name: str | None = None, allow_download: bool = True) -> bool:
         """Load an MLX model into unified memory.
@@ -204,12 +204,13 @@ class MlxClient:
             yield '{"error": "MLX not available"}'
             return
 
-        if not self.is_loaded or (model and model != self.model_name):
-            # Load the requested model (or default) if not already loaded
-            success = self.load_model(model, allow_download=False)
-            if not success:
-                yield '{"error": "Failed to load MLX model"}'
-                return
+        async with self._lock:
+            if not self.is_loaded or (model and model != self.model_name):
+                # Load the requested model (or default) if not already loaded
+                success = self.load_model(model, allow_download=False)
+                if not success:
+                    yield '{"error": "Failed to load MLX model"}'
+                    return
 
         prompt_messages = []
         if system_prompt:
@@ -285,30 +286,30 @@ class MlxClient:
         try:
             # We must wrap the iterator for non-blocking stream
             it = _generate_iter()
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                def _get_next():
-                    return next(it, None)
-                
-                while True:
-                    try:
-                        # Pull next token
-                        token_msg = await loop.run_in_executor(pool, _get_next)
-                        if token_msg is None:
-                            break
-                        
-                        # Extract the text
-                        text = ""
-                        if isinstance(token_msg, str):
-                            text = token_msg
-                        elif hasattr(token_msg, 'text'):
-                            text = getattr(token_msg, 'text')
-                        else:
-                            text = str(token_msg)
-
-                        if text:
-                            yield json.dumps({"model": self.model_name, "message": {"content": text}, "done": False})
-                    except StopIteration:
+            
+            def _get_next():
+                return next(it, None)
+            
+            while True:
+                try:
+                    # Pull next token
+                    token_msg = await loop.run_in_executor(self._executor, _get_next)
+                    if token_msg is None:
                         break
+                    
+                    # Extract the text
+                    text = ""
+                    if isinstance(token_msg, str):
+                        text = token_msg
+                    elif hasattr(token_msg, 'text'):
+                        text = getattr(token_msg, 'text')
+                    else:
+                        text = str(token_msg)
+
+                    if text:
+                        yield json.dumps({"model": self.model_name, "message": {"content": text}, "done": False})
+                except StopIteration:
+                    break
             
             yield json.dumps({"model": self.model_name, "message": {"content": ""}, "done": True})
             
@@ -321,10 +322,11 @@ class MlxClient:
          if not MLX_AVAILABLE:
             return ""
             
-         if not self.is_loaded or (model and model != self.model_name):
-             success = self.load_model(model, allow_download=False)
-             if not success:
-                 return ""
+         async with self._lock:
+             if not self.is_loaded or (model and model != self.model_name):
+                 success = self.load_model(model, allow_download=False)
+                 if not success:
+                     return ""
                 
          messages = []
          if system_prompt:
@@ -373,8 +375,7 @@ class MlxClient:
                  )
              
          try:
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                response = await loop.run_in_executor(pool, _generate)
+            response = await loop.run_in_executor(self._executor, _generate)
             return response
          except Exception as e:
             logger.error(f"MLX generation error: {e}")
