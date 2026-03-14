@@ -36,6 +36,30 @@
 - 🛡️ **Hardened Isolation**: Secure execution sandbox utilizing AST parsing and import whitelisting, with a roadmap toward gVisor/OS-level isolation.
 - 📱 **Omni-channel Dashboard**: Premium React 18 web interface with live circuit visualizers and a React Native mobile monitor for global job tracking.
 
+## 📸 Interface Preview
+
+<div align="center">
+  <table style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="padding: 10px; width: 50%;">
+        <img src="assets/1.png" alt="Milimo Quantum Dashboard" style="border-radius: 12px; border: 1px solid #333;"/>
+      </td>
+      <td style="padding: 10px; width: 50%;">
+        <img src="assets/2.png" alt="Quantum Circuit Visualizer" style="border-radius: 12px; border: 1px solid #333;"/>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 10px; width: 50%;">
+        <img src="assets/3.png" alt="MQDD Extension" style="border-radius: 12px; border: 1px solid #333;"/>
+      </td>
+      <td style="padding: 10px; width: 50%;">
+        <img src="assets/4.png" alt="Autoresearch MLX Console" style="border-radius: 12px; border: 1px solid #333;"/>
+      </td>
+    </tr>
+  </table>
+</div>
+
+
 ---
 
 ## 🧱 Architecture & Project Structure
