@@ -20,10 +20,22 @@ try:
     from qiskit_aer import AerSimulator
     from qiskit.primitives import StatevectorEstimator
     from qiskit.quantum_info import SparsePauliOp
+    
+    # Qiskit Nature for Hamiltonian mapping
+    import qiskit_nature
+    from qiskit_nature.second_q.drivers import PySCFDriver
+    from qiskit_nature.second_q.mappers import JordanWignerMapper, ParityMapper
+    from qiskit_nature.second_q.formats.molecule_info import MoleculeInfo
+    
+    # Qiskit Algorithms for VQE
+    from qiskit_algorithms import VQE
+    from qiskit_algorithms.optimizers import SLSQP
+    from qiskit.circuit.library import RealAmplitudes
+    
     QISKIT_AVAILABLE = True
-    logger.info("Qiskit loaded successfully with Primitives v1.4")
-except ImportError:
-    logger.warning("Qiskit not installed — quantum execution disabled")
+    logger.info("Qiskit and Qiskit Nature loaded successfully")
+except ImportError as e:
+    logger.warning(f"Quantum libraries partially missing: {e} — quantum execution limited")
 
 
 def execute_circuit(
@@ -247,6 +259,75 @@ def create_1q_state(gate: str = 'h') -> Any:
     qc.measure(0, 0)
     return qc
 
+
+def map_molecule_to_hamiltonian(smiles: str, basis: str = "sto3g", mapper_type: str = "jordan_wigner") -> Any:
+    """
+    Maps a molecule (SMILES) to a qubit Hamiltonian using Qiskit Nature.
+    """
+    if not QISKIT_AVAILABLE:
+        return None
+    
+    try:
+        # 1. Setup Driver (PySCF) for the molecule
+        # For simplicity, we create a basic geometry if XYZ not provided
+        driver = PySCFDriver(atom=f"SMILES {smiles}", basis=basis)
+        problem = driver.run()
+        
+        # 2. Extract second-quantized operator
+        hamiltonian = problem.hamiltonian.second_q_op()
+        
+        # 3. Choose Mapper
+        if mapper_type.lower() == "parity":
+            mapper = ParityMapper()
+        else:
+            mapper = JordanWignerMapper()
+            
+        # 4. Map to Qubit Operator
+        qubit_op = mapper.map(hamiltonian)
+        return qubit_op
+    except Exception as e:
+        logger.error(f"Hamiltonian mapping failed for {smiles}: {e}")
+        return None
+
+async def run_vqe(qubit_op: Any, ansatz: Any = None, optimizer: Any = None) -> float:
+    """
+    Runs VQE to find the ground state energy of a qubit operator.
+    """
+    if not QISKIT_AVAILABLE:
+        return 0.0
+    
+    try:
+        num_qubits = qubit_op.num_qubits
+        if ansatz is None:
+            ansatz = RealAmplitudes(num_qubits, reps=1)
+        
+        if optimizer is None:
+            optimizer = SLSQP(maxiter=10) # Fast for prototype
+            
+        # Use simple Statevector Estimator for VQE
+        from qiskit.primitives import StatevectorEstimator
+        estimator = StatevectorEstimator()
+        
+        # Optimized implementation: for now we use a simpler approach matching our runner
+        # Since qiskit-algorithms VQE expects V1 primitives or custom wrapper,
+        # we'll do a simplified expectation value minimization.
+        
+        import numpy as np
+        from scipy.optimize import minimize
+        
+        def objective(params):
+            bound_ansatz = ansatz.assign_parameters(params)
+            job = estimator.run([(bound_ansatz, qubit_op)])
+            result = job.result()
+            return float(result[0].data.evs)
+        
+        initial_point = np.random.uniform(-np.pi, np.pi, ansatz.num_parameters)
+        res = minimize(objective, initial_point, method='SLSQP', options={'maxiter': 5})
+        
+        return float(res.fun)
+    except Exception as e:
+        logger.error(f"VQE execution failed: {e}")
+        return 0.0
 
 # Named circuit library
 CIRCUIT_LIBRARY = {

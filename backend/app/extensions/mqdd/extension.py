@@ -10,6 +10,8 @@ mqdd_router = APIRouter(prefix="/api/mqdd", tags=["mqdd"])
 class WorkflowRequest(BaseModel):
     prompt: str
     conversation_id: str | None = None
+    basis: str | None = "sto3g"
+    pdb_content: str | None = None
 
 
 @mqdd_router.get("/status")
@@ -19,7 +21,7 @@ def get_status():
 @mqdd_router.post("/workflow")
 async def start_workflow(req: WorkflowRequest):
     return StreamingResponse(
-        workflow.run_full_workflow(req.prompt, req.conversation_id), 
+        workflow.run_full_workflow(req.prompt, req.conversation_id, req.basis, req.pdb_content), 
         media_type="text/event-stream"
     )
 

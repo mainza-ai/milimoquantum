@@ -12,7 +12,7 @@ from app.db.models import Artifact, Message, Conversation
 
 logger = logging.getLogger(__name__)
 
-async def run_full_workflow(prompt: str, conversation_id: str | None = None) -> AsyncGenerator[str, None]:
+async def run_full_workflow(prompt: str, conversation_id: str | None = None, basis: str | None = "sto3g", pdb_content: str | None = None) -> AsyncGenerator[str, None]:
     """
     Executes the full MQDD pipeline, yielding SSE status updates, 
     and finally yielding the completed ResultData.
@@ -28,24 +28,32 @@ async def run_full_workflow(prompt: str, conversation_id: str | None = None) -> 
         return f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
 
     try:
-        # 0. Target ID Agent
-        yield format_sse("status", {"agent": "TARGET_IDENTIFICATION", "status": "WORKING", "message": "Identifying protein target..."})
-        pdb_id = await agents.run_target_identification(prompt)
-        result.pdbId = pdb_id
-        pdb_str = f"(PDB ID: {pdb_id})" if pdb_id else "(No PDB ID found)"
-        yield format_sse("status", {"agent": "TARGET_IDENTIFICATION", "status": "DONE", "message": f"Target identification complete. {pdb_str}"})
+        # 0. Target ID Agent (Skip if PDB content is provided)
+        if pdb_content:
+            yield format_sse("status", {"agent": "TARGET_IDENTIFICATION", "status": "DONE", "message": "Using uploaded PDB file content."})
+            pdb_id = "uploaded_structure"
+            result.pdbId = pdb_id
+            pdb_str = "(Uploaded Structure)"
+        else:
+            yield format_sse("status", {"agent": "TARGET_IDENTIFICATION", "status": "WORKING", "message": "Identifying protein target..."})
+            pdb_id = await agents.run_target_identification(prompt)
+            result.pdbId = pdb_id
+            pdb_str = f"(PDB ID: {pdb_id})" if pdb_id else "(No PDB ID found)"
+            yield format_sse("status", {"agent": "TARGET_IDENTIFICATION", "status": "DONE", "message": f"Target identification complete. {pdb_str}"})
 
         # 1. Literature Agent
         yield format_sse("status", {"agent": "LITERATURE", "status": "WORKING", "message": "Searching live literature databases..."})
-        lit_summary = await agents.run_literature_review(prompt)
-        yield format_sse("status", {"agent": "LITERATURE", "status": "DONE", "message": "Literature review complete with live grounding."})
+        lit_results = await agents.run_literature_review(prompt)
+        result.literature = lit_results
+        lit_summary = " ".join([r["summary"] for r in lit_results])
+        yield format_sse("status", {"agent": "LITERATURE", "status": "DONE", "message": f"Literature review complete. Found {len(lit_results)} citations."})
 
         # 2. Molecular Design Agent
         yield format_sse("status", {"agent": "MOLECULAR_DESIGN", "status": "WORKING", "message": "Generating candidates..."})
         design_context = f"{prompt}. Protein Target: {pdb_str}. Literature context: {lit_summary}"
-        candidates = await agents.run_molecular_design(design_context, count=3)
+        candidates = await agents.run_molecular_design(design_context, count=3, target_query=prompt)
         result.molecules = candidates
-        yield format_sse("status", {"agent": "MOLECULAR_DESIGN", "status": "DONE", "message": f"{len(candidates)} candidates generated."})
+        yield format_sse("status", {"agent": "MOLECULAR_DESIGN", "status": "DONE", "message": f"{len(candidates)} candidates generated (including library hits)."})
 
         if not result.molecules:
             yield format_sse("error", {"message": "Workflow failed: No candidate molecules were generated."})
@@ -56,9 +64,9 @@ async def run_full_workflow(prompt: str, conversation_id: str | None = None) -> 
         yield format_sse("status", {"agent": "QUANTUM_SIMULATION", "status": "WORKING", "message": "Running quantum simulations..."})
         yield format_sse("status", {"agent": "SYNTHESIZABILITY", "status": "WORKING", "message": "Analyzing synthetic accessibility..."})
 
-        async def analyze_molecule(mol, idx, total):
+        async def analyze_molecule(mol, idx, total, basis="sto3g"):
             admet_task = asyncio.create_task(agents.run_property_prediction(mol.smiles))
-            quantum_task = asyncio.create_task(agents.run_quantum_simulation(mol.smiles))
+            quantum_task = asyncio.create_task(agents.run_quantum_simulation(mol.smiles, basis=basis))
             synth_task = asyncio.create_task(agents.run_synthesizability(mol.smiles))
             
             admet, energy, sa = await asyncio.gather(admet_task, quantum_task, synth_task)
@@ -70,7 +78,7 @@ async def run_full_workflow(prompt: str, conversation_id: str | None = None) -> 
             mol.saScore = sa
             return mol
 
-        analysis_tasks = [analyze_molecule(mol, i, len(result.molecules)) for i, mol in enumerate(result.molecules)]
+        analysis_tasks = [analyze_molecule(mol, i, len(result.molecules), basis=basis) for i, mol in enumerate(result.molecules)]
         result.molecules = await asyncio.gather(*analysis_tasks)
         
         yield format_sse("status", {"agent": "PROPERTY_PREDICTION", "status": "DONE", "message": "Property prediction complete."})
@@ -85,7 +93,7 @@ async def run_full_workflow(prompt: str, conversation_id: str | None = None) -> 
         # 4. Interaction Analysis
         if best_candidate and result.pdbId:
             yield format_sse("status", {"agent": "INTERACTION_ANALYSIS", "status": "WORKING", "message": "Analyzing binding site interactions..."})
-            interactions = await agents.run_interaction_analysis(result.pdbId, best_candidate.smiles)
+            interactions = await agents.run_interaction_analysis(result.pdbId, best_candidate.smiles, pdb_content=pdb_content)
             best_candidate.interactions = interactions
             yield format_sse("status", {"agent": "INTERACTION_ANALYSIS", "status": "DONE", "message": "Interaction analysis complete."})
 

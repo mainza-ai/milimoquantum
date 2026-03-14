@@ -53,6 +53,11 @@ class KnowledgeGraphUpdate(BaseModel):
     class Config:
         populate_by_name = True
 
+class LiteratureReference(BaseModel):
+    title: str
+    url: str
+    summary: str
+
 class ExperimentalPlannerResponse(BaseModel):
     summary: str
     experimentalPlan: List[str]
@@ -62,6 +67,7 @@ class MqddResultData(BaseModel):
     summary: str = ""
     pdbId: Optional[str] = None
     molecules: List[MoleculeCandidate] = []
+    literature: List[LiteratureReference] = []
     experimentalPlan: List[str] = []
     retrosynthesisPlan: List[str] = []
     knowledgeGraphUpdate: Optional[KnowledgeGraphUpdate] = None
