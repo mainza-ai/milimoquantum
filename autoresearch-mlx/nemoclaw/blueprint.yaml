@@ -1,0 +1,176 @@
+# Milimo Quantum - Autoresearch Blueprint
+# NemoClaw sandbox configuration for autonomous ML/quantum research
+#
+# This blueprint defines the security boundaries and resource limits
+# for the Autoresearch-MLX execution environment.
+
+apiVersion: openclaw.nvidia.com/v1
+kind: Blueprint
+metadata:
+  name: milimo-autoresearch
+  version: "1.0.0"
+  description: "Sandboxed execution environment for Autoresearch-MLX experiments"
+  compatibility:
+    - "mlx-autoresearch"
+    - "qiskit-aer"
+    - "cuda-q"
+  labels:
+    environment: development
+    risk-level: medium
+    project: milimo-quantum
+
+spec:
+  # Execution configuration
+  execution:
+    timeout: 600s
+    memory_limit: 32GB
+    gpu_passthrough: true
+    
+  # Network security policies
+  network:
+    mode: whitelist
+    default_egress: deny
+    
+    egress:
+      allowed_hosts:
+        - name: huggingface-models
+          hosts:
+            - "huggingface.co"
+            - "*.huggingface.co"
+          ports: [443]
+          purpose: "Model and tokenizer downloads"
+          
+        - name: scientific-literature
+          hosts:
+            - "arxiv.org"
+            - "*.arxiv.org"
+            - "pubmed.ncbi.nlm.nih.gov"
+          ports: [443]
+          purpose: "Literature retrieval for Research Agent"
+          
+        - name: local-services
+          hosts:
+            - "localhost"
+            - "host.docker.internal"
+            - "host.minikube.internal"
+          ports: [5432, 6379, 7687, 8080, 8000, 5173]
+          purpose: "Local PostgreSQL, Redis, Neo4j, Keycloak, FastAPI, Frontend"
+          
+      blocked_action: notify
+      
+  # Filesystem security policies
+  filesystem:
+    default_write: deny
+    
+    read_write:
+      - path: /sandbox
+        recursive: true
+        purpose: "Sandbox working directory"
+        
+      - path: /tmp
+        recursive: true
+        purpose: "Temporary files and cache"
+        
+      - path: /Users/mck/Desktop/milimoquantum/autoresearch-mlx
+        recursive: true
+        purpose: "Autoresearch project files"
+        conditions:
+          max_size: "10GB"
+          
+    read_only:
+      - path: /System
+        recursive: true
+      - path: /Library
+        recursive: true
+      - path: /usr
+        recursive: true
+      - path: /etc
+        recursive: true
+      - path: /Users/mck/Desktop/milimoquantum/backend/app
+        recursive: true
+        purpose: "Backend application code (read-only)"
+        
+    blocked_paths:
+      - path: /Users/mck/Desktop/milimoquantum/backend/.env
+        reason: "Contains secrets and environment variables"
+      - path: /Users/mck/Desktop/milimoquantum/backend/milimoenv
+        reason: "Virtual environment isolation"
+      - path: /Users/*/.ssh
+        reason: "SSH keys"
+      - path: /Users/*/.aws
+        reason: "AWS credentials"
+      - path: /Users/*/.gnupg
+        reason: "GPG keys"
+        
+  # Environment variables
+  environment:
+    inherit:
+      - "PATH"
+      - "HOME"
+      - "USER"
+      - "SHELL"
+      
+    inject:
+      PYTHONUNBUFFERED: "1"
+      MLX_CACHE_DIR: "/tmp/mlx-cache"
+      HF_HOME: "/tmp/huggingface"
+      TOKENIZERS_PARALLELISM: "false"
+      
+  # Resource limits
+  resources:
+    cpu:
+      limit: "800%"
+      request: "400%"
+      
+    memory:
+      limit: "32Gi"
+      request: "16Gi"
+      
+    gpu:
+      type: "metal"
+      memory_limit: "24Gi"
+      
+    process:
+      limit: 256
+      
+    file_descriptors:
+      limit: 4096
+      
+  # Security settings
+  security:
+    seccomp_profile: "runtime/default"
+    no_new_privileges: true
+    
+    drop_capabilities:
+      - "SYS_ADMIN"
+      - "NET_ADMIN"
+      - "SYS_PTRACE"
+      - "SYS_MODULE"
+      - "DAC_OVERRIDE"
+      
+  # Health checks
+  healthcheck:
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 60s
+    
+  # Monitoring and logging
+  monitoring:
+    log_level: info
+    
+    audit:
+      enabled: true
+      events:
+        - network_egress
+        - network_blocked
+        - filesystem_write
+        - filesystem_blocked
+        - process_create
+        - process_exit
+        - syscall_blocked
+        
+    metrics:
+      enabled: true
+      port: 9090
+      path: /metrics

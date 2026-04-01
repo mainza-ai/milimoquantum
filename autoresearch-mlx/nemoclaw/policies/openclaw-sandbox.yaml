@@ -1,0 +1,277 @@
+# Security Policy for Autoresearch Sandbox
+# Applied by NemoClaw blueprint runner
+#
+# This policy defines fine-grained access controls for the sandboxed
+# execution environment. It complements the blueprint.yaml with
+# additional security constraints.
+
+apiVersion: openclaw.nvidia.com/v1
+kind: SandboxPolicy
+metadata:
+  name: autoresearch-default
+  labels:
+    environment: development
+    risk-level: medium
+    component: autoresearch-mlx
+
+spec:
+  # Network Security Configuration
+  network:
+    default_egress: deny
+    
+    egress_rules:
+      - name: huggingface-models
+        hosts:
+          - "huggingface.co"
+          - "*.huggingface.co"
+        ports: [443]
+        protocol: TCP
+        purpose: "Model and tokenizer downloads from HuggingFace Hub"
+        
+      - name: huggingface-api
+        hosts:
+          - "api.huggingface.co"
+        ports: [443]
+        protocol: TCP
+        purpose: "HuggingFace API for model metadata"
+        
+      - name: scientific-literature-arxiv
+        hosts:
+          - "arxiv.org"
+          - "*.arxiv.org"
+          - "export.arxiv.org"
+        ports: [443, 80]
+        protocol: TCP
+        purpose: "arXiv paper retrieval for Research Agent"
+        
+      - name: scientific-literature-pubmed
+        hosts:
+          - "pubmed.ncbi.nlm.nih.gov"
+          - "eutils.ncbi.nlm.nih.gov"
+        ports: [443]
+        protocol: TCP
+        purpose: "PubMed literature retrieval"
+        
+      - name: local-postgres
+        hosts:
+          - "localhost"
+          - "host.docker.internal"
+          - "postgres"
+        ports: [5432]
+        protocol: TCP
+        purpose: "Local PostgreSQL database"
+        
+      - name: local-redis
+        hosts:
+          - "localhost"
+          - "host.docker.internal"
+          - "redis"
+        ports: [6379]
+        protocol: TCP
+        purpose: "Local Redis for caching and pub/sub"
+        
+      - name: local-neo4j
+        hosts:
+          - "localhost"
+          - "host.docker.internal"
+          - "neo4j"
+        ports: [7687, 7474]
+        protocol: TCP
+        purpose: "Local Neo4j graph database"
+        
+      - name: local-keycloak
+        hosts:
+          - "localhost"
+          - "host.docker.internal"
+          - "keycloak"
+        ports: [8080]
+        protocol: TCP
+        purpose: "Local Keycloak authentication"
+        
+      - name: local-backend
+        hosts:
+          - "localhost"
+          - "host.docker.internal"
+        ports: [8000]
+        protocol: TCP
+        purpose: "Local FastAPI backend"
+        
+      - name: local-frontend
+        hosts:
+          - "localhost"
+          - "host.docker.internal"
+        ports: [5173]
+        protocol: TCP
+        purpose: "Local frontend development server"
+        
+      - name: dns-resolution
+        hosts:
+          - "*"
+        ports: [53]
+        protocol: UDP
+        purpose: "DNS resolution"
+        
+    dns_policy: ClusterFirst
+    
+  # Filesystem Security Configuration
+  filesystem:
+    default_write: deny
+    
+    write_rules:
+      - path: /sandbox
+        recursive: true
+        max_size: "5Gi"
+        purpose: "Sandbox working directory for experiments"
+        
+      - path: /tmp
+        recursive: true
+        max_size: "10Gi"
+        purpose: "Temporary files, MLX cache, tokenizer cache"
+        
+      - path: /Users/mck/Desktop/milimoquantum/autoresearch-mlx
+        recursive: true
+        max_size: "10Gi"
+        allowed_extensions:
+          - ".py"
+          - ".tsv"
+          - ".log"
+          - ".json"
+          - ".yaml"
+          - ".md"
+        purpose: "Autoresearch project files"
+        
+    read_rules:
+      - path: /System
+        recursive: true
+      - path: /Library
+        recursive: true
+      - path: /usr
+        recursive: true
+      - path: /etc
+        recursive: true
+      - path: /Users/mck/Desktop/milimoquantum/backend/app
+        recursive: true
+        purpose: "Backend application code"
+      - path: /Users/mck/.cache/autoresearch
+        recursive: true
+        purpose: "Autoresearch data cache"
+        
+    blocked_paths:
+      - path: /Users/mck/Desktop/milimoquantum/backend/.env
+        reason: "Contains secrets and environment variables"
+        action: deny
+      - path: /Users/mck/Desktop/milimoquantum/backend/milimoenv
+        reason: "Virtual environment - prevent modification"
+        action: deny
+      - path: /Users/*/.ssh
+        reason: "SSH private keys"
+        action: deny
+      - path: /Users/*/.aws
+        reason: "AWS credentials"
+        action: deny
+      - path: /Users/*/.gnupg
+        reason: "GPG private keys"
+        action: deny
+      - path: /Users/*/.kube
+        reason: "Kubernetes credentials"
+        action: deny
+      - path: /etc/shadow
+        reason: "System password file"
+        action: deny
+      - path: /etc/sudoers
+        reason: "Sudo configuration"
+        action: deny
+        
+  # Process Security Configuration
+  process:
+    process_limit: 256
+    file_limit: 4096
+    cpu_time_limit: 7200s
+    
+    forbidden_syscalls:
+      - fork
+      - vfork
+      - clone
+      - execve
+      - ptrace
+      - reboot
+      - mount
+      - umount
+      - kexec_load
+      - kexec_file_load
+      - init_module
+      - finit_module
+      - delete_module
+      - acct
+      - swapon
+      - swapoff
+      
+    allowed_interpreters:
+      - /usr/bin/python3
+      - /usr/bin/python
+      - /Users/mck/Desktop/milimoquantum/backend/milimoenv/bin/python
+      - /usr/local/bin/uv
+      - /usr/local/bin/python3
+      
+    signal_handling:
+      allow_send_signal: false
+      allow_kill: false
+      
+  # Resource Limits
+  resources:
+    cpu:
+      limit: "800%"
+      request: "200%"
+      
+    memory:
+      limit: "32Gi"
+      request: "8Gi"
+      oom_score_adj: 500
+      
+    gpu:
+      type: "metal"
+      memory_limit: "24Gi"
+      
+    disk:
+      read_bps_limit: "500MiB/s"
+      write_bps_limit: "500MiB/s"
+      read_iops_limit: 10000
+      write_iops_limit: 10000
+      
+  # Monitoring Configuration
+  monitoring:
+    log_level: info
+    log_format: json
+    
+    audit:
+      enabled: true
+      log_path: /tmp/sandbox-audit.log
+      max_log_size: "100MiB"
+      max_log_files: 5
+      
+      events:
+        - network_egress
+        - network_blocked
+        - filesystem_write
+        - filesystem_blocked
+        - process_create
+        - process_exit
+        - syscall_blocked
+        - resource_limit_exceeded
+        - timeout_exceeded
+        
+    metrics:
+      enabled: true
+      port: 9090
+      path: /metrics
+      labels:
+        project: milimo-quantum
+        component: autoresearch-mlx
+        sandbox: autoresearch
+        
+  # Timeout Configuration
+  timeouts:
+    execution: 600s
+    idle: 300s
+    network_request: 30s
+    file_operation: 10s

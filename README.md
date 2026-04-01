@@ -31,9 +31,9 @@
 - 🧠 **Autonomous Multi-Agent Orchestration**: A network of 14+ specialized agents (Orchestrator, Research, Chemistry, Finance, etc.) handling the full lifecycle from hypothesis to quantum code.
 - 🧬 **MQDD (Milimo Quantum Drug Discovery)**: Specialized extension for molecular simulation and property prediction using Variational Quantum Eigensolvers (VQE).
 - 🔬 **Autoresearch-MLX**: Native integration for local research loops, fine-tuning, and ultra-fast inference on Apple Silicon via unified memory.
-- ⚡ **Quantum Execution Engine**: Native support for Qiskit v1.4, Aer simulation, GPU acceleration, and direct QPU execution.
+- ⚡ **Quantum Execution Engine**: Native support for Qiskit 2.x, Aer simulation, GPU acceleration, and direct QPU execution.
 - 🕸️ **Graph IQ & Temporal Memory**: Deep knowledge retrieval using **Neo4j** and deterministic relational paths, combined with **FalkorDB** for agent memory.
-- 🛡️ **Hardened Isolation**: Secure execution sandbox utilizing AST parsing and import whitelisting, with a roadmap toward gVisor/OS-level isolation.
+- 🛡️ **Hardened Isolation**: Secure execution sandbox utilizing NemoClaw OS-level sandboxing with NVIDIA OpenClaw integration.
 - 📱 **Omni-channel Dashboard**: Premium React 18 web interface with live circuit visualizers and a React Native mobile monitor for global job tracking.
 
 ## 📸 Interface Preview
@@ -78,11 +78,11 @@ The platform is built on a modular, scalable architecture designed for local-hea
 ## 🛠️ Technology Stack
 
 * **AI/ML**: MLX (Apple Silicon), Ollama, OpenAI, Anthropic, Google GenAI
-* **Quantum**: Qiskit (< 2.0.0), D-Wave Ocean, Amazon Braket
+* **Quantum**: Qiskit 2.x, Qiskit-Aer, Qiskit-Algorithms, D-Wave Ocean, Amazon Braket
 * **Frontend/Mobile**: React 18, Vite, Tailwind CSS, Monaco Editor, React Native (Expo)
-* **Backend**: Python 3.12, FastAPI, Celery, Redis
+* **Backend**: Python 3.12+, FastAPI, Celery, Redis
 * **Data**: PostgreSQL, Neo4j (Graph), FalkorDB (Memory), ChromaDB (Vector)
-* **Auth/Security**: Keycloak (OAuth2), AST Sandbox
+* **Auth/Security**: Keycloak (OAuth2), NemoClaw Sandbox
 * **DevOps**: Docker, Docker Compose, Alembic
 
 ---
@@ -92,8 +92,9 @@ The platform is built on a modular, scalable architecture designed for local-hea
 ### Prerequisites
 
 - **Node.js** (v18+)
-- **Python** (3.12)
+- **Python** (3.12+)
 - **Docker & Docker Compose**
+- **Redis** (for Celery task queue)
 - **Ollama** (Optional, for local agent inference)
 - **Apple Silicon Mac** (Required for MLX-native features)
 
@@ -125,10 +126,76 @@ Configure Keycloak for first-time use:
 
 ---
 
+## 🧪 VQE (Variational Quantum Eigensolver)
+
+Milimo Quantum includes a full VQE implementation with Qiskit 2.x Aer simulation:
+
+### Features
+- **Real Quantum Simulation**: Not a mock - uses Qiskit Aer statevector backend
+- **Multiple Ansätze**: RealAmplitudes, EfficientSU2, TwoLocal variants
+- **Optimizers**: SPSA, COBYLA, L-BFGS-B, SLSQP
+- **Meyer-Wallach Entanglement**: Built-in metric for circuit expressivity
+- **Async Execution**: Celery task queue for heavy VQE jobs
+
+### Quick VQE Test
+```bash
+# Via API
+curl -X POST http://localhost:8000/api/autoresearch/vqe \
+  -H "Content-Type: application/json" \
+  -d '{"hamiltonian": "h2", "ansatz_type": "real_amplitudes", "optimizer_maxiter": 100}'
+
+# Via Celery (async)
+python -c "
+from app.worker.tasks import run_vqe_qiskit
+result = run_vqe_qiskit.delay(hamiltonian='h2', optimizer='cobyla', optimizer_maxiter=50)
+print(f'Task ID: {result.id}')
+print(result.get(timeout=120))
+"
+```
+
+### VQE Frontend Panel
+Access the VQE UI from the Quantum Dashboard (⚛️ button) → VQE panel for interactive configuration.
+
+---
+
+## 🔐 NemoClaw Sandbox
+
+NemoClaw provides OS-level sandboxing for autonomous code execution.
+
+### Installation
+
+```bash
+# Official installation script from NVIDIA
+curl -fsSL https://nvidia.com/nemoclaw.sh | bash
+
+# Setup (will prompt for NVIDIA API key)
+nemoclaw setup
+```
+
+### Features
+- Network whitelist (HuggingFace, arXiv, PubMed, local services)
+- Filesystem isolation with read/write boundaries
+- Resource limits (CPU, memory, process count)
+- Audit logging for security events
+
+### Quick Start
+```bash
+# Check NemoClaw status
+nemoclaw list
+
+# Run experiment in sandbox
+cd autoresearch-mlx/nemoclaw/orchestrator
+python runner.py apply --experiment test
+```
+
+> **Note:** If NemoClaw is not installed, the system automatically uses simulation mode (direct subprocess execution without OS-level isolation).
+
+---
+
 ## 📜 License
 
 Governed under the **MIT License**.
 
 <div align="center">
-  <i>Bringing the quantum future to the minds of today.</i>
+<i>Bringing the quantum future to the minds of today.</i>
 </div>

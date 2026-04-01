@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import subprocess
+import sys
 import time
 from typing import AsyncGenerator, Optional, List, Dict, Any
 from app.llm.mlx_client import mlx_client
@@ -18,9 +19,55 @@ from app.quantum import executor
 
 logger = logging.getLogger(__name__)
 
-# Absolute paths for the autoresearch integration
-AUTORESEARCH_DIR = "/Users/mck/Desktop/milimoquantum/autoresearch-mlx"
-MILIMO_PYTHON = "/Users/mck/Desktop/milimoquantum/backend/milimoenv/bin/python"
+# Use environment variables or relative paths for portability
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+AUTORESEARCH_DIR = os.environ.get("AUTORESEARCH_DIR", os.path.join(PROJECT_ROOT, "autoresearch-mlx"))
+MILIMO_PYTHON = os.environ.get("MILIMO_PYTHON", os.path.join(PROJECT_ROOT, "backend", "milimoenv", "bin", "python"))
+
+NEMOCLAW_DIR = os.path.join(AUTORESEARCH_DIR, "nemoclaw")
+sys.path.insert(0, NEMOCLAW_DIR)
+
+try:
+    from orchestrator.runner import BlueprintRunner
+    NEMOCLAW_AVAILABLE = True
+    logger.info("NemoClaw blueprint runner available")
+except ImportError as e:
+    NEMOCLAW_AVAILABLE = False
+    logger.warning(f"NemoClaw not available: {e}")
+
+try:
+    from app.graph.vqe_graph_client import vqe_graph_client
+    VQE_GRAPH_AVAILABLE = True
+except ImportError:
+    VQE_GRAPH_AVAILABLE = False
+    logger.warning("VQE graph client not available")
+
+ANALYSIS_AGENT_PATH = os.path.join(AUTORESEARCH_DIR, "autoresearch_mlx", "analysis_agent.py")
+if os.path.exists(ANALYSIS_AGENT_PATH):
+    sys.path.insert(0, os.path.join(AUTORESEARCH_DIR, "autoresearch_mlx"))
+    try:
+        from analysis_agent import AnalysisAgent
+        ANALYSIS_AGENT_AVAILABLE = True
+    except ImportError:
+        ANALYSIS_AGENT_AVAILABLE = False
+else:
+    ANALYSIS_AGENT_AVAILABLE = False
+
+
+async def initialize_vqe_graph():
+    """Initialize VQE graph client connection."""
+    global VQE_GRAPH_AVAILABLE
+    if VQE_GRAPH_AVAILABLE:
+        try:
+            connected = await vqe_graph_client.connect()
+            if connected:
+                logger.info("VQE graph client initialized")
+            else:
+                VQE_GRAPH_AVAILABLE = False
+                logger.warning("VQE graph client connection failed")
+        except Exception as e:
+            VQE_GRAPH_AVAILABLE = False
+            logger.error(f"VQE graph init error: {e}")
 
 def get_results():
     path = os.path.join(AUTORESEARCH_DIR, "results.tsv")
@@ -313,3 +360,90 @@ async def run_research_loop(target: Optional[str] = None, persist: bool = True) 
         yield f"event: status\ndata: {json.dumps({'status': 'completed', 'message': 'Research loop finished'})}\n\n"
     except Exception as e:
         yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+
+
+async def run_vqe_optimization(
+    molecule: str = "H2",
+    basis: str = "sto-3g",
+    time_budget: int = 300,
+    meyer_wallach_lambda: float = 0.1
+) -> AsyncGenerator[str, None]:
+    """
+    Run VQE ansatz discovery optimization.
+    
+    Connects Autoresearch-MLX to VQE for autonomous quantum circuit architecture search.
+    """
+    sys.path.insert(0, os.path.join(AUTORESEARCH_DIR, "autoresearch_mlx"))
+    
+    try:
+        from vqe_train import VQEConfig, VQEAnsatzOptimizer, HamiltonianBuilder
+    except ImportError as e:
+        yield f"event: error\\ndata: {json.dumps({'message': f'VQE module not available: {e}'})}\\n\\n"
+        return
+    
+    yield f"event: status\\ndata: {json.dumps({'status': 'started', 'message': f'VQE optimization started for {molecule}'})}\\n\\n"
+    
+    try:
+        hamiltonian, metadata = HamiltonianBuilder.get_hamiltonian(molecule, basis)
+        yield f"event: log\\ndata: {json.dumps({'text': f'Loaded Hamiltonian: {molecule}/{basis}'})}\\n\\n"
+    except Exception as e:
+        yield f"event: error\\ndata: {json.dumps({'message': f'Hamiltonian error: {e}'})}\\n\\n"
+        return
+    
+    config = VQEConfig(
+        molecule=molecule,
+        basis=basis,
+        num_qubits=metadata["num_qubits"],
+        time_budget=time_budget,
+        meyer_wallach_lambda=meyer_wallach_lambda,
+        target_energy=metadata.get("target_energy")
+    )
+    
+    optimizer = VQEAnsitzOptimizer(config)
+    
+    async for event in optimizer.run_loop(hamiltonian):
+        yield event
+        
+        if event.startswith("event: metric"):
+            data = json.loads(event.split("data: ")[1].strip())
+            if VQE_GRAPH_AVAILABLE and data.get("name") == "energy":
+                try:
+                    if vqe_graph_client.connected and optimizer.best_candidate:
+                        await vqe_graph_client.index_ansatz_motif(
+                            motif_id=f"ansatz-{time.strftime('%Y%m%d%H%M%S')}",
+                            gate_sequence=optimizer.best_candidate.token_sequence,
+                            depth=optimizer.best_candidate.depth,
+                            parameter_count=optimizer.best_candidate.parameter_count,
+                            meyer_wallach_score=optimizer.best_candidate.meyer_wallach_score or 0.0
+                        )
+                except Exception as e:
+                    logger.debug(f"Graph indexing skipped: {e}")
+    
+    yield f"event: status\\ndata: {json.dumps({'status': 'completed', 'message': 'VQE optimization finished'})}\\n\\n"
+
+
+async def run_analysis_cycle() -> AsyncGenerator[str, None]:
+    """Run the Analysis Agent for self-improving dataloader."""
+    if not ANALYSIS_AGENT_AVAILABLE:
+        yield f"event: error\\ndata: {json.dumps({'message': 'Analysis agent not available'})}\\n\\n"
+        return
+    
+    from analysis_agent import AnalysisAgent
+    agent = AnalysisAgent(autoresearch_dir=AUTORESEARCH_DIR)
+    
+    yield f"event: status\\ndata: {json.dumps({'status': 'started', 'message': 'Analysis agent started'})}\\n\\n"
+    
+    try:
+        metrics = agent.parse_run_log()
+        if metrics:
+            yield f"event: log\\ndata: {json.dumps({'text': f'Found {len(metrics)} performance data points'})}\\n\\n"
+            optimizations = agent.suggest_optimizations(metrics)
+            for opt in optimizations:
+                yield f"event: log\\ndata: {json.dumps({'text': f'Suggestion: {opt}'})}\\n\\n"
+            agent.apply_optimization(metrics)
+            yield f"event: log\\ndata: {json.dumps({'text': 'Optimizations applied'})}\\n\\n"
+    except Exception as e:
+        yield f"event: error\\ndata: {json.dumps({'message': f'Analysis failed: {e}'})}\\n\\n"
+        return
+    
+    yield f"event: status\\ndata: {json.dumps({'status': 'completed', 'message': 'Analysis cycle finished'})}\\n\\n"

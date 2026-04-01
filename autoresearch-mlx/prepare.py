@@ -3,8 +3,8 @@ One-time data preparation for autoresearch experiments.
 Downloads data shards and trains a BPE tokenizer.
 
 Usage:
-    python prepare.py                  # full prep (download + tokenizer)
-    python prepare.py --num-shards 8   # download only 8 shards (for testing)
+python prepare.py # full prep (download + tokenizer)
+python prepare.py --num-shards 8 # download only 8 shards (for testing)
 
 Data and tokenizer are stored in ~/.cache/autoresearch/.
 """
@@ -23,6 +23,17 @@ import pyarrow.parquet as pq
 import requests
 import rustbpe
 import tiktoken
+
+try:
+    from autoresearch_mlx.packer import BestFitPacker
+    PACKER_AVAILABLE = True
+except ImportError:
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "autoresearch_mlx"))
+        from packer import BestFitPacker
+        PACKER_AVAILABLE = True
+    except ImportError:
+        PACKER_AVAILABLE = False
 
 # ---------------------------------------------------------------------------
 # Constants (fixed, do not modify)
@@ -269,49 +280,50 @@ def make_dataloader(tokenizer, batch_size, seq_len, split, buffer_size=1000):
     Every row starts with BOS. Documents packed using best-fit to minimize cropping.
     When no document fits remaining space, crops shortest doc to fill exactly.
     100% utilization (no padding).
+    
+    Uses SegmentTreePacker (O(log N)) when available for faster packing.
     """
     assert split in ["train", "val"]
     row_capacity = seq_len + 1
     batches = _document_batches(split)
     bos_token = tokenizer.get_bos_token_id()
-    doc_buffer = []
-    epoch = 1
-
-    def refill_buffer():
-        nonlocal epoch
-        doc_batch, epoch = next(batches)
-        token_lists = tokenizer.encode(doc_batch, prepend=bos_token)
-        doc_buffer.extend(token_lists)
 
     while True:
         all_rows = []
         for _ in range(batch_size):
-            row = []
-            pos = 0
-            while pos < row_capacity:
-                while len(doc_buffer) < buffer_size:
-                    refill_buffer()
-
-                remaining = row_capacity - pos
-                best_idx = -1
-                best_len = 0
-                for index, doc in enumerate(doc_buffer):
-                    doc_len = len(doc)
-                    if doc_len <= remaining and doc_len > best_len:
-                        best_idx = index
-                        best_len = doc_len
-
-                if best_idx >= 0:
-                    doc = doc_buffer.pop(best_idx)
-                    row.extend(doc)
-                    pos += len(doc)
-                else:
-                    shortest_idx = min(range(len(doc_buffer)), key=lambda index: len(doc_buffer[index]))
-                    doc = doc_buffer.pop(shortest_idx)
-                    row.extend(doc[:remaining])
-                    pos += remaining
-
-            all_rows.append(row[:row_capacity])
+            doc_batch, epoch = next(batches)
+            token_lists = tokenizer.encode(doc_batch, prepend=bos_token)
+            
+            if PACKER_AVAILABLE:
+                packer = BestFitPacker(token_lists)
+                row, _ = packer.pack_row(row_capacity)
+                all_rows.append(row[:row_capacity])
+            else:
+                row = []
+                pos = 0
+                doc_buffer = list(token_lists)
+                
+                while pos < row_capacity and doc_buffer:
+                    remaining = row_capacity - pos
+                    best_idx = -1
+                    best_len = 0
+                    for index, doc in enumerate(doc_buffer):
+                        doc_len = len(doc)
+                        if doc_len <= remaining and doc_len > best_len:
+                            best_idx = index
+                            best_len = doc_len
+                    
+                    if best_idx >= 0:
+                        doc = doc_buffer.pop(best_idx)
+                        row.extend(doc)
+                        pos += len(doc)
+                    else:
+                        shortest_idx = min(range(len(doc_buffer)), key=lambda i: len(doc_buffer[i]))
+                        doc = doc_buffer.pop(shortest_idx)
+                        row.extend(doc[:remaining])
+                        pos += remaining
+                
+                all_rows.append(row[:row_capacity])
 
         row_array = mx.array(all_rows, dtype=mx.int32)
         inputs = row_array[:, :-1]
