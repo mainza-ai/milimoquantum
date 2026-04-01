@@ -49,16 +49,23 @@ async def get_task_status(task_id: str):
     """Query the status of an ongoing distributed workflow task."""
     if not CELERY_AVAILABLE:
         return {"status": "error", "message": "Celery worker not available"}
-        
-    # Celery result retrieval stub
-    # from celery.result import AsyncResult
-    # res = AsyncResult(task_id)
-    # return {"task_id": task_id, "status": res.status, "result": res.result if res.ready() else None}
+
+    from celery.result import AsyncResult
+    from app.worker.celery_app import app as celery_app
+
+    res = AsyncResult(task_id, app=celery_app)
+    
+    result_data = None
+    if res.ready():
+        result_data = res.result
+        if isinstance(res.result, Exception):
+            result_data = {"error": str(res.result)}
     
     return {
         "task_id": task_id,
-        "status": "PROCESSING",
-        "message": "Task status monitoring stubbed."
+        "status": res.status,
+        "result": result_data,
+        "traceback": str(res.traceback) if res.failed() else None
     }
 @router.post("/submit")
 async def submit_dag_workflow(payload: Dict[str, Any]):

@@ -15,7 +15,16 @@ logger = logging.getLogger(__name__)
 def is_braket_available() -> bool:
     """Check if Amazon Braket SDK is installed."""
     try:
-        import braket  # noqa: F401
+        import braket # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def is_google_available() -> bool:
+    """Check if Google Quantum (Cirq) is installed."""
+    try:
+        import cirq # noqa: F401
         return True
     except ImportError:
         return False

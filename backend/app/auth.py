@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
 
 # Keycloak configuration from environment
-KC_SERVER_URL = os.environ.get("KC_SERVER_URL", "http://localhost:8080/")
+KC_SERVER_URL = os.environ.get("KC_SERVER_URL", "http://localhost:8081/")
 KC_REALM_NAME = os.environ.get("KC_REALM_NAME", "milimo-realm")
 KC_CLIENT_ID = os.environ.get("KC_CLIENT_ID", "milimo-client")
 AUTH_ENABLED = os.environ.get("AUTH_ENABLED", "true").lower() == "true"

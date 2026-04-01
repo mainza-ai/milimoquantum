@@ -386,6 +386,49 @@ export async function searchPubChem(name: string) {
 }
 
 export async function fetchStockPrices(symbols: string[]) {
-    const res = await fetchWithAuth(`${API_BASE}/feeds/finance?symbols=${symbols.join(',')}`);
-    return res.json();
+  const res = await fetchWithAuth(`${API_BASE}/feeds/finance?symbols=${symbols.join(',')}`);
+  return res.json();
+}
+
+// ── VQE (Variational Quantum Eigensolver) ───────────────
+
+export interface VQERequest {
+  hamiltonian?: string;
+  hamiltonian_custom?: [string, number][];
+  ansatz_type?: string;
+  ansatz_reps?: number;
+  optimizer?: string;
+  optimizer_maxiter?: number;
+  seed?: number;
+}
+
+export interface VQEResult {
+  eigenvalue: number;
+  reference_energy: number | null;
+  optimal_point: number[];
+  convergence_trace: { eval: number; energy: number }[];
+  circuit_stats: {
+    ansatz_type: string;
+    depth: number;
+    num_qubits: number;
+    num_params: number;
+    entanglement_score: number;
+  };
+  optimizer: string;
+  iterations: number;
+  seed: number;
+  error?: string;
+}
+
+export async function runVQE(params: VQERequest): Promise<VQEResult> {
+  const res = await fetchWithAuth(`${API_BASE}/autoresearch/vqe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || 'VQE execution failed');
+  }
+  return res.json();
 }

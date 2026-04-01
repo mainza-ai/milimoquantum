@@ -83,7 +83,7 @@ function App() {
 
           <button
             className="w-full bg-quantum-cyan text-black py-2.5 px-4 rounded-lg text-[13px] font-medium hover:bg-opacity-90 transition-all flex items-center justify-center gap-2 cursor-pointer"
-            onClick={() => window.location.href = 'http://localhost:8080/realms/milimo-realm/protocol/openid-connect/auth?client_id=milimo-client&response_type=token&redirect_uri=http://localhost:5173/'}
+            onClick={() => window.location.href = 'http://localhost:8081/realms/milimo-realm/protocol/openid-connect/auth?client_id=milimo-client&response_type=token&redirect_uri=http://localhost:5173/'}
           >
             Sign In with Keycloak
           </button>

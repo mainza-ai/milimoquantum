@@ -21,10 +21,19 @@ class HPCJobRequest(BaseModel):
 @router.get("/status")
 async def hpc_status():
     """Get HPC cluster capabilities."""
+    # Dynamically check MPI availability
+    mpi_available = False
+    try:
+        import subprocess
+        result = subprocess.run(['which', 'mpirun'], capture_output=True, text=True)
+        mpi_available = result.returncode == 0
+    except Exception:
+        pass
+    
     return {
         "hpc_ready": True,
         "gpu_nodes_available": hal_config.gpu_available,
-        "mpi_available": False, # Mocked locally
+        "mpi_available": mpi_available,
         "active_jobs": len([j for j in HPCAdapter.HPC_JOBS.values() if j["status"] in ["QUEUED", "RUNNING"]])
     }
 

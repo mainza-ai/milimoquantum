@@ -2,11 +2,11 @@
 
 This document provides a comprehensive Mermaid diagram of the entire application architecture and data flow for verification purposes.
 
-**Last Updated:** March 31, 2026  
-**Total Components:** 121 Python files, 50+ TypeScript files  
-**Total Routes:** 22 API route modules  
-**Total Agents:** 21 specialized agents  
-**Total Quantum Modules:** 27 modules  
+**Last Updated:** April 1, 2026
+**Total Components:** 121 Python files, 50+ TypeScript files
+**Total Routes:** 24 API route modules
+**Total Agents:** 17 registered agents (20 agent files in directory)
+**Total Quantum Modules:** 25 modules
 
 ---
 
@@ -15,9 +15,10 @@ This document provides a comprehensive Mermaid diagram of the entire application
 ### Backend Modules
 | Category | Components |
 |----------|------------|
-| **Agents (21)** | orchestrator, research_agent, chemistry_agent, code_agent, dwave_agent, finance_agent, qgi_agent, sensing_agent, networking_agent, planning_agent, optimization_agent, qml_agent, benchmarking, fault_tolerance, context_enricher, results_analyzer_agent, crypto_agent, climate_agent, sensing, networking |
-| **Routes (22)** | academy, analytics, audit, benchmarks, chat, citations, collaboration, database, experiments, export, feeds, graph, hpc, ibm, jobs, marketplace, projects, qrng, quantum, search, settings, sync, workflows |
-| **Quantum (27)** | executor, vqe_executor, qaoa_executor, benchmarking, hal, hpc, sandbox, qrng, cloud_backends, ibm_runtime, dwave_provider, braket_provider, azure_provider, cudaq_provider, pennylane_bridge, stim_sim, fault_tolerant, mitigation, noise_profiles, vector_store, qasm3, qpy_store, cudaq_executor, advanced_sims |
+| **Agents (17 registered)** | orchestrator, research, chemistry, code, dwave, finance, qgi, sensing, networking, planning, optimization, qml, benchmarking, fault_tolerance, crypto, climate, autoresearch_analyzer |
+| **Agent Helpers (3)** | context_enricher, results_analyzer_agent (utility), sensing/networking (legacy duplicates) |
+| **Routes (24)** | academy, analytics, audit, benchmarks, chat, citations, collaboration, database, experiments, export, feeds, graph, hpc, ibm, jobs, marketplace, projects, qrng, quantum, search, settings, sync, workflows, autoresearch, mqdd |
+| **Quantum (25)** | executor, vqe_executor, qaoa_executor, benchmarking, hal, hpc, sandbox, qrng, cloud_backends, ibm_runtime, dwave_provider, braket_provider, azure_provider, cudaq_provider, pennylane_bridge, stim_sim, fault_tolerant, mitigation, noise_profiles, vector_store, qasm3, qpy_store, cudaq_executor, advanced_sims |
 | **LLM (5)** | ollama_client, mlx_client, mlx_manager, cloud_provider, vision |
 | **Graph (4)** | client, neo4j_client, vqe_graph_client, agent_memory |
 | **Data (5)** | hub, arxiv, pubmed, pubchem, finance |
@@ -50,7 +51,7 @@ graph TB
         AUTH[Keycloak Auth<br/>OAuth2]
     end
 
-    subgraph "Agent Layer - 21 Agents"
+    subgraph "Agent Layer - 17 Agents"
         ORCH[Orchestrator Agent]
         
         subgraph "Domain Agents"
@@ -1054,12 +1055,12 @@ flowchart TB
     end
     
     subgraph "Application Layer"
-        ORCHESTRATOR[Agent Orchestrator<br/>21 Agents]
+        ORCHESTRATOR[Agent Orchestrator<br/>17 Agents]
         PLANNER[Planning Agent]
         DISPATCHER[Intent Dispatcher]
     end
     
-    subgraph "Agent Pool - 21 Agents"
+    subgraph "Agent Pool - 17 Agents"
         DOMAIN_AGENTS[Domain Agents<br/>Research/Chem/Code/DWave<br/>Finance/QGI/Sensing/Network<br/>QML/Opt/Crypto/Climate]
         SUPPORT_AGENTS[Support Agents<br/>Planning/Context/Results<br/>Bench/Fault]
         EXT_AGENTS[Extension Agents<br/>MQDD/Autoresearch]
@@ -1166,7 +1167,7 @@ Use this checklist to verify system functionality after changes:
 - [ ] HPC jobs submit correctly
 - [ ] QRNG generates random numbers
 
-### Agent System (21 Agents)
+### Agent System (17 Registered Agents)
 - [ ] Orchestrator dispatches correctly
 - [ ] Research agent fetches papers
 - [ ] Chemistry agent analyzes molecules
@@ -1283,7 +1284,7 @@ curl "http://localhost:8000/api/feeds/finance?symbols=AAPL,GOOGL"
 
 | Category | Count | Status |
 |----------|-------|--------|
-| **Backend Agents** | 21 | Documented |
+| **Backend Agents** | 17 | Documented (20 files, 3 are helpers/duplicates) |
 | **Backend Routes** | 22 | Documented |
 | **Quantum Modules** | 27 | Documented |
 | **LLM Modules** | 5 | Documented |

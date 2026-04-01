@@ -124,8 +124,12 @@ class Neo4jClient:
             "CREATE CONSTRAINT IF NOT EXISTS FOR (e:Experiment) REQUIRE e.id IS UNIQUE",
             "CREATE CONSTRAINT IF NOT EXISTS FOR (conv:Conversation) REQUIRE conv.id IS UNIQUE",
             "CREATE CONSTRAINT IF NOT EXISTS FOR (p:Project) REQUIRE p.id IS UNIQUE",
+            "CREATE CONSTRAINT IF NOT EXISTS FOR (a:Artifact) REQUIRE a.id IS UNIQUE",
+            "CREATE CONSTRAINT IF NOT EXISTS FOR (m:Message) REQUIRE m.id IS UNIQUE",
             "CREATE INDEX IF NOT EXISTS FOR (c:Circuit) ON (c.type)",
             "CREATE INDEX IF NOT EXISTS FOR (a:Agent) ON (a.type)",
+            "CREATE INDEX IF NOT EXISTS FOR (conv:Conversation) ON (conv.updated_at)",
+            "CREATE INDEX IF NOT EXISTS FOR (a:Artifact) ON (a.code)",
         ]
         for q in schema_queries:
             await self.execute_query(q)
@@ -136,7 +140,6 @@ class Neo4jClient:
         if not self.connected:
             return
         try:
-            # TODO: add index
             await self.execute_query(
                 """
                 MERGE (a:Artifact {id: $art_id, code: $code})
@@ -170,7 +173,6 @@ class Neo4jClient:
 
         try:
             # Create project, conversation & user node
-            # TODO: add index
             await self.execute_query(
                 """
                 MERGE (u:User {id: $user_id})
@@ -188,7 +190,6 @@ class Neo4jClient:
 
             # Create message node for granularity
             timestamp_val = message_timestamp or str(datetime.datetime.utcnow())
-            # TODO: add index
             await self.execute_query(
                 """
                 MATCH (conv:Conversation {id: $conv_id})

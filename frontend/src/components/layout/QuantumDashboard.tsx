@@ -14,6 +14,7 @@ import { AuditDashboard } from '../admin/AuditDashboard';
 import { HPCPortal } from '../hpc/HPCPortal';
 import { HardwareBrowser } from '../quantum/HardwareBrowser';
 import { HpcJobsPanel } from '../quantum/panels/HpcJobsPanel';
+import { VQEPanel } from '../quantum/VQEPanel';
 
 interface DashboardProps {
     isOpen: boolean;
@@ -31,8 +32,9 @@ export function QuantumDashboard({ isOpen, onClose }: DashboardProps) {
     const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
     const [isAcademyOpen, setIsAcademyOpen] = useState(false);
     const [isAuditOpen, setIsAuditOpen] = useState(false);
-    const [isHPCOpen, setIsHPCOpen] = useState(false);
-    const [isHardwareOpen, setIsHardwareOpen] = useState(false);
+const [isHPCOpen, setIsHPCOpen] = useState(false);
+  const [isHardwareOpen, setIsHardwareOpen] = useState(false);
+  const [isVQEOpen, setIsVQEOpen] = useState(false);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -95,12 +97,17 @@ export function QuantumDashboard({ isOpen, onClose }: DashboardProps) {
                                 text-xs font-medium hover:bg-orange-500/20 transition-all cursor-pointer flex items-center gap-2">
                             <span>🏎️</span> HPC
                         </button>
-                        <button onClick={() => setIsHardwareOpen(true)}
-                            className="px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20
-                                text-xs font-medium hover:bg-purple-400 transition-all cursor-pointer flex items-center gap-2">
-                            <span>🛰️</span> Targets
-                        </button>
-                        <button onClick={onClose}
+<button onClick={() => setIsHardwareOpen(true)}
+className="px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20
+text-xs font-medium hover:bg-purple-400 transition-all cursor-pointer flex items-center gap-2">
+<span>🛰️</span> Targets
+</button>
+<button onClick={() => setIsVQEOpen(true)}
+className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20
+text-xs font-medium hover:bg-emerald-500/20 transition-all cursor-pointer flex items-center gap-2">
+<span>⚛️</span> VQE
+</button>
+<button onClick={onClose}
                             className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10
                                 flex items-center justify-center text-gray-400 hover:text-white
                                 transition-all cursor-pointer">✕</button>
@@ -132,12 +139,17 @@ export function QuantumDashboard({ isOpen, onClose }: DashboardProps) {
                     onClose={() => setIsHPCOpen(false)}
                 />
 
-                <HardwareBrowser
-                    isOpen={isHardwareOpen}
-                    onClose={() => setIsHardwareOpen(false)}
-                />
+<HardwareBrowser
+isOpen={isHardwareOpen}
+onClose={() => setIsHardwareOpen(false)}
+/>
 
-                {loading ? (
+<VQEPanel
+isOpen={isVQEOpen}
+onClose={() => setIsVQEOpen(false)}
+/>
+
+{loading ? (
                     <div className="flex items-center justify-center py-20 text-gray-400">
                         <div className="animate-spin mr-3 w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full" />
                         Initializing Science Environment...

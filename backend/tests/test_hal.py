@@ -64,9 +64,11 @@ def test_detect_platform_linux_cpu():
 def test_simulation_method():
     config = PlatformConfig(os_name="Linux", arch="x86_64", torch_device="cpu", aer_device="CPU", llm_backend="ollama", gpu_available=False)
     assert config.simulation_method(15) == "statevector"
-    assert config.simulation_method(25) == "statevector"
+    # 25 qubits uses MPS now (threshold is 20 qubits)
+    assert config.simulation_method(25) == "matrix_product_state"
     assert config.simulation_method(30) == "matrix_product_state"
-    assert config.simulation_method(40) == "statevector"
+    # 40 qubits goes back to statevector on GPU, but CPU stays MPS
+    assert config.simulation_method(40) == "matrix_product_state"
     assert config.simulation_method(10, is_clifford=True) == "stabilizer"
 
 def test_aer_backend_options():

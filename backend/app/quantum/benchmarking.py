@@ -63,17 +63,37 @@ class BenchmarkEngine:
         prep_time = time.time() - start_time_val
 
         # 2. Metrics (Classical Pre-calculation)
+        # Estimate CLOPS (Circuit Layer Operations Per Second)
+        # CLOPS = (Circuit Depth × Number of Shots) / Execution Time
+        # This is a theoretical estimate; actual CLOPS requires hardware execution
+        circuit_depth = qc.depth()
+        
+        # We need to estimate execution time without actually running
+        # For simulation, we use the prep_time as a baseline estimate
+        # Real CLOPS would be measured on actual QPU hardware
+        estimated_exec_time = prep_time if prep_time > 0 else 0.001
+        
+        # Theoretical CLOPS estimate (will be updated after actual execution)
+        # This represents the maximum possible CLOPS for this circuit
+        theoretical_clops = (circuit_depth * shots) / max(estimated_exec_time, 0.001)
+        
         metrics = {
             "width": qc.num_qubits,
-            "depth": qc.depth(),
+            "depth": circuit_depth,
             "count_ops": dict(qc.count_ops()),
-            "estimated_clops": 0, # Placeholder
+            "estimated_clops": round(theoretical_clops, 2),
+            "clop_estimate_note": "Theoretical estimate. Actual CLOPS requires QPU execution."
         }
 
         # 3. Execution (Quantum)
         q_start = time.time()
         result_exec = execute_circuit(qc, shots=shots)
         q_time = time.time() - q_start
+        
+        # Update CLOPS estimate with actual execution time
+        actual_clops = (circuit_depth * shots) / max(q_time, 0.001)
+        metrics["estimated_clops"] = round(actual_clops, 2)
+        metrics["actual_exec_time"] = round(q_time, 4)
 
         # 4. Classical Simulation (Baseline Comparison)
         c_time = -1.0

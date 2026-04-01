@@ -53,8 +53,16 @@ class MlxClient:
     """Native Apple Silicon MLX Client for local LLMs."""
 
     def __init__(self):
-        # Detect the most recently pulled model from cache as the startup default
-        self.model_name = mlx_manager.get_latest_model() or "mlx-community/Qwen2.5-7B-Instruct-4bit"
+        # Detect the most recently pulled MLX-compatible LLM model from cache
+        # Filter to only MLX-compatible LLM models (not embedding models)
+        local_models = mlx_manager.get_local_models()
+        mlx_models = [m for m in local_models if any(
+            m.startswith(f"{author}/") for author in mlx_manager.MLX_LLM_AUTHORS
+        )]
+        if mlx_models:
+            self.model_name = mlx_models[0]
+        else:
+            self.model_name = "mlx-community/Qwen2.5-7B-Instruct-4bit"  # Default fallback
         self.model = None
         self.tokenizer = None
         self.processor = None # For mlx-vlm

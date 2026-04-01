@@ -113,3 +113,37 @@ def finalize_dag(self, results: list, workflow_id: str) -> dict:
     self.update_state(state="SUCCESS", meta={"status": "DAG finished"})
     return {"workflow_id": workflow_id, "status": "completed", "node_results": results}
 
+
+@app.task(bind=True, name="app.worker.tasks.run_vqe_qiskit")
+def run_vqe_qiskit(
+    self,
+    hamiltonian: str = "h2",
+    ansatz_type: str = "real_amplitudes",
+    ansatz_reps: int = 2,
+    optimizer: str = "spsa",
+    optimizer_maxiter: int = 300,
+    seed: int = 42,
+) -> dict:
+    """Run VQE using Qiskit Aer simulation (async Celery task)."""
+    from app.quantum.vqe_executor import run_vqe, QISKIT_AVAILABLE
+
+    if not QISKIT_AVAILABLE:
+        return {"error": "Qiskit not available", "eigenvalue": None}
+
+    self.update_state(state="RUNNING", meta={"status": "Initializing VQE", "hamiltonian": hamiltonian})
+    logger.info(f"Task {self.request.id}: Starting Qiskit VQE for {hamiltonian}")
+
+    try:
+        result = run_vqe(
+            hamiltonian=hamiltonian,
+            ansatz_type=ansatz_type,
+            ansatz_reps=ansatz_reps,
+            optimizer=optimizer,
+            optimizer_maxiter=optimizer_maxiter,
+            seed=seed,
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Task {self.request.id} VQE failed: {e}")
+        raise e
+

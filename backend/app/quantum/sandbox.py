@@ -24,23 +24,28 @@ logger = logging.getLogger(__name__)
 
 # Allowed import modules (whitelist)
 ALLOWED_MODULES = {
-    # Qiskit core
-    "qiskit", "qiskit.circuit", "qiskit.circuit.library",
-    "qiskit.quantum_info", "qiskit.visualization",
-    "qiskit.transpiler", "qiskit.result",
-    # Qiskit Aer
-    "qiskit_aer",
-    # Qiskit domain libraries
-    "qiskit_algorithms", "qiskit_machine_learning",
-    "qiskit_nature", "qiskit_finance", "qiskit_optimization",
-    # Scientific Python
-    "numpy", "math", "cmath", "random", "itertools",
-    "functools", "collections", "fractions", "decimal",
-    "scipy", "scipy.optimize", "scipy.linalg",
-    # D-Wave / Optimization
-    "dimod", "neal", "networkx",
-    # Plotting (captured but not shown)
-    "matplotlib", "matplotlib.pyplot",
+# Qiskit core
+"qiskit", "qiskit.circuit", "qiskit.circuit.library",
+"qiskit.quantum_info", "qiskit.visualization",
+"qiskit.transpiler", "qiskit.result", "qiskit.primitives",
+# Qiskit Aer (separate package in 2.x)
+"qiskit_aer", "qiskit_aer.primitives",
+# Qiskit Algorithms (separate package in 2.x)
+"qiskit_algorithms", 
+"qiskit_algorithms.minimum_eigensolvers",
+"qiskit_algorithms.optimizers",
+"qiskit_algorithms.utils",
+# Qiskit domain libraries
+"qiskit_machine_learning",
+"qiskit_nature", "qiskit_finance", "qiskit_optimization",
+# Scientific Python
+"numpy", "math", "cmath", "random", "itertools",
+"functools", "collections", "fractions", "decimal",
+"scipy", "scipy.optimize", "scipy.linalg", "scipy.sparse",
+# D-Wave / Optimization
+"dimod", "neal", "networkx",
+# Plotting (captured but not shown)
+"matplotlib", "matplotlib.pyplot",
 }
 
 EXECUTION_TIMEOUT = 15  # seconds
@@ -206,9 +211,74 @@ def _patch_common_mistakes(code: str) -> str:
         code,
     )
 
+    # Fix: from qiskit.providers.aer → from qiskit_aer (general case)
+    code = re.sub(
+        r"from\s+qiskit\.providers\.aer",
+        "from qiskit_aer",
+        code,
+    )
+    code = re.sub(
+        r"import\s+qiskit\.providers\.aer",
+        "import qiskit_aer",
+        code,
+    )
+
+    # Fix: from qiskit.algorithms → from qiskit_algorithms (Qiskit 2.x)
+    code = re.sub(
+        r"from\s+qiskit\.algorithms",
+        "from qiskit_algorithms",
+        code,
+    )
+    code = re.sub(
+        r"import\s+qiskit\.algorithms",
+        "import qiskit_algorithms",
+        code,
+    )
+
+    # Fix: from qiskit.opflow (removed in 2.x) → comment + use SparsePauliOp
+    code = re.sub(
+        r"from\s+qiskit\.opflow\s+import\s+PauliSumOp",
+        "# PauliSumOp removed — use qiskit.quantum_info.SparsePauliOp",
+        code,
+    )
+    code = re.sub(
+        r"from\s+qiskit\.opflow",
+        "# qiskit.opflow removed in Qiskit 2.x — use qiskit.quantum_info",
+        code,
+    )
+
+    # Fix: BasicAer.get_backend → AerSimulator
+    code = re.sub(
+        r"from\s+qiskit\s+import\s+BasicAer",
+        "from qiskit_aer import AerSimulator",
+        code,
+    )
+    code = re.sub(
+        r"BasicAer\.get_backend\s*\([^)]*\)",
+        "AerSimulator()",
+        code,
+    )
+
+    # Fix: QuantumInstance (removed in 2.x)
+    code = re.sub(
+        r"QuantumInstance\s*\(",
+        "# QuantumInstance removed — use primitives (EstimatorV2/SamplerV2) # ",
+        code,
+    )
+
+    # Fix: from qiskit.primitives import Estimator → from qiskit_aer.primitives import EstimatorV2
+    code = re.sub(
+        r"from\s+qiskit\.primitives\s+import\s+Estimator",
+        "from qiskit_aer.primitives import EstimatorV2 as Estimator",
+        code,
+    )
+    code = re.sub(
+        r"from\s+qiskit\.primitives\s+import\s+Sampler",
+        "from qiskit_aer.primitives import SamplerV2 as Sampler",
+        code,
+    )
+
     # Fix: Duplicate qubit arguments in gate calls like qc.cx(0, 0)
-    # This prevents: CircuitError: 'duplicate qubit arguments'
-    # Pattern matches common gates: cx, swap, cz, cp, crx, cry, crz, cu, ch
     code = re.sub(
         r'(\w+)\.(cx|swap|cz|cp|crx|cry|crz|cu|ch)\s*\(\s*(\d+)\s*,\s*\3\s*',
         r'# \1.\2(\3, \3 # Fixed: duplicate qubits removed',

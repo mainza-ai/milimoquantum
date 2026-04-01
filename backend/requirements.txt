@@ -5,8 +5,15 @@ httpx==0.28.1
 pydantic==2.10.4
 python-dotenv==1.0.1
 sse-starlette==2.2.1
-qiskit<2.0.0
-qiskit-aer>=0.17.0
+
+# Quantum — Qiskit 2.x compatible
+qiskit>=2.0.0
+qiskit-aer>=0.15.0
+qiskit-algorithms>=0.3.0
+qiskit-ibm-runtime>=0.25.0
+qiskit-machine-learning
+qiskit-nature>=0.7.0
+
 pylatexenc==2.10
 matplotlib>=3.8.0
 neo4j
@@ -14,25 +21,27 @@ falkordb
 graphiti
 networkx
 dimod
+
 torch>=2.1.0
 torchvision
 torchaudio
-qiskit-algorithms
-qiskit-machine-learning
-qiskit-ibm-runtime
+
 # Cloud AI providers
 anthropic>=0.40.0
 openai>=1.0.0
 google-genai>=1.0.0
+
 # Native Apple Silicon (Host execution only)
 mlx-lm; sys_platform == 'darwin'
-google-genai>=1.0.0
+
 # Vector search
 chromadb>=0.5.0
 sentence-transformers>=3.0.0
+
 # D-Wave simulated annealing (local solver)
 dwave-neal>=0.6.0
-# Database & Cache (Batch 9 & 10)
+
+# Database & Cache
 sqlalchemy>=2.0.0
 alembic>=1.13.0
 asyncpg>=0.29.0
@@ -51,6 +60,7 @@ pytest-asyncio>=0.24.0
 yahooquery>=2.3.0
 websockets>=12.0
 slowapi>=0.1.9
+
+# Chemistry (optional, for real molecular Hamiltonians)
 rdkit
-admet-ai
 pyscf

@@ -46,7 +46,7 @@
 │         │                   │                   │               │           │
 │  ┌──────┴──────┐ ┌──────────┴──────────┐       │               │           │
 │  │ Agent Layer │ │    Data Sources     │       │               │           │
-│  │ (14+ agents)│ │ arXiv/PubMed/Finance│       │               │           │
+│ │ (17 agents)│ │ arXiv/PubMed/Finance│ │ │ │
 │  └─────────────┘ └─────────────────────┘       │               │           │
 │                                                │               │           │
 │  ┌─────────────────────────────────────────────┴───────────────┴───────┐   │
@@ -111,7 +111,7 @@
 
 The system routes user queries to specialized agents based on intent classification.
 
-**Agent Types (16 total):**
+**Agent Types (17 registered):**
 
 | Agent | Domain | Capabilities |
 |-------|--------|--------------|
@@ -131,6 +131,7 @@ The system routes user queries to specialized agents based on intent classificat
 | `dwave` | Annealing | QUBO, Ising models |
 | `benchmarking` | Performance | Quantum volume, CLOPS |
 | `fault_tolerance` | Error Correction | Surface codes, QEC |
+| `autoresearch_analyzer` | ML Training | Results analysis, optimization suggestions |
 
 **Routing Logic:**
 ```python
@@ -523,7 +524,7 @@ filesystem:
 ## 10. Current Implementation Status
 
 ### Fully Implemented
-- ✅ Multi-agent orchestration (14+ agents)
+- ✅ Multi-agent orchestration (17 agents)
 - ✅ SSE streaming chat
 - ✅ Local LLM inference (MLX, Ollama)
 - ✅ Cloud LLM integration
