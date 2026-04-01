@@ -1,89 +1,91 @@
 <div align="center">
-  <img src="assets/logo_milimo.png" alt="Milimo Quantum Logo" width="200"/>
-  
-  # Milimo Quantum ⚛️
+<img src="assets/logo_milimo.png" alt="Milimo Quantum Logo" width="200"/>
 
-  ### The Ultimate Quantum-AI Research OS
-  
-  **Author:** [Mainza Kangombe](https://www.linkedin.com/in/mainza-kangombe-6214295/)
-  
-  [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-  [![Qiskit](https://img.shields.io/badge/Qiskit-v1.4-6f42c1)](https://qiskit.org/)
-  [![React](https://img.shields.io/badge/React-18-61dafb)](https://reactjs.org/)
-  [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)](https://fastapi.tiangolo.com/)
+# Milimo Quantum ⚛️
 
-  *Harness the power of quantum computing through an autonomous, hybrid AI-orchestrated research platform.*
+### The Ultimate Quantum-AI Research OS
+
+**Author:** [Mainza Kangombe](https://www.linkedin.com/in/mainza-kangombe-6214295/)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Qiskit](https://img.shields.io/badge/Qiskit-2.x-6f42c1)](https://qiskit.org/)
+[![React](https://img.shields.io/badge/React-19.2-61dafb)](https://reactjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)](https://fastapi.tiangolo.com/)
+[![Tests](https://img.shields.io/badge/Tests-168_passing-brightgreen)](.)
+
+*Harness the power of quantum computing through an autonomous, hybrid AI-orchestrated research platform.*
 </div>
 
 
 > [!IMPORTANT]
-> Milimo is currently in **active development**. The full version will be released on **March 31st, 2026**.
+> Milimo Quantum is **production-ready** for local simulation. Cloud quantum backends require API credentials.
 
 ---
 
 
 ## 🌌 Vision
 
-**Milimo Quantum** has evolved from a toolset into a **Hybrid Research OS**. By uniting **Qiskit SDK v1.4** with a sophisticated multi-agent network, it enables autonomous scientific discovery. It bridges the gap between natural language intent and complex quantum execution across IBM, D-Wave, and Amazon Braket, powered by local-first inference and hardened security.
+**Milimo Quantum** is a **Hybrid Research OS** that bridges natural language intent with quantum computing execution. By uniting **Qiskit 2.x** with a sophisticated multi-agent network, it enables autonomous scientific discovery across IBM Quantum, D-Wave, and Amazon Braket, powered by local-first inference on Apple Silicon.
 
 ## ✨ Key Features
 
-- 🧠 **Autonomous Multi-Agent Orchestration**: A network of 14+ specialized agents (Orchestrator, Research, Chemistry, Finance, etc.) handling the full lifecycle from hypothesis to quantum code.
-- 🧬 **MQDD (Milimo Quantum Drug Discovery)**: Specialized extension for molecular simulation and property prediction using Variational Quantum Eigensolvers (VQE).
-- 🔬 **Autoresearch-MLX**: Native integration for local research loops, fine-tuning, and ultra-fast inference on Apple Silicon via unified memory.
-- ⚡ **Quantum Execution Engine**: Native support for Qiskit 2.x, Aer simulation, GPU acceleration, and direct QPU execution.
-- 🕸️ **Graph IQ & Temporal Memory**: Deep knowledge retrieval using **Neo4j** and deterministic relational paths, combined with **FalkorDB** for agent memory.
-- 🛡️ **Hardened Isolation**: Secure execution sandbox utilizing NemoClaw OS-level sandboxing with NVIDIA OpenClaw integration.
-- 📱 **Omni-channel Dashboard**: Premium React 18 web interface with live circuit visualizers and a React Native mobile monitor for global job tracking.
+- 🧠 **20+ Specialized Agents**: Orchestrator, Code, Research, Chemistry, Finance, Optimization, QML, Climate, QGI, Sensing, Networking, D-Wave, Benchmarking, Fault Tolerance, and more
+- 🧬 **MQDD (Drug Discovery)**: VQE-based molecular simulation with ADMET predictions and molecular docking
+- 🔬 **Autoresearch-MLX**: Self-improving research loops with MLX training and NemoClaw sandboxing
+- ⚡ **Quantum Execution Engine**: Qiskit 2.x Aer simulation, IBM Quantum, D-Wave, Amazon Braket, Azure Quantum
+- 🕸️ **Knowledge Graphs**: Neo4j, FalkorDB, and Kuzu for agent memory and concept relationships
+- 🛡️ **Secure Sandbox**: NemoClaw OS-level sandboxing with network whitelist and filesystem isolation
+- 📊 **168 Tests**: Comprehensive test coverage for quantum, extensions, and API routes
 
 ## 📸 Interface Preview
 
 <div align="center">
-  <table style="width: 100%; border-collapse: collapse;">
-    <tr>
-      <td style="padding: 10px; width: 50%;">
-        <img src="assets/1.png" alt="Milimo Quantum Dashboard" style="border-radius: 12px; border: 1px solid #333;"/>
-      </td>
-      <td style="padding: 10px; width: 50%;">
-        <img src="assets/2.png" alt="Quantum Circuit Visualizer" style="border-radius: 12px; border: 1px solid #333;"/>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding: 10px; width: 50%;">
-        <img src="assets/3.png" alt="MQDD Extension" style="border-radius: 12px; border: 1px solid #333;"/>
-      </td>
-      <td style="padding: 10px; width: 50%;">
-        <img src="assets/4.png" alt="Autoresearch MLX Console" style="border-radius: 12px; border: 1px solid #333;"/>
-      </td>
-    </tr>
-  </table>
+<table style="width: 100%; border-collapse: collapse;">
+<tr>
+<td style="padding: 10px; width: 50%;">
+<img src="assets/1.png" alt="Milimo Quantum Dashboard" style="border-radius: 12px; border: 1px solid #333;"/>
+</td>
+<td style="padding: 10px; width: 50%;">
+<img src="assets/2.png" alt="Quantum Circuit Visualizer" style="border-radius: 12px; border: 1px solid #333;"/>
+</td>
+</tr>
+<tr>
+<td style="padding: 10px; width: 50%;">
+<img src="assets/3.png" alt="MQDD Extension" style="border-radius: 12px; border: 1px solid #333;"/>
+</td>
+<td style="padding: 10px; width: 50%;">
+<img src="assets/4.png" alt="Autoresearch MLX Console" style="border-radius: 12px; border: 1px solid #333;"/>
+</td>
+</tr>
+</table>
 </div>
 
 ---
 
 ## 🧱 Architecture & Project Structure
 
-The platform is built on a modular, scalable architecture designed for local-heavy, hybrid-cloud performance.
-
 | System Layer | Description | Path |
 | --- | --- | --- |
-| **Presentation (Frontend)** | React 18 dashboard with extension panels (MQDD, Autoresearch). | `/frontend` |
-| **Research Engine (MLX)** | Local-first MLX training and inference for Apple Silicon. | `/autoresearch-mlx` |
-| **Orchestration (Backend)** | FastAPI core, Celery/Redis for async job routing and project isolation. | `/backend` |
-| **Enterprise Monitor (Mobile)**| React Native client for real-time experiment monitoring. | `/mobile` |
-| **Infrastructure** | Keycloak Auth, Neo4j, PostgreSQL, and Redis service containers. | `/` |
+| **Frontend** | React 19 dashboard with VQE panel, circuit visualizer, extension panels | `/frontend` |
+| **Backend** | FastAPI 0.115+ with 24 route modules, Celery/Redis async tasks | `/backend` |
+| **Quantum** | 25 quantum modules (executor, VQE, QAOA, QAOA, HAL, sandbox) | `/backend/app/quantum` |
+| **Agents** | 20 specialized agent implementations | `/backend/app/agents` |
+| **Extensions** | MQDD (drug discovery), Autoresearch (ML training) | `/backend/app/extensions` |
+| **Research Engine** | MLX training, VQE optimization, NemoClaw sandbox | `/autoresearch-mlx` |
+| **Infrastructure** | PostgreSQL, Neo4j, Redis, Keycloak | `docker-compose.yml` |
 
 ---
 
 ## 🛠️ Technology Stack
 
-* **AI/ML**: MLX (Apple Silicon), Ollama, OpenAI, Anthropic, Google GenAI
-* **Quantum**: Qiskit 2.x, Qiskit-Aer, Qiskit-Algorithms, D-Wave Ocean, Amazon Braket
-* **Frontend/Mobile**: React 18, Vite, Tailwind CSS, Monaco Editor, React Native (Expo)
-* **Backend**: Python 3.12+, FastAPI, Celery, Redis
-* **Data**: PostgreSQL, Neo4j (Graph), FalkorDB (Memory), ChromaDB (Vector)
-* **Auth/Security**: Keycloak (OAuth2), NemoClaw Sandbox
-* **DevOps**: Docker, Docker Compose, Alembic
+| Category | Technologies |
+|----------|-------------|
+| **AI/ML** | MLX-LM (Apple Silicon), Ollama, OpenAI, Anthropic, Google GenAI |
+| **Quantum** | Qiskit 2.x, Qiskit-Aer, Qiskit-Algorithms, Qiskit-Nature, D-Wave Ocean, Amazon Braket, Azure Quantum |
+| **Frontend** | React 19.2, Vite 7, Tailwind CSS 4, Monaco Editor, D3.js, XYFlow |
+| **Backend** | Python 3.12+, FastAPI 0.115, Celery 5.4, Redis |
+| **Databases** | PostgreSQL, Neo4j, FalkorDB, Kuzu, ChromaDB |
+| **Auth** | Keycloak 24 (OAuth2), NemoClaw Sandbox |
 
 ---
 
@@ -91,35 +93,49 @@ The platform is built on a modular, scalable architecture designed for local-hea
 
 ### Prerequisites
 
-- **Node.js** (v18+)
-- **Python** (3.12+)
+- **Python 3.12+** (3.14 recommended for Apple Silicon)
+- **Node.js 18+**
 - **Docker & Docker Compose**
-- **Redis** (for Celery task queue)
-- **Ollama** (Optional, for local agent inference)
-- **Apple Silicon Mac** (Required for MLX-native features)
+- **Apple Silicon Mac** (for MLX-native features)
 
 ### Quick Start
 
-#### 1. Boot Infrastructure & Frontend (Docker)
+#### 1. Clone and Setup
+```bash
+git clone https://github.com/mainza-ai/milimoquantum.git
+cd milimoquantum
+```
+
+#### 2. Configure Environment
+```bash
+# Copy example environment file
+cp .env.example .env
+# Edit .env with your settings (API keys, database passwords, etc.)
+```
+
+#### 3. Start Infrastructure (Docker)
 ```bash
 ./start-docker-mlx.sh
 ```
-*This starts the database, cache, graph stores, and the React frontend.*
+This starts PostgreSQL, Redis, Neo4j, Keycloak, and the frontend.
 
-#### 2. Start the MLX Native Backend (Mac Host)
-To leverage Unified Memory on Mac, run the backend natively:
+#### 4. Start Backend (Native for MLX)
 ```bash
 ./start-backend-mlx.sh
 ```
 
-#### 3. Initialize Authentication (Required)
-Configure Keycloak for first-time use:
+#### 5. Initialize Keycloak (First Run)
 ```bash
 ./setup-keycloak.sh
 ```
-*Login with `admin` / `admin` at `http://localhost:5173`.*
+Access at `http://localhost:8081` with `admin/admin`.
 
-#### 4. To Shut Down:
+#### 6. Access the Application
+- **Frontend**: http://localhost:5173
+- **API Docs**: http://localhost:8000/docs
+- **Keycloak**: http://localhost:8081
+
+#### 7. Shut Down
 ```bash
 ./stop-backend-mlx.sh && ./stop-docker.sh
 ```
@@ -128,67 +144,135 @@ Configure Keycloak for first-time use:
 
 ## 🧪 VQE (Variational Quantum Eigensolver)
 
-Milimo Quantum includes a full VQE implementation with Qiskit 2.x Aer simulation:
+Full VQE implementation with Qiskit 2.x Aer simulation:
 
 ### Features
-- **Real Quantum Simulation**: Not a mock - uses Qiskit Aer statevector backend
-- **Multiple Ansätze**: RealAmplitudes, EfficientSU2, TwoLocal variants
-- **Optimizers**: SPSA, COBYLA, L-BFGS-B, SLSQP
-- **Meyer-Wallach Entanglement**: Built-in metric for circuit expressivity
-- **Async Execution**: Celery task queue for heavy VQE jobs
+- **Real Quantum Simulation**: Qiskit Aer statevector/MPS backends
+- **Molecular Hamiltonians**: H2, LiH, BeH2, custom molecules
+- **Multiple Ansätze**: RealAmplitudes, EfficientSU2, TwoLocal, hardware-efficient
+- **Optimizers**: SPSA, COBYLA, L-BFGS-B, SLSQP, Nelder-Mead
+- **Meyer-Wallach Entanglement**: Circuit expressivity metric
+- **Async Execution**: Celery task queue for long-running jobs
 
-### Quick VQE Test
+### API Endpoints
 ```bash
-# Via API
+# Run VQE for H2 molecule
 curl -X POST http://localhost:8000/api/autoresearch/vqe \
   -H "Content-Type: application/json" \
   -d '{"hamiltonian": "h2", "ansatz_type": "real_amplitudes", "optimizer_maxiter": 100}'
 
-# Via Celery (async)
-python -c "
-from app.worker.tasks import run_vqe_qiskit
-result = run_vqe_qiskit.delay(hamiltonian='h2', optimizer='cobyla', optimizer_maxiter=50)
-print(f'Task ID: {result.id}')
-print(result.get(timeout=120))
-"
+# Async VQE via Celery
+curl -X POST http://localhost:8000/api/autoresearch/vqe/async \
+  -H "Content-Type: application/json" \
+  -d '{"hamiltonian": "lih", "optimizer": "cobyla"}'
+
+# Check task status
+curl http://localhost:8000/api/workflows/task/{task_id}
 ```
 
-### VQE Frontend Panel
-Access the VQE UI from the Quantum Dashboard (⚛️ button) → VQE panel for interactive configuration.
+---
+
+## 🔬 Quantum Modules (25 modules)
+
+| Module | Description |
+|--------|-------------|
+| `executor.py` | Main quantum circuit execution engine |
+| `vqe_executor.py` | VQE-specific execution with convergence tracking |
+| `qaoa_executor.py` | QAOA optimization for combinatorial problems |
+| `hal.py` | Hardware Abstraction Layer for platform detection |
+| `sandbox.py` | Secure Python code execution with AST validation |
+| `benchmarking.py` | CLOPS and Quantum Volume benchmarks |
+| `ibm_runtime.py` | IBM Quantum backend integration |
+| `dwave_provider.py` | D-Wave annealing integration |
+| `braket_provider.py` | Amazon Braket integration |
+| `azure_provider.py` | Azure Quantum integration |
+| `cudaq_provider.py` | CUDA-Q (Linux x86_64 only) |
+| `qrng.py` | Quantum Random Number Generator |
+
+---
+
+## 🤖 Agent Network (20 agents)
+
+| Agent | Domain | Capabilities |
+|-------|--------|--------------|
+| `orchestrator` | General | Primary routing, intent classification |
+| `code` | Quantum Code | Qiskit/Cirq/PennyLane generation |
+| `research` | Education | arXiv search, paper summarization |
+| `chemistry` | Molecular | VQE, molecular simulation (MQDD) |
+| `finance` | Optimization | Portfolio optimization, Monte Carlo |
+| `optimization` | Combinatorial | QAOA, Max-Cut, TSP |
+| `qml` | Machine Learning | QNN, QSVM, quantum kernels |
+| `crypto` | Security | QKD, QRNG, post-quantum crypto |
+| `climate` | Materials | Battery research, carbon capture |
+| `planning` | Workflows | Multi-step decomposition |
+| `qgi` | Graph Intelligence | Memory retrieval, concept linking |
+| `sensing` | Metrology | NV-centers, quantum sensors |
+| `networking` | Communication | Quantum internet, teleportation |
+| `dwave` | Annealing | QUBO, Ising models |
+| `benchmarking` | Performance | Quantum Volume, CLOPS |
+| `fault_tolerance` | Error Correction | Surface codes, QEC |
 
 ---
 
 ## 🔐 NemoClaw Sandbox
 
-NemoClaw provides OS-level sandboxing for autonomous code execution.
+OS-level sandboxing for autonomous code execution:
 
 ### Installation
-
 ```bash
-# Official installation script from NVIDIA
+# Official NVIDIA installation
 curl -fsSL https://nvidia.com/nemoclaw.sh | bash
 
-# Setup (will prompt for NVIDIA API key)
+# Setup (prompts for NVIDIA API key)
 nemoclaw setup
 ```
 
 ### Features
 - Network whitelist (HuggingFace, arXiv, PubMed, local services)
-- Filesystem isolation with read/write boundaries
+- Filesystem isolation (read-only system, blocked secrets)
 - Resource limits (CPU, memory, process count)
 - Audit logging for security events
 
-### Quick Start
+### Usage
 ```bash
-# Check NemoClaw status
+# List sandboxes
 nemoclaw list
 
-# Run experiment in sandbox
+# Run experiment
 cd autoresearch-mlx/nemoclaw/orchestrator
-python runner.py apply --experiment test
+python runner.py run --experiment test
 ```
 
-> **Note:** If NemoClaw is not installed, the system automatically uses simulation mode (direct subprocess execution without OS-level isolation).
+> **Note:** Without NemoClaw, the system uses simulation mode (direct subprocess execution).
+
+---
+
+## 📊 Test Coverage
+
+```bash
+# Run all tests
+cd backend
+pytest tests/ -v
+
+# Run specific test categories
+pytest tests/test_quantum_stack.py -v      # Quantum execution
+pytest tests/test_autoresearch_extension.py -v  # Autoresearch
+pytest tests/test_mqdd_extension.py -v     # Drug discovery
+pytest tests/test_workflows.py -v          # Async workflows
+```
+
+**Total: 168 tests across 16 test files**
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [ARCHITECTURE_DATA_FLOW.md](docs/ARCHITECTURE_DATA_FLOW.md) | System architecture with 16 Mermaid diagrams |
+| [DATA_MODEL_STRUCTURE.md](docs/DATA_MODEL_STRUCTURE.md) | Complete data model reference |
+| [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) | Code quality audit and fixes |
+| [MILIMO_QUANTUM_SYSTEM.md](docs/MILIMO_QUANTUM_SYSTEM.md) | Comprehensive system overview |
 
 ---
 
