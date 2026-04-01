@@ -29,7 +29,7 @@
 
 ## ✨ Key Features
 
-- 🧠 **20+ Specialized Agents**: Orchestrator, Code, Research, Chemistry, Finance, Optimization, QML, Climate, QGI, Sensing, Networking, D-Wave, Benchmarking, Fault Tolerance, and more
+- 🧠 **17 Specialized Agents**: Orchestrator, Code, Research, Chemistry, Finance, Optimization, Crypto, QML, Climate, Planning, QGI, Sensing, Networking, D-Wave, Benchmarking, Fault Tolerance, Autoresearch Analyzer
 - 🧬 **MQDD (Drug Discovery)**: VQE-based molecular simulation with ADMET predictions and molecular docking
 - 🔬 **Autoresearch-MLX**: Self-improving research loops with MLX training and NemoClaw sandboxing
 - ⚡ **Quantum Execution Engine**: Qiskit 2.x Aer simulation, IBM Quantum, D-Wave, Amazon Braket, Azure Quantum
@@ -191,7 +191,7 @@ curl http://localhost:8000/api/workflows/task/{task_id}
 
 ---
 
-## 🤖 Agent Network (20 agents)
+## 🤖 Agent Network (17 agents)
 
 | Agent | Domain | Capabilities |
 |-------|--------|--------------|
@@ -201,8 +201,8 @@ curl http://localhost:8000/api/workflows/task/{task_id}
 | `chemistry` | Molecular | VQE, molecular simulation (MQDD) |
 | `finance` | Optimization | Portfolio optimization, Monte Carlo |
 | `optimization` | Combinatorial | QAOA, Max-Cut, TSP |
-| `qml` | Machine Learning | QNN, QSVM, quantum kernels |
 | `crypto` | Security | QKD, QRNG, post-quantum crypto |
+| `qml` | Machine Learning | QNN, QSVM, quantum kernels |
 | `climate` | Materials | Battery research, carbon capture |
 | `planning` | Workflows | Multi-step decomposition |
 | `qgi` | Graph Intelligence | Memory retrieval, concept linking |
@@ -211,6 +211,7 @@ curl http://localhost:8000/api/workflows/task/{task_id}
 | `dwave` | Annealing | QUBO, Ising models |
 | `benchmarking` | Performance | Quantum Volume, CLOPS |
 | `fault_tolerance` | Error Correction | Surface codes, QEC |
+| `autoresearch_analyzer` | ML Training | Results analysis, optimization suggestions |
 
 ---
 
