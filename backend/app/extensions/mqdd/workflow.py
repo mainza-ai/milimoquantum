@@ -48,12 +48,12 @@ async def run_full_workflow(prompt: str, conversation_id: str | None = None, bas
         lit_summary = " ".join([r.summary for r in lit_results])
         yield format_sse("status", {"agent": "LITERATURE", "status": "DONE", "message": f"Literature review complete. Found {len(lit_results)} citations."})
 
-    # 2. Molecular Design Agent
-    yield format_sse("status", {"agent": "MOLECULAR_DESIGN", "status": "WORKING", "message": "Generating candidates..."})
-    design_context = f"{prompt}. Protein Target: {pdb_str}. Literature context: {lit_summary}"
-    # Don't pass raw prompt to similarity search - it expects SMILES, not natural language
-    # LLM will generate candidates from context
-    candidates = await agents.run_molecular_design(design_context, count=3, target_query="")
+        # 2. Molecular Design Agent
+        yield format_sse("status", {"agent": "MOLECULAR_DESIGN", "status": "WORKING", "message": "Generating candidates..."})
+        design_context = f"{prompt}. Protein Target: {pdb_str}. Literature context: {lit_summary}"
+        # Don't pass raw prompt to similarity search - it expects SMILES, not natural language
+        # LLM will generate candidates from context
+        candidates = await agents.run_molecular_design(design_context, count=3, target_query="")
         result.molecules = candidates
         yield format_sse("status", {"agent": "MOLECULAR_DESIGN", "status": "DONE", "message": f"{len(candidates)} candidates generated (including library hits)."})
 
