@@ -138,6 +138,16 @@ def estimate_resources(
     physical_per_logical = 2 * (distance**2)
     total_physical_qubits = logical_qubits * physical_per_logical
 
+    # 4. Calculate runtime estimate
+    # Assume: 1 microsecond per surface code cycle
+    # T-gate depth = logical_gates * distance^2 (distillation overhead)
+    cycle_time_us = 1.0
+    t_gate_depth = logical_gates * (distance ** 2)
+    total_cycles = t_gate_depth
+    
+    runtime_hours = (total_cycles * cycle_time_us) / (3.6e9)  # Convert microseconds to hours
+    runtime_days = runtime_hours / 24  # Convert hours to days
+
     return {
         "algorithm": algorithm,
         "problem_size": problem_size,
@@ -148,6 +158,8 @@ def estimate_resources(
         "total_physical_qubits": total_physical_qubits,
         "physical_error_rate": physical_error_rate,
         "target_logical_error": f"{target_logical_error:.2e}",
+        "runtime_hours": round(runtime_hours, 2),
+        "runtime_days": round(runtime_days, 3),  # ADDED: Frontend expects this
     }
 
 

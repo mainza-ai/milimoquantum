@@ -453,14 +453,215 @@ export interface VQEResult {
 }
 
 export async function runVQE(params: VQERequest): Promise<VQEResult> {
-  const res = await fetchWithAuth(`${API_BASE}/autoresearch/vqe`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail || 'VQE execution failed');
-  }
-  return res.json();
+    const res = await fetchWithAuth(`${API_BASE}/autoresearch/vqe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'VQE execution failed');
+    }
+    return res.json();
+}
+
+// ── Workflow Endpoints ───────────────────────────────────
+
+export async function submitWorkflow(workflow: {
+    name: string;
+    nodes: { id: string; type: string; params: Record<string, any> }[];
+    edges: { from: string; to: string }[];
+}) {
+    const res = await fetchWithAuth(`${API_BASE}/workflows/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(workflow),
+    });
+    return res.json();
+}
+
+export async function getTaskStatus(taskId: string) {
+    const res = await fetchWithAuth(`${API_BASE}/workflows/task/${taskId}`);
+    return res.json();
+}
+
+// ── HPC Endpoints ────────────────────────────────────────
+
+export async function getHPCStatus() {
+    const res = await fetchWithAuth(`${API_BASE}/hpc/status`);
+    return res.json();
+}
+
+export async function submitHPCJob(job: {
+    name: string;
+    script: string;
+    cores?: number;
+    memory?: string;
+}) {
+    const res = await fetchWithAuth(`${API_BASE}/hpc/jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(job),
+    });
+    return res.json();
+}
+
+export async function getHPCJobStatus(jobId: string) {
+    const res = await fetchWithAuth(`${API_BASE}/hpc/jobs/${jobId}`);
+    return res.json();
+}
+
+// ── Semantic Search ──────────────────────────────────────
+
+export async function semanticSearch(query: string, projectId?: string) {
+    const params = new URLSearchParams({ query });
+    if (projectId) params.append('project_id', projectId);
+    const res = await fetchWithAuth(`${API_BASE}/search/?${params}`);
+    return res.json();
+}
+
+export async function reindexSearch(projectId?: string) {
+    const params = projectId ? `?project_id=${projectId}` : '';
+    const res = await fetchWithAuth(`${API_BASE}/search/reindex${params}`, {
+        method: 'POST',
+    });
+    return res.json();
+}
+
+// ── Experiments ───────────────────────────────────────────
+
+export async function getExperimentProjects() {
+    const res = await fetchWithAuth(`${API_BASE}/experiments/projects`);
+    return res.json();
+}
+
+export async function getExperimentRuns(project: string) {
+    const res = await fetchWithAuth(`${API_BASE}/experiments/runs/${encodeURIComponent(project)}`);
+    return res.json();
+}
+
+export async function logExperiment(params: {
+    project: string;
+    run_id: string;
+    metrics: Record<string, number>;
+    params?: Record<string, any>;
+}) {
+    const res = await fetchWithAuth(`${API_BASE}/experiments/log`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+    });
+    return res.json();
+}
+
+// ── Stim QEC Simulations ─────────────────────────────────
+
+export async function runStimDecode(params: {
+    distance: number;
+    rounds: number;
+    noise_rate: number;
+    shots?: number;
+}) {
+    const res = await fetchWithAuth(`${API_BASE}/quantum/stim/decode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...params, shots: params.shots || 1000 }),
+    });
+    return res.json();
+}
+
+export async function getStimCircuit(distance: number, rounds: number) {
+    const res = await fetchWithAuth(
+        `${API_BASE}/quantum/stim/circuit?distance=${distance}&rounds=${rounds}`
+    );
+    return res.json();
+}
+
+// ── PennyLane QML ─────────────────────────────────────────
+
+export async function runPennyLaneVQE(params: {
+    hamiltonian: string;
+    num_qubits: number;
+    layers: number;
+    steps: number;
+}) {
+    const res = await fetchWithAuth(`${API_BASE}/quantum/pennylane/vqe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+    });
+    return res.json();
+}
+
+export async function runPennyLaneClassifier(params: {
+    num_qubits: number;
+    layers: number;
+    data_points: number;
+}) {
+    const res = await fetchWithAuth(`${API_BASE}/quantum/pennylane/classifier`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+    });
+    return res.json();
+}
+
+// ── Collaboration ────────────────────────────────────────
+
+export async function shareProject(projectId: string, expiresInDays: number = 7) {
+    const res = await fetchWithAuth(`${API_BASE}/collaboration/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: projectId, expires_in_days: expiresInDays }),
+    });
+    return res.json();
+}
+
+export async function getSharedItem(token: string) {
+    const res = await fetchWithAuth(`${API_BASE}/collaboration/shared/${token}`);
+    return res.json();
+}
+
+export async function getMyShares() {
+    const res = await fetchWithAuth(`${API_BASE}/collaboration/shares`);
+    return res.json();
+}
+
+export async function revokeShare(token: string) {
+    const res = await fetchWithAuth(`${API_BASE}/collaboration/shared/${token}`, {
+        method: 'DELETE',
+    });
+    return res.json();
+}
+
+// ── Export ────────────────────────────────────────────────
+
+export async function exportConversation(conversationId: string, format: 'json' | 'csv' = 'json') {
+    const res = await fetchWithAuth(
+        `${API_BASE}/export/conversations/${conversationId}?format=${format}`
+    );
+    return res.json();
+}
+
+// ── Jobs ──────────────────────────────────────────────────
+
+export async function executeCode(code: string, language: string = 'python') {
+    const res = await fetchWithAuth(`${API_BASE}/jobs/execute-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, language }),
+    });
+    return res.json();
+}
+
+export async function getJobStatus(jobId: string) {
+    const res = await fetchWithAuth(`${API_BASE}/jobs/${jobId}/status`);
+    return res.json();
+}
+
+export async function cancelJob(jobId: string) {
+    const res = await fetchWithAuth(`${API_BASE}/jobs/${jobId}/cancel`, {
+        method: 'DELETE',
+    });
+    return res.json();
 }
