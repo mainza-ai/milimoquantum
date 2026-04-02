@@ -1,9 +1,34 @@
 import httpx
 import logging
 import json
+import re
 from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
+
+def is_valid_smiles_for_search(smiles: str) -> bool:
+    """Validate that input looks like a SMILES string before API call."""
+    if not smiles or not isinstance(smiles, str):
+        return False
+    smiles = smiles.strip()
+    # Exclude filenames, sentences, and PDB IDs
+    if '.pdb' in smiles.lower():
+        return False
+    if ' ' in smiles:
+        return False
+    if len(smiles) > 200:
+        return False
+    if len(smiles) < 2:
+        return False
+    # SMILES should contain typical molecular notation
+    # Exclude text that looks like natural language
+    if re.match(r'^[A-Za-z]{3,}', smiles) and not any(c in smiles for c in '()[]=#@'):
+        # Looks like a word, not SMILES
+        return False
+    # Basic SMILES character check
+    if not re.match(r'^[A-Za-z0-9@\[\]\(\)\=\#\$\:\.\/\\+\-]+$', smiles):
+        return False
+    return True
 
 async def search_pdb_structures(query: str, limit: int = 5) -> List[str]:
     """
@@ -94,9 +119,14 @@ async def search_chemical_library(smiles: str, similarity_threshold: int = 70, l
     """
     Search ChEMBL for molecules similar to a SMILES string.
     """
+    # VALIDATION: Skip if not a valid SMILES
+    if not is_valid_smiles_for_search(smiles):
+        logger.warning(f"Skipping ChEMBL search: input is not a valid SMILES string: {smiles[:50] if smiles else 'None'}...")
+        return []
+
     # ChEMBL similarity search endpoint
     url = f"https://www.ebi.ac.uk/chembl/api/data/similarity/{smiles}/{similarity_threshold}.json"
-    
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, params={"limit": limit}, timeout=15.0)
@@ -104,7 +134,7 @@ async def search_chemical_library(smiles: str, similarity_threshold: int = 70, l
                 return []
             response.raise_for_status()
             data = response.json()
-            
+
             molecules = []
             for mol in data.get("molecules", []):
                 molecules.append({
