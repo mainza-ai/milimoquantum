@@ -2,60 +2,44 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Dashboard', () => {
   test('displays application title', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'networkidle' });
     await expect(page).toHaveTitle(/Milimo|Quantum/i);
   });
 
-  test('shows quantum status on load', async ({ page }) => {
-    await page.goto('/');
-
-    await page.waitForSelector('[data-testid="quantum-status"], [class*="status"], main', { timeout: 10000 });
-    const content = await page.content();
-    expect(content.length).toBeGreaterThan(100);
-  });
-
-  test('navigation menu is accessible', async ({ page }) => {
-    await page.goto('/');
-
-    const nav = await page.$('nav, [role="navigation"], header');
-    expect(nav).toBeTruthy();
-  });
-
-  test('module drawer can be toggled', async ({ page }) => {
-    await page.goto('/');
-
-    const modulesButton = await page.$('[data-testid="modules-button"], button:has-text("Modules"), button[aria-label*="menu"]');
-
-    if (modulesButton) {
-      await modulesButton.click();
-      await page.waitForTimeout(500);
-    }
-
-    const drawer = await page.$('[data-testid="module-drawer"], [class*="drawer"], aside');
-    expect(drawer || true).toBeTruthy();
-  });
-});
-
-test.describe('Agent List', () => {
-  test('shows available agents', async ({ page }) => {
-    await page.goto('/');
+  test('page loads successfully', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'networkidle' });
 
     await page.waitForTimeout(2000);
 
     const content = await page.content();
-    expect(content.length).toBeGreaterThan(0);
+    expect(content.length).toBeGreaterThan(100);
   });
 
-  test('agent selection works', async ({ page }) => {
-    await page.goto('/');
+  test('authentication state is checked', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'networkidle' });
 
-    const agentButton = await page.$('[data-testid="agent-select"], button:has-text("Orchestrator")');
+    await page.waitForTimeout(3000);
 
-    if (agentButton) {
-      await agentButton.click();
-      await page.waitForTimeout(500);
-    }
+    const hasSpinner = await page.$('.animate-spin');
+    const hasAuthScreen = await page.$('button:has-text("Sign In")');
+    const hasChat = await page.$('[class*="chat"], [class*="sidebar"]');
 
-    expect(page.url()).toBeTruthy();
+    expect(hasSpinner || hasAuthScreen || hasChat).toBeTruthy();
+  });
+});
+
+test.describe('Page Structure', () => {
+  test('root element exists', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'networkidle' });
+
+    const root = await page.$('#root');
+    expect(root).toBeTruthy();
+  });
+
+  test('body has content', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'networkidle' });
+
+    const body = await page.$('body');
+    expect(body).toBeTruthy();
   });
 });

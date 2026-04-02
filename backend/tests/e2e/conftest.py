@@ -20,15 +20,6 @@ NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "milimo123")
 
 
 @pytest.fixture(scope="session")
-def event_loop():
-    """Create event loop for async tests."""
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest.fixture(scope="session")
 def backend_url():
     """Backend URL from environment."""
     return BACKEND_URL
@@ -40,14 +31,14 @@ def frontend_url():
     return FRONTEND_URL
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def api_client(backend_url):
     """Async HTTP client for API testing."""
     async with httpx.AsyncClient(base_url=backend_url, timeout=60.0) as client:
         yield client
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def redis_client():
     """Redis client for cache testing."""
     try:
@@ -59,7 +50,7 @@ def redis_client():
         pytest.skip(f"Redis not available: {e}")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def neo4j_driver():
     """Neo4j driver for graph database testing."""
     try:
@@ -74,19 +65,13 @@ def neo4j_driver():
         pytest.skip(f"Neo4j not available: {e}")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def auth_token(api_client):
     """Get authentication token for protected endpoints."""
-    try:
-        response = await api_client.get("/api/health")
-        if response.status_code == 200:
-            return "Bearer test_token"
-    except Exception:
-        pass
     return "Bearer test_token"
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def authenticated_client(api_client, auth_token):
     """HTTP client with authentication headers."""
     api_client.headers["Authorization"] = auth_token
