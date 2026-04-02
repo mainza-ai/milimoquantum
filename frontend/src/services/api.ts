@@ -660,8 +660,122 @@ export async function getJobStatus(jobId: string) {
 }
 
 export async function cancelJob(jobId: string) {
-    const res = await fetchWithAuth(`${API_BASE}/jobs/${jobId}/cancel`, {
-        method: 'DELETE',
-    });
-    return res.json();
+  const res = await fetchWithAuth(`${API_BASE}/jobs/${jobId}/cancel`, {
+    method: 'DELETE',
+  });
+  return res.json();
+}
+
+// ── WebSocket Sync ──────────────────────────────────────────────
+
+export class SyncWebSocket {
+  private ws: WebSocket | null = null;
+  private clientId: string;
+  private token: string | null;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
+  private reconnectDelay = 1000;
+  private onMessage: ((data: any) => void) | null = null;
+  private onConnect: (() => void) | null = null;
+  private onDisconnect: (() => void) | null = null;
+
+  constructor(clientId?: string) {
+    this.clientId = clientId || `client_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    this.token = localStorage.getItem('mq_token');
+  }
+
+  connect(onMessage?: (data: any) => void, onConnect?: () => void, onDisconnect?: () => void) {
+    this.onMessage = onMessage || null;
+    this.onConnect = onConnect || null;
+    this.onDisconnect = onDisconnect || null;
+    this._connect();
+  }
+
+  private _connect() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}/sync/ws/${this.clientId}${this.token ? `?token=${this.token}` : ''}`;
+
+    try {
+      this.ws = new WebSocket(wsUrl);
+
+      this.ws.onopen = () => {
+        console.log(`[WebSocket] Connected as ${this.clientId}`);
+        this.reconnectAttempts = 0;
+        if (this.onConnect) this.onConnect();
+      };
+
+      this.ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (this.onMessage) this.onMessage(data);
+        } catch (e) {
+          console.error('[WebSocket] Failed to parse message:', e);
+        }
+      };
+
+      this.ws.onclose = (event) => {
+        console.log(`[WebSocket] Disconnected: ${event.code} ${event.reason}`);
+        if (this.onDisconnect) this.onDisconnect();
+        this._attemptReconnect();
+      };
+
+      this.ws.onerror = (error) => {
+        console.error('[WebSocket] Error:', error);
+      };
+    } catch (e) {
+      console.error('[WebSocket] Failed to connect:', e);
+      this._attemptReconnect();
+    }
+  }
+
+  private _attemptReconnect() {
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.reconnectAttempts++;
+      const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+      console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+      setTimeout(() => this._connect(), delay);
+    }
+  }
+
+  send(type: string, data?: any) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type, data }));
+    }
+  }
+
+  subscribeToJob(jobId: string) {
+    this.send('subscribe_job', { job_id: jobId });
+  }
+
+  ping() {
+    this.send('ping');
+  }
+
+  broadcast(data: any) {
+    this.send('broadcast', data);
+  }
+
+  disconnect() {
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+
+  isConnected() {
+    return this.ws && this.ws.readyState === WebSocket.OPEN;
+  }
+}
+
+// ── Cache Management ──────────────────────────────────────────────
+
+export async function getCacheStatus() {
+  const res = await fetchWithAuth(`${API_BASE}/cache/status`);
+  return res.json();
+}
+
+export async function clearCache() {
+  const res = await fetchWithAuth(`${API_BASE}/cache/clear`, { method: 'POST' });
+  return res.json();
 }

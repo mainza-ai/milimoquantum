@@ -42,6 +42,7 @@ from app.routes import jobs as jobs_routes
 from app.routes import qrng as qrng_routes
 from app.routes import sync as sync_routes
 from app.routes import workflows as workflows_routes
+from app.routes import cache as cache_routes
 from app.auth import router as auth_router
 
 # Load Extensions
@@ -194,6 +195,7 @@ app.include_router(jobs_routes.router)
 app.include_router(sync_routes.router)
 app.include_router(qrng_routes.router)
 app.include_router(workflows_routes.router)
+app.include_router(cache_routes.router)
 app.include_router(auth_router)
 
 from app.extensions.mqdd.extension import mqdd_router
