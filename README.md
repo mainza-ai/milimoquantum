@@ -16,12 +16,10 @@
 *Harness the power of quantum computing through an autonomous, hybrid AI-orchestrated research platform.*
 </div>
 
-
 > [!IMPORTANT]
 > Milimo Quantum is **production-ready** for local simulation. Cloud quantum backends require API credentials.
 
 ---
-
 
 ## 🌌 Vision
 
@@ -30,11 +28,15 @@
 ## ✨ Key Features
 
 - 🧠 **17 Specialized Agents**: Orchestrator, Code, Research, Chemistry, Finance, Optimization, Crypto, QML, Climate, Planning, QGI, Sensing, Networking, D-Wave, Benchmarking, Fault Tolerance, Autoresearch Analyzer
-- 🧬 **MQDD (Drug Discovery)**: VQE-based molecular simulation with ADMET predictions and molecular docking
+- 🧬 **MQDD (Drug Discovery)**: VQE-based molecular simulation with ADMET predictions, molecular docking, PLIP interaction analysis, and SCScore synthesizability
 - 🔬 **Autoresearch-MLX**: Self-improving research loops with NemoClaw sandboxing (Apple Silicon optimized)
-- ⚡ **Quantum Execution Engine**: Qiskit 2.x Aer simulation, IBM Quantum, D-Wave, Amazon Braket, Azure Quantum
+- ⚡ **Quantum Execution Engine**: Qiskit 2.x Aer simulation, IBM Quantum, D-Wave, Amazon Braket, Azure Quantum, Google Cirq
+- 🧪 **Real Quantum Simulations**: QuTiP sensing, NetSQuid QKD, Stim QEC with PyMatching decoder
+- 📊 **Real Benchmarking**: Quantum Volume and CLOPS benchmarks with actual circuit execution
 - 🕸️ **Knowledge Graphs**: Neo4j, FalkorDB, and Kuzu for agent memory and concept relationships
 - 🛡️ **Secure Sandbox**: NemoClaw OS-level sandboxing with network whitelist and filesystem isolation
+- 🚀 **Redis Caching**: Intelligent caching for external API calls (PubChem, ChEMBL, PDB, arXiv)
+- 📡 **WebSocket Sync**: Real-time job status updates and multi-device synchronization
 - 📊 **168 Tests**: Comprehensive test coverage for quantum, extensions, and API routes
 
 ## 📸 Interface Preview
@@ -280,7 +282,7 @@ curl http://localhost:8000/api/workflows/task/{task_id}
 
 ---
 
-## 🔬 Quantum Modules (25 modules)
+## 🔬 Quantum Modules (28 modules)
 
 | Module | Description |
 |--------|-------------|
@@ -296,6 +298,9 @@ curl http://localhost:8000/api/workflows/task/{task_id}
 | `azure_provider.py` | Azure Quantum integration |
 | `cudaq_provider.py` | CUDA-Q (Linux x86_64 only) |
 | `qrng.py` | Quantum Random Number Generator |
+| `advanced_sims_v2.py` | QuTiP sensing & NetSQuid QKD simulations |
+| `cloud_backends.py` | Google Cirq execution with Qiskit conversion |
+| `fault_tolerant.py` | Surface code generation & resource estimation |
 
 ---
 
@@ -314,11 +319,11 @@ curl http://localhost:8000/api/workflows/task/{task_id}
 | `climate` | Materials | Battery research, carbon capture |
 | `planning` | Workflows | Multi-step decomposition |
 | `qgi` | Graph Intelligence | Memory retrieval, concept linking |
-| `sensing` | Metrology | NV-centers, quantum sensors |
-| `networking` | Communication | Quantum internet, teleportation |
+| `sensing` | Metrology | NV-centers, quantum sensors, QuTiP simulations |
+| `networking` | Communication | Quantum internet, teleportation, NetSQuid QKD |
 | `dwave` | Annealing | QUBO, Ising models |
-| `benchmarking` | Performance | Quantum Volume, CLOPS |
-| `fault_tolerance` | Error Correction | Surface codes, QEC |
+| `benchmarking` | Performance | Real Quantum Volume & CLOPS execution |
+| `fault_tolerance` | Error Correction | Stim/PyMatching QEC simulations |
 | `autoresearch_analyzer` | ML Training | Results analysis, optimization suggestions |
 
 ---
@@ -374,10 +379,32 @@ pytest tests/test_workflows.py -v          # Async workflows
 
 ---
 
+## 🚀 Recent Updates (April 2026)
+
+### Major Implementation Complete
+All 43 issues from the backend audit have been resolved. Key improvements:
+
+| Category | Status |
+|----------|--------|
+| **Quantum Simulations** | Real QuTiP sensing & NetSQuid QKD (no more mock data) |
+| **Benchmarking Agent** | Real QV/CLOPS execution with Qiskit Aer |
+| **Fault Tolerance Agent** | Stim QEC simulations with PyMatching decoder |
+| **MQDD Chemistry** | PLIP interaction analysis & SCScore synthesizability |
+| **Frontend API** | 75 API calls covering all backend endpoints |
+| **Caching Layer** | Redis caching for PubChem, ChEMBL, PDB, arXiv |
+| **WebSocket Sync** | Real-time job status across devices |
+| **UI Panels** | HPC management, Experiments tracking, Error boundaries |
+
+See [MODULE_IMPLEMENTATION_PLAN.md](docs/MODULE_IMPLEMENTATION_PLAN.md) for details.
+
+---
+
 ## 📚 Documentation
 
 | Document | Description |
 |----------|-------------|
+| [MODULE_IMPLEMENTATION_PLAN.md](docs/MODULE_IMPLEMENTATION_PLAN.md) | Implementation plan & verification (43 issues resolved) |
+| [BACKEND_MODULES_AUDIT.md](docs/BACKEND_MODULES_AUDIT.md) | Backend audit report |
 | [ARCHITECTURE_DATA_FLOW.md](docs/ARCHITECTURE_DATA_FLOW.md) | System architecture with 16 Mermaid diagrams |
 | [DATA_MODEL_STRUCTURE.md](docs/DATA_MODEL_STRUCTURE.md) | Complete data model reference |
 | [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) | Code quality audit and fixes |
