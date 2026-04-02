@@ -14,6 +14,7 @@ import { registerHPCExtension } from './extensions/hpc'
 import { registerWorkflowExtension } from './extensions/workflow'
 import { registerAuditExtension } from './extensions/audit'
 import { registerGraphExtension } from './extensions/graph'
+import { registerExperimentsExtension } from './extensions/experiments'
 
 // Register all extensions
 registerCorePlugins()
@@ -23,6 +24,7 @@ registerHPCExtension()
 registerWorkflowExtension()
 registerAuditExtension()
 registerGraphExtension()
+registerExperimentsExtension()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
