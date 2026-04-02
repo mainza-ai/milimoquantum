@@ -5,15 +5,16 @@ import { fetchQRNG } from '../../services/api';
 export function QRNGPanel() {
     const [bits, setBits] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
-    const [entropy, setEntropy] = useState(0.9998);
+    const [quantumCertified, setQuantumCertified] = useState(false);
+    const [length, setLength] = useState(256);
 
     const fetchEntropy = async () => {
         setLoading(true);
         try {
-            const data = await fetchQRNG(256);
+            const data = await fetchQRNG(length);
             if (data.data) {
                 setBits(data.data);
-                setEntropy(0.999 + Math.random() * 0.0009);
+                setQuantumCertified(data.quantum_certified || false);
             }
         } finally {
             setLoading(false);
@@ -25,19 +26,28 @@ export function QRNGPanel() {
             <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium text-gray-300">🎲 Quantum Randomness (QRNG)</h3>
                 <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[10px] text-green-400 font-mono">LIVE ENTROPY</span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${quantumCertified ? 'bg-green-500' : 'bg-yellow-500'} animate-pulse`} />
+                    <span className="text-[10px] text-green-400 font-mono">
+                        {quantumCertified ? 'QUANTUM CERTIFIED' : 'CLASSICAL SIMULATION'}
+                    </span>
                 </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div className="bg-black/20 rounded-lg p-3 border border-white/5">
                     <div className="text-[10px] text-gray-500 uppercase mb-1">Source</div>
-                    <div className="text-xs text-white font-medium">Qiskit Aer (Monte Carlo)</div>
+                    <div className="text-xs text-white font-medium">
+                        {quantumCertified ? 'Qiskit Aer (Quantum)' : 'Qiskit Aer (Monte Carlo)'}
+                    </div>
                 </div>
                 <div className="bg-black/20 rounded-lg p-3 border border-white/5">
-                    <div className="text-[10px] text-gray-500 uppercase mb-1">Shannon Entropy</div>
-                    <div className="text-xs text-cyan-400 font-mono">{entropy.toFixed(4)}</div>
+                    <div className="text-[10px] text-gray-500 uppercase mb-1">Bit Length</div>
+                    <input
+                        type="number"
+                        value={length}
+                        onChange={(e) => setLength(Math.min(10000, Math.max(1, parseInt(e.target.value) || 1)))}
+                        className="w-full bg-transparent text-xs text-cyan-400 font-mono focus:outline-none"
+                    />
                 </div>
             </div>
 
@@ -46,7 +56,7 @@ export function QRNGPanel() {
                 disabled={loading}
                 className="w-full py-2 bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/20 text-white rounded-lg text-xs font-medium transition-all cursor-pointer disabled:opacity-50"
             >
-                {loading ? 'Harvesting Entropy...' : 'Generate 256-bit Quantum Seed'}
+                {loading ? 'Harvesting Entropy...' : `Generate ${length}-bit Quantum Seed`}
             </button>
 
             {bits && (

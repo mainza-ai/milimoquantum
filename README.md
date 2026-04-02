@@ -25,13 +25,13 @@
 
 ## 🌌 Vision
 
-**Milimo Quantum** is a **Hybrid Research OS** that bridges natural language intent with quantum computing execution. By uniting **Qiskit 2.x** with a sophisticated multi-agent network, it enables autonomous scientific discovery across IBM Quantum, D-Wave, and Amazon Braket, powered by local-first inference on Apple Silicon.
+**Milimo Quantum** is a **Hybrid Research OS** that bridges natural language intent with quantum computing execution. By uniting **Qiskit 2.x** with a sophisticated multi-agent network, it enables autonomous scientific discovery across IBM Quantum, D-Wave, and Amazon Braket.
 
 ## ✨ Key Features
 
 - 🧠 **17 Specialized Agents**: Orchestrator, Code, Research, Chemistry, Finance, Optimization, Crypto, QML, Climate, Planning, QGI, Sensing, Networking, D-Wave, Benchmarking, Fault Tolerance, Autoresearch Analyzer
 - 🧬 **MQDD (Drug Discovery)**: VQE-based molecular simulation with ADMET predictions and molecular docking
-- 🔬 **Autoresearch-MLX**: Self-improving research loops with MLX training and NemoClaw sandboxing
+- 🔬 **Autoresearch-MLX**: Self-improving research loops with NemoClaw sandboxing (Apple Silicon optimized)
 - ⚡ **Quantum Execution Engine**: Qiskit 2.x Aer simulation, IBM Quantum, D-Wave, Amazon Braket, Azure Quantum
 - 🕸️ **Knowledge Graphs**: Neo4j, FalkorDB, and Kuzu for agent memory and concept relationships
 - 🛡️ **Secure Sandbox**: NemoClaw OS-level sandboxing with network whitelist and filesystem isolation
@@ -68,7 +68,7 @@
 | --- | --- | --- |
 | **Frontend** | React 19 dashboard with VQE panel, circuit visualizer, extension panels | `/frontend` |
 | **Backend** | FastAPI 0.115+ with 24 route modules, Celery/Redis async tasks | `/backend` |
-| **Quantum** | 25 quantum modules (executor, VQE, QAOA, QAOA, HAL, sandbox) | `/backend/app/quantum` |
+| **Quantum** | 25 quantum modules (executor, VQE, QAOA, HAL, sandbox) | `/backend/app/quantum` |
 | **Agents** | 20 specialized agent implementations | `/backend/app/agents` |
 | **Extensions** | MQDD (drug discovery), Autoresearch (ML training) | `/backend/app/extensions` |
 | **Research Engine** | MLX training, VQE optimization, NemoClaw sandbox | `/autoresearch-mlx` |
@@ -94,72 +94,159 @@
 
 ### Prerequisites
 
-- **Python 3.12+** (3.14 recommended for Apple Silicon)
-- **Node.js 18+**
-- **Docker & Docker Compose**
-- **Apple Silicon Mac** (for MLX-native features)
+| Requirement | Notes |
+|-------------|-------|
+| **Python 3.12+** | 3.14 recommended for Apple Silicon |
+| **Node.js 18+** | For frontend development |
+| **Docker & Docker Compose** | For infrastructure services |
+| **(Optional) Apple Silicon Mac** | Required only for MLX-native LLM inference |
+
+> [!NOTE]
+> **Apple Silicon is NOT required.** Milimo Quantum supports multiple LLM backends:
+> - **MLX** — Apple Silicon native (requires M-series Mac)
+> - **Ollama** — Local inference (works on any platform)
+> - **OpenAI, Anthropic, Google** — Cloud providers (API key required)
+> - **NVIDIA NIM** — Cloud inference (API key required)
+
+---
 
 ### Quick Start
 
 #### 1. Clone and Setup
+
 ```bash
 git clone https://github.com/mainza-ai/milimoquantum.git
 cd milimoquantum
 ```
 
 #### 2. Configure Environment
+
 ```bash
 # Copy example environment file
 cp .env.example .env
-# Edit .env with your settings (API keys, database passwords, etc.)
+
+# Edit .env with your settings
+# Set LLM_BACKEND to your preferred option: mlx, ollama, openai, anthropic, google
 ```
 
-##### Cloud AI Providers
-Milimo Quantum supports multiple cloud LLM providers. Set any of these in your `.env`:
+#### 3. Choose Your Startup Mode
+
+---
+
+##### Option A: Full Docker (Recommended for most users)
+
+Runs everything in containers including the backend. Works on any platform.
+
 ```bash
-# OpenAI
-OPENAI_API_KEY=sk-...
+# Start all services
+./start-docker.sh
 
-# Anthropic Claude
-ANTHROPIC_API_KEY=sk-ant-...
-
-# Google Gemini
-GOOGLE_API_KEY=AIza...
-
-# OpenRouter (access to 350+ models)
-OPENROUTER_API_KEY=sk-or-...
-
-# NVIDIA NIM (188+ optimized models)
-NVIDIA_API_KEY=nvapi-...
-```
-You can also configure providers and select models dynamically from the Settings UI (Settings → Cloud AI tab).
-
-#### 3. Start Infrastructure (Docker)
-```bash
-./start-docker-mlx.sh
-```
-This starts PostgreSQL, Redis, Neo4j, Keycloak, and the frontend.
-
-#### 4. Start Backend (Native for MLX)
-```bash
-./start-backend-mlx.sh
-```
-
-#### 5. Initialize Keycloak (First Run)
-```bash
+# Initialize Keycloak (first run only)
 ./setup-keycloak.sh
 ```
-Access at `http://localhost:8081` with `admin/admin`.
 
-#### 6. Access the Application
+Access the application:
 - **Frontend**: http://localhost:5173
 - **API Docs**: http://localhost:8000/docs
 - **Keycloak**: http://localhost:8081
 
-#### 7. Shut Down
+---
+
+##### Option B: Apple Silicon Native (Best performance on M-series Mac)
+
+Runs infrastructure in Docker, backend natively with MLX acceleration.
+
 ```bash
+# 1. Start infrastructure (Postgres, Redis, Neo4j, Keycloak, Frontend)
+./start-docker-mlx.sh
+
+# 2. Create Python virtual environment (first time only)
+cd backend
+python3 -m venv milimoenv
+source milimoenv/bin/activate
+pip install -r requirements.txt
+cd ..
+
+# 3. Start the native backend
+./start-backend-mlx.sh
+
+# 4. Initialize Keycloak (first run only)
+./setup-keycloak.sh
+```
+
+---
+
+##### Option C: With Ollama (Local inference on any platform)
+
+```bash
+# 1. Install Ollama (if not installed)
+# macOS: brew install ollama
+# Linux: curl -fsSL https://ollama.com/install.sh | sh
+
+# 2. Pull a model
+ollama pull llama3.2
+
+# 3. Start infrastructure
+./start-docker.sh
+
+# 4. Set LLM_BACKEND in .env
+# LLM_BACKEND=ollama
+
+# 5. Restart backend or use Settings UI to select Ollama
+```
+
+---
+
+#### 4. Configure LLM Provider
+
+Edit `.env` or use the Settings UI:
+
+```bash
+# Option 1: Apple Silicon MLX (requires M-series Mac)
+LLM_BACKEND=mlx
+
+# Option 2: Ollama (local, any platform)
+LLM_BACKEND=ollama
+OLLAMA_HOST=http://localhost:11434
+
+# Option 3: OpenAI (cloud)
+LLM_BACKEND=openai
+OPENAI_API_KEY=sk-...
+
+# Option 4: Anthropic Claude (cloud)
+LLM_BACKEND=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Option 5: Google Gemini (cloud)
+LLM_BACKEND=google
+GOOGLE_API_KEY=AIza...
+```
+
+---
+
+#### 5. Shut Down
+
+```bash
+# For Option A (Full Docker)
+./stop-docker.sh
+
+# For Option B (Apple Silicon Native)
 ./stop-backend-mlx.sh && ./stop-docker.sh
 ```
+
+---
+
+### Cloud AI Providers
+
+You can also configure providers dynamically from the **Settings UI** (Settings → Cloud AI tab):
+
+| Provider | Models Available | Setup |
+|----------|------------------|-------|
+| **OpenAI** | GPT-4o, GPT-4-turbo, GPT-3.5 | API key from [platform.openai.com](https://platform.openai.com/) |
+| **Anthropic** | Claude 3.5 Sonnet, Claude 3 Opus | API key from [console.anthropic.com](https://console.anthropic.com/) |
+| **Google** | Gemini 1.5 Pro, Gemini 1.5 Flash | API key from [aistudio.google.com](https://aistudio.google.com/) |
+| **OpenRouter** | 350+ models (Llama, Mistral, etc.) | API key from [openrouter.ai](https://openrouter.ai/) |
+| **NVIDIA NIM** | 188+ optimized models | API key from [build.nvidia.com](https://build.nvidia.com/) |
 
 ---
 
@@ -295,6 +382,7 @@ pytest tests/test_workflows.py -v          # Async workflows
 | [DATA_MODEL_STRUCTURE.md](docs/DATA_MODEL_STRUCTURE.md) | Complete data model reference |
 | [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) | Code quality audit and fixes |
 | [MILIMO_QUANTUM_SYSTEM.md](docs/MILIMO_QUANTUM_SYSTEM.md) | Comprehensive system overview |
+| [FRONTEND_REFACTOR_PLAN.md](docs/FRONTEND_REFACTOR_PLAN.md) | Frontend refactoring roadmap |
 
 ---
 

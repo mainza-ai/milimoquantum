@@ -5,7 +5,7 @@ import type { AgentType, HealthStatus } from '../../types';
 import { fetchHealth, fetchConversations, deleteConversation } from '../../services/api';
 import { useProject } from '../../contexts/ProjectContext';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
-import { extensionRegistry } from '../../extensions/registry';
+import { ModuleDrawer, ModuleDrawerToggle } from './ModuleDrawer';
 
 interface ConversationSummary {
     id: string;
@@ -56,6 +56,7 @@ export function Sidebar({
     const [health, setHealth] = useState<HealthStatus | null>(null);
     const [conversations, setConversations] = useState<ConversationSummary[]>([]);
     const [agentPickerOpen, setAgentPickerOpen] = useState(false);
+    const [moduleDrawerExpanded, setModuleDrawerExpanded] = useState(false);
     const pickerRef = useRef<HTMLDivElement>(null);
 
     const refreshConversations = useCallback(() => {
@@ -273,41 +274,53 @@ export function Sidebar({
                     </div>
 
                     {/* ── Footer ── */}
-                    <div className="px-3 py-3 border-t border-white/[0.04]">
+                    <div className="relative px-3 py-3 border-t border-white/[0.04]">
+                {/* Module Drawer (expandable) */}
+                <ModuleDrawer
+                    isExpanded={moduleDrawerExpanded}
+                />
+
                         {/* Status indicator */}
-                        <div className="flex items-center gap-2 px-2 mb-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${isHealthy ? 'bg-[#34d399]' : 'bg-[#636370]'}`}
-                                style={isHealthy ? { boxShadow: '0 0 6px rgba(52,211,153,0.4)' } : {}}
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 px-2">
+                                <div className={`w-1.5 h-1.5 rounded-full ${isHealthy ? 'bg-[#34d399]' : 'bg-[#636370]'}`}
+                                    style={isHealthy ? { boxShadow: '0 0 6px rgba(52,211,153,0.4)' } : {}}
+                                />
+                                <span className="text-[11px] text-[#505060]">
+                                    {isHealthy ? 'Connected' : 'Offline'}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Module drawer toggle */}
+                        <ModuleDrawerToggle
+                            isExpanded={moduleDrawerExpanded}
+                            onClick={() => setModuleDrawerExpanded(!moduleDrawerExpanded)}
+                        />
+
+                        {/* Quick access: Top 2 pinned extensions (always visible) */}
+                        <div className="flex items-center gap-1.5 mt-2">
+                            <QuickAccessButton
+                                id="mqdd"
+                                onClick={() => openExtension('mqdd')}
                             />
-                            <span className="text-[11px] text-[#505060]">
-                                {isHealthy ? 'Connected' : 'Offline'}
-                            </span>
+                            <QuickAccessButton
+                                id="autoresearch"
+                                onClick={() => openExtension('autoresearch')}
+                            />
+                            <button
+                                onClick={() => openExtension('settings')}
+                                title="Settings"
+                                className="flex-1 py-2 rounded-lg text-[12px]
+                                    text-[#636370] hover:text-[#8a8a9a] hover:bg-white/[0.04]
+                                    transition-all duration-150 flex items-center justify-center cursor-pointer"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </button>
                         </div>
-
-                        {/* Quick access icons */}
-                        <div className="flex items-center gap-0.5 mb-1">
-                            {['mqdd', 'autoresearch', 'search', 'analytics', 'projects', 'dashboard', 'academy', 'marketplace'].map(id => {
-                                const ext = extensionRegistry.get(id);
-                                if (!ext) return null;
-                                return (
-                                    <FooterButton key={id} icon={ext.icon} label={ext.name} onClick={() => openExtension(id)} />
-                                );
-                            })}
-                        </div>
-
-                        {/* Settings */}
-                        <button
-                            onClick={() => openExtension('settings')}
-                            className="w-full py-2 px-3 rounded-lg text-[12px]
-                                text-[#8a8a9a] hover:text-[#c0c0d0] hover:bg-white/[0.04]
-                                transition-all duration-150 flex items-center gap-2.5 cursor-pointer"
-                        >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            Settings
-                        </button>
                     </div>
                 </div>
             )}
@@ -315,16 +328,39 @@ export function Sidebar({
     );
 }
 
-function FooterButton({ icon, label, onClick }: { icon: string; label: string; onClick?: () => void }) {
+function QuickAccessButton({ id, onClick }: { id: string; onClick?: () => void }) {
+    const [isActive, setIsActive] = useState(false);
+    const { activeExtensions } = useWorkspace();
+
+    useEffect(() => {
+        setIsActive(activeExtensions.some(e => e.extensionId === id && e.isOpen));
+    }, [activeExtensions, id]);
+
+    const icons: Record<string, string> = {
+        mqdd: '🧬',
+        autoresearch: '🚀',
+    };
+
+    const labels: Record<string, string> = {
+        mqdd: 'Drug Discovery',
+        autoresearch: 'Autoresearch',
+    };
+
     return (
         <button
             onClick={onClick}
-            title={label}
-            className="flex-1 py-1.5 rounded-md text-[13px]
-                text-[#505060] hover:text-[#8a8a9a] hover:bg-white/[0.04]
-                transition-all duration-150 flex items-center justify-center cursor-pointer"
+            title={labels[id] || id}
+            className={`
+                flex-1 py-2 rounded-lg text-[11px]
+                flex items-center justify-center gap-1 cursor-pointer
+                transition-all duration-150
+                ${isActive
+                    ? 'bg-[#3ecfef]/10 text-[#3ecfef] border border-[#3ecfef]/20'
+                    : 'text-[#636370] hover:text-[#8a8a9a] hover:bg-white/[0.04]'
+                }
+            `}
         >
-            {icon}
+            <span className="text-[13px]">{icons[id] || '📦'}</span>
         </button>
     );
 }

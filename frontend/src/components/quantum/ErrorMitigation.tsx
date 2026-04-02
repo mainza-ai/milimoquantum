@@ -63,22 +63,34 @@ export function ErrorMitigation({ circuitName }: { circuitName?: string }) {
                         {loading ? 'Mitigating Noise...' : `Run ${circuitName} with Mitigation`}
                     </button>
 
-                    {result && (
-                        <div className="mt-4 p-3 bg-black/20 border border-purple-500/10 rounded-lg animate-in fade-in zoom-in-95 duration-300">
-                            <div className="text-[10px] text-gray-500 uppercase mb-2">Improvement vs Raw</div>
-                            <div className="flex items-center gap-3">
-                                <div className="flex-1 space-y-1">
-                                    <div className="flex justify-between text-[10px]">
-                                        <span className="text-gray-400">Fidelity</span>
-                                        <span className="text-green-400">+12.4%</span>
-                                    </div>
-                                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                        <div className="h-full bg-green-500/40" style={{ width: '88%' }} />
-                                    </div>
-                                </div>
-                            </div>
+        {result && (
+            <div className="mt-4 p-3 bg-black/20 border border-purple-500/10 rounded-lg animate-in fade-in zoom-in-95 duration-300">
+                <div className="text-[10px] text-gray-500 uppercase mb-2">Improvement vs Raw</div>
+                <div className="flex items-center gap-3">
+                    <div className="flex-1 space-y-1">
+                        <div className="flex justify-between text-[10px]">
+                            <span className="text-gray-400">Fidelity</span>
+                            <span className="text-green-400">
+                                {result.improvement !== undefined
+                                    ? `+${(result.improvement * 100).toFixed(1)}%`
+                                    : 'N/A'}
+                            </span>
                         </div>
-                    )}
+                        <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-green-500/40"
+                                style={{ width: result.improvement ? `${Math.min(result.improvement * 100, 100)}%` : '0%' }}
+                            />
+                        </div>
+                    </div>
+                </div>
+                {result.mitigated_value !== undefined && (
+                    <div className="mt-2 text-[10px] text-gray-400">
+                        Mitigated value: <span className="text-purple-300 font-mono">{result.mitigated_value.toFixed(6)}</span>
+                    </div>
+                )}
+            </div>
+        )}
                 </div>
             )}
         </div>
