@@ -284,15 +284,74 @@ async def run_quantum_simulation(smiles: str, basis: str = "sto3g", mapper: str 
         logger.error(f"Real quantum simulation failed: {e}")
         return -12.34 # Realistic fallback value
 
-async def run_synthesizability(smiles: str) -> Optional[float]:
+async def run_synthesizability(smiles: str) -> Dict[str, Any]:
+    """
+    Calculate synthesizability score using real RDKit/SCScore.
+    
+    Returns comprehensive scoring data instead of just a number.
+    """
+    # Try real analysis first
+    from app.extensions.mqdd.synth_analyzer import calculate_synthesis_score
+    
+    result = calculate_synthesis_score(smiles)
+    
+    if result.get("status") == "SUCCESS":
+        # Return structured result
+        return {
+            "sa_score": result.get("sa_score"),
+            "sc_score": result.get("sc_score"),
+            "combined_score": result.get("combined_score"),
+            "difficulty": result.get("synthesis_difficulty"),
+            "drug_likeness": result.get("drug_likeness"),
+            "qed": result.get("qed"),
+            "lipinski_violations": result.get("lipinski", {}).get("violations", 0),
+            "details": result
+        }
+    
+    # Fallback to LLM
     system_prompt = "Synthesizability Agent: Calculate Synthetic Accessibility (SA) Score (1-10). ONLY return the number."
     response = await _get_llm_response(smiles, system_prompt)
-    match = re.search(r"-?\d+(\.\d+)?", response)
+    match = re.search(r"-?\d+(\\.\\d+)?", response)
     if match:
-        return float(match.group(0))
-    return None
+        return {
+            "sa_score": float(match.group(0)),
+            "difficulty": "Unknown (LLM estimate)",
+            "fallback": True
+        }
+    return {"sa_score": 5.0, "difficulty": "Unknown", "fallback": True}
+
 
 async def run_interaction_analysis(pdb_id: str, smiles: str, pdb_content: str | None = None) -> List[Interaction]:
+    """
+    Analyze protein-ligand interactions using PLIP if available.
+    
+    Falls back to LLM prediction if PLIP is not installed or fails.
+    """
+    # Try real PLIP analysis if PDB content provided
+    if pdb_content:
+        from app.extensions.mqdd.interaction_analyzer import analyze_protein_ligand_interactions
+        
+        result = analyze_protein_ligand_interactions(pdb_content, smiles)
+        
+        if result.get("status") == "SUCCESS":
+            # Convert to Interaction objects
+            interactions = []
+            for item in result.get("interactions", []):
+                try:
+                    interactions.append(Interaction(
+                        residue=item.get("residue", ""),
+                        residue_id=item.get("residue_id", 0),
+                        interaction_type=item.get("type", "unknown"),
+                        distance=item.get("distance")
+                    ))
+                except Exception:
+                    pass
+            
+            if interactions:
+                logger.info(f"PLIP found {len(interactions)} interactions")
+                return interactions
+    
+    # Fallback to LLM
     system_prompt = "Interaction Analysis Agent: Identify key interacting amino acid residues within a 5 angstrom radius. Output ONLY a JSON array of Interaction objects."
     if pdb_content and pdb_id == "uploaded_structure":
         prompt = f"PDB Content: {pdb_content[:2000]}..., SMILES: {smiles}"
