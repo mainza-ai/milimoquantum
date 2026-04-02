@@ -476,6 +476,71 @@ async def cloud_dispatch(data: dict):
         shots=data.get("shots", 1000)
     )
 
+# ── VQE / QAOA Direct Endpoints ──────────────────────
+@router.post("/vqe/run")
+async def run_vqe_endpoint(data: dict):
+    """Run VQE (Variational Quantum Eigensolver) directly.
+
+    Accepts hamiltonian preset or custom Pauli terms, ansatz config,
+    optimizer settings, and returns energy eigenvalue with convergence data.
+    """
+    from app.quantum.vqe_executor import run_vqe, QISKIT_AVAILABLE as VQE_QISKIT
+
+    if not VQE_QISKIT:
+        return {"error": "Qiskit not available for VQE execution"}
+
+    hamiltonian = data.get("hamiltonian", "h2")
+    ansatz_type = data.get("ansatz_type", "efficient_su2")
+    ansatz_reps = data.get("ansatz_reps", 2)
+    optimizer = data.get("optimizer", "spsa")
+    optimizer_maxiter = data.get("optimizer_maxiter", 300)
+    seed = data.get("seed", 42)
+
+    try:
+        result = run_vqe(
+            hamiltonian=hamiltonian,
+            ansatz_type=ansatz_type,
+            ansatz_reps=ansatz_reps,
+            optimizer=optimizer,
+            optimizer_maxiter=optimizer_maxiter,
+            seed=seed,
+        )
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/qaoa/run")
+async def run_qaoa_endpoint(data: dict):
+    """Run QAOA (Quantum Approximate Optimization Algorithm) directly.
+
+    Accepts cost Hamiltonian (edges for MaxCut), reps, optimizer settings,
+    and returns approximate solution with convergence data.
+    """
+    from app.quantum.qaoa_executor import run_qaoa, QISKIT_AVAILABLE as QAOA_QISKIT
+
+    if not QAOA_QISKIT:
+        return {"error": "Qiskit not available for QAOA execution"}
+
+    edges = data.get("edges", [(0, 1), (1, 2), (2, 3), (3, 0)])
+    num_nodes = data.get("num_nodes", 4)
+    reps = data.get("reps", 2)
+    optimizer_maxiter = data.get("optimizer_maxiter", 200)
+    seed = data.get("seed", 42)
+
+    try:
+        result = run_qaoa(
+            edges=edges,
+            num_nodes=num_nodes,
+            reps=reps,
+            optimizer_maxiter=optimizer_maxiter,
+            seed=seed,
+        )
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ── Vector Store (Semantic Search) ────────────────────
 @router.get("/vector-store/status")
 async def vector_store_status():

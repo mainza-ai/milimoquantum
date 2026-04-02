@@ -40,6 +40,12 @@ class Settings:
     deepseek_models: list[str] = field(
         default_factory=lambda: os.getenv("DEEPSEEK_MODELS", "deepseek-chat,deepseek-coder,deepseek-reasoner").split(",")
     )
+    openrouter_models: list[str] = field(
+        default_factory=lambda: os.getenv("OPENROUTER_MODELS", "openai/gpt-4o,anthropic/claude-sonnet-4,google/gemini-2.5-pro,meta-llama/llama-4-maverick").split(",")
+    )
+    nvidia_models: list[str] = field(
+        default_factory=lambda: os.getenv("NVIDIA_MODELS", "meta/llama-3.1-405b-instruct,meta/llama-3.3-70b-instruct,mistralai/mistral-large-2,instruct/nemotron-nano-12b-v2-vl").split(",")
+    )
 
     # Quantum
     default_shots: int = 1024

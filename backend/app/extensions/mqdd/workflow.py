@@ -45,7 +45,7 @@ async def run_full_workflow(prompt: str, conversation_id: str | None = None, bas
         yield format_sse("status", {"agent": "LITERATURE", "status": "WORKING", "message": "Searching live literature databases..."})
         lit_results = await agents.run_literature_review(prompt)
         result.literature = lit_results
-        lit_summary = " ".join([r["summary"] for r in lit_results])
+        lit_summary = " ".join([r.summary for r in lit_results])
         yield format_sse("status", {"agent": "LITERATURE", "status": "DONE", "message": f"Literature review complete. Found {len(lit_results)} citations."})
 
         # 2. Molecular Design Agent

@@ -80,12 +80,13 @@
 
 | Category | Technologies |
 |----------|-------------|
-| **AI/ML** | MLX-LM (Apple Silicon), Ollama, OpenAI, Anthropic, Google GenAI |
+| **AI/ML** | MLX-LM (Apple Silicon), Ollama, OpenAI, Anthropic, Google GenAI, OpenRouter, NVIDIA NIM |
 | **Quantum** | Qiskit 2.x, Qiskit-Aer, Qiskit-Algorithms, Qiskit-Nature, D-Wave Ocean, Amazon Braket, Azure Quantum |
 | **Frontend** | React 19.2, Vite 7, Tailwind CSS 4, Monaco Editor, D3.js, XYFlow |
 | **Backend** | Python 3.12+, FastAPI 0.115, Celery 5.4, Redis |
 | **Databases** | PostgreSQL, Neo4j, FalkorDB, Kuzu, ChromaDB |
 | **Auth** | Keycloak 24 (OAuth2), NemoClaw Sandbox |
+| **Chemistry** | RDKit, PySCF, ADMET-AI |
 
 ---
 
@@ -112,6 +113,26 @@ cd milimoquantum
 cp .env.example .env
 # Edit .env with your settings (API keys, database passwords, etc.)
 ```
+
+##### Cloud AI Providers
+Milimo Quantum supports multiple cloud LLM providers. Set any of these in your `.env`:
+```bash
+# OpenAI
+OPENAI_API_KEY=sk-...
+
+# Anthropic Claude
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Google Gemini
+GOOGLE_API_KEY=AIza...
+
+# OpenRouter (access to 350+ models)
+OPENROUTER_API_KEY=sk-or-...
+
+# NVIDIA NIM (188+ optimized models)
+NVIDIA_API_KEY=nvapi-...
+```
+You can also configure providers and select models dynamically from the Settings UI (Settings → Cloud AI tab).
 
 #### 3. Start Infrastructure (Docker)
 ```bash

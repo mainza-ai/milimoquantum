@@ -2,7 +2,16 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Load .env from project root (supports both direct and Docker execution)
+_env_path = Path(__file__).resolve().parents[2] / ".env"
+if _env_path.exists():
+    load_dotenv(_env_path, override=False)
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -209,10 +218,31 @@ async def health():
     from app.quantum.executor import QISKIT_AVAILABLE
     from app.graph.neo4j_client import neo4j_client
     from app.graph.agent_memory import agent_memory
+    
+    # Redis check
+    redis_ok = False
+    try:
+        import redis
+        r = redis.Redis(host="localhost", port=6379, db=0, socket_timeout=2)
+        r.ping()
+        redis_ok = True
+    except Exception:
+        pass
+    
+    # Celery broker check
+    celery_broker_ok = redis_ok  # Celery uses Redis as broker
+    
+    # Cloud providers
+    from app.llm.cloud_provider import get_available_providers
+    configured_providers = [p["id"] for p in get_available_providers() if p["configured"]]
+    
     return {
         "status": "healthy",
         "ollama": "connected" if ollama_ok else "disconnected",
         "qiskit": "available" if QISKIT_AVAILABLE else "unavailable",
         "graph": neo4j_client.get_status(),
         "memory": agent_memory.get_status(),
+        "redis": "connected" if redis_ok else "disconnected",
+        "celery_broker": "connected" if celery_broker_ok else "disconnected",
+        "cloud_providers": configured_providers,
     }

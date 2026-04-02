@@ -191,6 +191,75 @@ def run_on_azure(
         return {"error": str(e)}
 
 
+def dispatch_quantum_job(
+    provider_id: str,
+    qiskit_code: str,
+    shots: int = 1000,
+    **kwargs,
+) -> dict:
+    """Dynamically route a quantum job to the specified cloud provider.
+
+    Args:
+        provider_id: One of 'braket', 'azure', 'google', 'local'
+        qiskit_code: Qiskit Python code string
+        shots: Number of shots
+        **kwargs: Additional provider-specific parameters
+            - device_arn: Braket device ARN
+            - target: Azure target name
+
+    Returns:
+        Execution result dict with counts, status, and provider info.
+    """
+    provider_id = provider_id.lower().strip()
+
+    if provider_id == "braket":
+        device_arn = kwargs.get(
+            "device_arn",
+            "arn:aws:braket:::device/quantum-simulator/amazon/sv1",
+        )
+        return {
+            "provider": "amazon_braket",
+            **run_on_braket(qiskit_code, device_arn=device_arn, shots=shots),
+        }
+
+    if provider_id == "azure":
+        target = kwargs.get("target", "ionq.simulator")
+        return {
+            "provider": "azure_quantum",
+            **run_on_azure(qiskit_code, target=target, shots=shots),
+        }
+
+    if provider_id == "google":
+        return {
+            "provider": "google_quantum",
+            "error": "Google Quantum (Cirq) execution not yet implemented. Use Braket or Azure.",
+        }
+
+    if provider_id == "local":
+        from qiskit import QuantumCircuit
+        from qiskit_aer import AerSimulator
+        from qiskit import transpile
+
+        local_ns: dict = {}
+        exec(qiskit_code, {"QuantumCircuit": QuantumCircuit}, local_ns)
+        qc = None
+        for val in local_ns.values():
+            if isinstance(val, QuantumCircuit):
+                qc = val
+                break
+        if qc is None:
+            return {"provider": "local", "error": "No QuantumCircuit found in code"}
+        sim = AerSimulator()
+        result = sim.run(transpile(qc, sim), shots=shots).result()
+        return {
+            "provider": "local",
+            "counts": result.get_counts(),
+            "status": "COMPLETED",
+        }
+
+    return {"provider": provider_id, "error": f"Unknown provider: {provider_id}"}
+
+
 def get_cloud_quantum_status() -> dict:
     """Overview of available cloud quantum providers."""
     return {

@@ -19,6 +19,16 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     return fetch(url, { ...options, headers });
 }
 
+/** Fetch and automatically throw on non-OK responses. Returns parsed JSON. */
+export async function fetchJsonWithAuth<T = any>(url: string, options: RequestInit = {}): Promise<T> {
+    const res = await fetchWithAuth(url, options);
+    if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`API ${res.status} ${res.statusText}: ${body.substring(0, 200)}`);
+    }
+    return res.json();
+}
+
 export async function fetchHealth() {
     const res = await fetchWithAuth(`${API_BASE}/health`);
     return res.json();
@@ -185,6 +195,18 @@ export async function setCloudProvider(provider: string, model?: string, api_key
     return res.json();
 }
 
+// ── Cloud Provider Model Discovery ─────────────────────
+
+export async function fetchCloudModels(provider: string) {
+    const res = await fetchWithAuth(`${API_BASE}/settings/cloud-models/${provider}`);
+    return res.json();
+}
+
+export async function searchCloudModels(provider: string, query: string = "", limit: number = 50) {
+    const res = await fetchWithAuth(`${API_BASE}/settings/cloud-models/${provider}/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+    return res.json();
+}
+
 // ── Projects ───────────────────────────────────────────
 
 export async function fetchProjects() {
@@ -268,10 +290,13 @@ export function streamChat(
         attached_file_id: fileId || null,
     });
 
+    const controller = new AbortController();
+
     fetchWithAuth(`${API_BASE}/chat/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
+        signal: controller.signal,
     })
         .then(async (response) => {
             if (!response.ok) {
@@ -323,8 +348,15 @@ export function streamChat(
             }
         })
         .catch((err) => {
+            if (err.name === 'AbortError') {
+                // Stream was intentionally cancelled
+                return;
+            }
             onError(err.message || 'Connection failed');
         });
+
+    // Return the abort controller so callers can cancel the stream
+    return { abort: () => controller.abort() };
 }
 
 // ── Graph Intelligence ─────────────────────────────────

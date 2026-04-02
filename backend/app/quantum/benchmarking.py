@@ -8,13 +8,26 @@ import time
 import logging
 from typing import Dict, Any, List
 
-from qiskit import QuantumCircuit
-from qiskit.circuit.random import random_circuit
-from qiskit.quantum_info import Statevector
+try:
+    from qiskit import QuantumCircuit
+    from qiskit.circuit.random import random_circuit
+    from qiskit.quantum_info import Statevector
+    _QISKIT_BENCH_AVAILABLE = True
+except ImportError:
+    _QISKIT_BENCH_AVAILABLE = False
+    QuantumCircuit = None  # type: ignore
+    random_circuit = None  # type: ignore
+    Statevector = None  # type: ignore
 
 from app.quantum.executor import execute_circuit, QISKIT_AVAILABLE
-from app.db import get_session
-from app.db.models import BenchmarkResult
+try:
+    from app.db import get_session
+    from app.db.models import BenchmarkResult
+    _DB_AVAILABLE = True
+except ImportError:
+    _DB_AVAILABLE = False
+    get_session = None  # type: ignore
+    BenchmarkResult = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 

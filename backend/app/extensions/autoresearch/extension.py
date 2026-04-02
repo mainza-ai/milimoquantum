@@ -125,6 +125,14 @@ async def run_analysis():
         media_type="text/event-stream"
     )
 
+@autoresearch_router.post("/nemoclaw")
+async def run_nemoclaw_blueprint(target: Optional[str] = None):
+    """Execute a research blueprint via NemoClaw sandbox."""
+    return StreamingResponse(
+        workflow.run_nemoclaw_blueprint(target=target),
+        media_type="text/event-stream"
+    )
+
 autoresearch_extension = Extension(
     id="autoresearch",
     name="Autoresearch-MLX",

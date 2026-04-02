@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { fetchSettings, fetchModels, updateSettings, fetchCloudProviders, setCloudProvider, fetchMLXModels, searchMLXModels, pullMLXModel, fetchWithAuth } from '../../services/api';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { fetchSettings, fetchModels, updateSettings, fetchCloudProviders, setCloudProvider, fetchMLXModels, searchMLXModels, pullMLXModel, fetchWithAuth, fetchCloudModels, searchCloudModels } from '../../services/api';
 
 interface CloudProvider {
     id: string;
@@ -30,6 +30,14 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     const [cloudSaved, setCloudSaved] = useState(false);
     const [savedProvider, setSavedProvider] = useState<string>('ollama');
     const [activeTab, setActiveTab] = useState<'local' | 'cloud' | 'mlx'>('local');
+
+    // Dynamic cloud model discovery state
+    const [cloudModels, setCloudModels] = useState<any[]>([]);
+    const [cloudModelsLoading, setCloudModelsLoading] = useState(false);
+    const [cloudModelSearch, setCloudModelSearch] = useState('');
+    const [cloudModelDropdownOpen, setCloudModelDropdownOpen] = useState(false);
+    const cloudModelDropdownRef = useRef<HTMLDivElement>(null);
+    const cloudModelSearchTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
     // MLX state
     const [mlxModels, setMlxModels] = useState<string[]>([]);
@@ -72,6 +80,55 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         }
         return () => clearInterval(interval);
     }, [mlxDownloading]);
+
+    // Close cloud model dropdown when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (cloudModelDropdownRef.current && !cloudModelDropdownRef.current.contains(event.target as Node)) {
+                setCloudModelDropdownOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Load cloud models dynamically when provider or tab changes
+    const loadCloudModels = useCallback(async (providerId: string, query?: string) => {
+        if (!providerId || providerId === 'ollama') return;
+        setCloudModelsLoading(true);
+        try {
+            let data;
+            if (query && query.length > 0) {
+                data = await searchCloudModels(providerId, query);
+            } else {
+                data = await fetchCloudModels(providerId);
+            }
+            setCloudModels(data.models || []);
+        } catch (e) {
+            console.error('Failed to load cloud models:', e);
+            setCloudModels([]);
+        } finally {
+            setCloudModelsLoading(false);
+        }
+    }, []);
+
+    const handleCloudModelSearch = useCallback((value: string) => {
+        setCloudModelSearch(value);
+        if (cloudModelSearchTimeoutRef.current) clearTimeout(cloudModelSearchTimeoutRef.current);
+        cloudModelSearchTimeoutRef.current = setTimeout(() => {
+            if (activeProvider && activeProvider !== 'ollama') {
+                loadCloudModels(activeProvider, value);
+            }
+        }, 300);
+    }, [activeProvider, loadCloudModels]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        // Load cloud models for the active provider
+        if (activeProvider !== 'ollama') {
+            loadCloudModels(activeProvider);
+        }
+    }, [isOpen, activeProvider, loadCloudModels]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -615,17 +672,17 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                     {providers.map(p => (
                                         <button
                                             key={p.id}
-                                            onClick={() => { setActiveProvider(p.id); setCloudModel(p.models[0] || ''); }}
+                                            onClick={() => { setActiveProvider(p.id); setCloudModel(''); setCloudModelSearch(''); }}
                                             className={`p-3 rounded-xl border text-left transition-all cursor-pointer
                                                 ${activeProvider === p.id
                                                     ? 'border-[#3ecfef]/40 bg-[#3ecfef]/5'
                                                     : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]'}`}
                                         >
                                             <div className="text-sm font-medium text-white">
-                                                {p.id === 'anthropic' ? '🟠' : p.id === 'openai' ? '🟢' : p.id === 'cohere' ? '🟣' : p.id === 'mistral' ? '🔷' : p.id === 'deepseek' ? '🐋' : '🔵'} {p.name}
+                                                {p.id === 'anthropic' ? '🟠' : p.id === 'openai' ? '🟢' : p.id === 'gemini' ? '🔵' : p.id === 'cohere' ? '🟣' : p.id === 'mistral' ? '🔷' : p.id === 'deepseek' ? '🐋' : p.id === 'openrouter' ? '🌐' : p.id === 'nvidia' ? '💚' : '🔵'} {p.name}
                                             </div>
                                             <div className="text-[10px] text-[#636370] mt-0.5">
-                                                {p.models.length} models
+                                                {p.id === 'openrouter' || p.id === 'nvidia' ? 'Live models' : `${p.models.length} models`}
                                             </div>
                                             <div className={`text-[10px] mt-1 ${savedProvider === p.id ? 'text-green-400' : p.configured ? 'text-[#3ecfef]' : 'text-[#636370]'}`}>
                                                 {savedProvider === p.id ? '● Active' : p.configured ? '✓ Key set' : '○ Not configured'}
@@ -638,19 +695,55 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                             {/* Cloud Model Selector */}
                             {activeProvider !== 'ollama' && selectedCloudProvider && (
                                 <>
-                                    <div>
+                                    <div ref={cloudModelDropdownRef}>
                                         <label className="block text-sm font-medium text-[#a1a1aa] mb-1.5">Model</label>
-                                        <select
-                                            value={cloudModel}
-                                            onChange={(e) => setCloudModel(e.target.value)}
-                                            className="w-full px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
-                                                text-white text-sm focus:outline-none focus:border-[#3ecfef]/40
-                                                transition-colors appearance-none cursor-pointer"
-                                        >
-                                            {selectedCloudProvider.models.map(m => (
-                                                <option key={m} value={m} className="bg-[#0c0c14]">{m}</option>
-                                            ))}
-                                        </select>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                placeholder={cloudModelsLoading ? "Loading models..." : "Search models..."}
+                                                value={cloudModelSearch || cloudModel}
+                                                onChange={(e) => {
+                                                    handleCloudModelSearch(e.target.value);
+                                                    setCloudModelDropdownOpen(true);
+                                                }}
+                                                onFocus={() => setCloudModelDropdownOpen(true)}
+                                                className="w-full px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
+                                                    text-white text-sm focus:outline-none focus:border-[#3ecfef]/40
+                                                    transition-colors pr-8"
+                                            />
+                                            {cloudModelsLoading && (
+                                                <div className="absolute right-3 top-3">
+                                                    <div className="w-4 h-4 border-2 border-[#3ecfef]/30 border-t-[#3ecfef] rounded-full animate-spin"></div>
+                                                </div>
+                                            )}
+                                            {cloudModelDropdownOpen && (
+                                                <div className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto
+                                                    bg-[#0c0c14] border border-white/[0.08] rounded-xl shadow-2xl">
+                                                    {cloudModels.length === 0 && !cloudModelsLoading ? (
+                                                        <div className="p-3 text-xs text-[#636370]">No models found</div>
+                                                    ) : (
+                                                        cloudModels.map((m: any) => (
+                                                            <button
+                                                                key={m.id}
+                                                                onClick={() => {
+                                                                    setCloudModel(m.id);
+                                                                    setCloudModelSearch('');
+                                                                    setCloudModelDropdownOpen(false);
+                                                                }}
+                                                                className={`w-full text-left px-3 py-2 text-sm hover:bg-white/[0.06] transition-colors
+                                                                    ${cloudModel === m.id ? 'bg-[#3ecfef]/10 text-[#3ecfef]' : 'text-white'}`}
+                                                            >
+                                                                <div className="font-medium">{m.name || m.id}</div>
+                                                                <div className="text-[10px] text-[#636370]">
+                                                                    {m.owner}
+                                                                    {m.context_length && ` · ${(m.context_length as number).toLocaleString()} ctx`}
+                                                                </div>
+                                                            </button>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {/* API Key input */}
@@ -663,6 +756,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                                     anthropic: 'ANTHROPIC_API_KEY', openai: 'OPENAI_API_KEY',
                                                     gemini: 'GOOGLE_API_KEY', cohere: 'COHERE_API_KEY',
                                                     mistral: 'MISTRAL_API_KEY', deepseek: 'DEEPSEEK_API_KEY',
+                                                    openrouter: 'OPENROUTER_API_KEY', nvidia: 'NVIDIA_API_KEY',
                                                 }[activeProvider] || 'API_KEY'}`}
                                                 className="flex-1 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
                                                     text-white text-sm font-mono focus:outline-none focus:border-[#3ecfef]/40 transition-colors"
@@ -679,6 +773,8 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                                             cohere: 'cohere_api_key',
                                                             mistral: 'mistral_api_key',
                                                             deepseek: 'deepseek_api_key',
+                                                            openrouter: 'openrouter_api_key',
+                                                            nvidia: 'nvidia_api_key',
                                                         };
                                                         await updateSettings({ [keyMap[activeProvider]]: input.value });
                                                         input.value = '';
@@ -700,6 +796,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                                         anthropic: 'ANTHROPIC_API_KEY', openai: 'OPENAI_API_KEY',
                                                         gemini: 'GOOGLE_API_KEY', cohere: 'COHERE_API_KEY',
                                                         mistral: 'MISTRAL_API_KEY', deepseek: 'DEEPSEEK_API_KEY',
+                                                        openrouter: 'OPENROUTER_API_KEY', nvidia: 'NVIDIA_API_KEY',
                                                     }[activeProvider] || 'API_KEY'}
                                                 </code> env var before starting the backend.
                                             </p>

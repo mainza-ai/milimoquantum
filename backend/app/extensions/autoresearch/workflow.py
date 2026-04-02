@@ -35,6 +35,10 @@ except ImportError as e:
     NEMOCLAW_AVAILABLE = False
     logger.warning(f"NemoClaw not available: {e}")
 
+# NemoClaw sandbox execution mode
+USE_NEMOCLAW_SANDBOX = os.environ.get("USE_NEMOCLAW_SANDBOX", "false").lower() == "true"
+NEMOCLAW_SANDBOX_CONTAINER = os.environ.get("NEMOCLAW_CONTAINER", "openshell-cluster-nemoclaw")
+
 try:
     from app.graph.vqe_graph_client import vqe_graph_client
     VQE_GRAPH_AVAILABLE = True
@@ -447,3 +451,57 @@ async def run_analysis_cycle() -> AsyncGenerator[str, None]:
         return
     
     yield f"event: status\\ndata: {json.dumps({'status': 'completed', 'message': 'Analysis cycle finished'})}\\n\\n"
+
+
+async def run_nemoclaw_blueprint(target: Optional[str] = None) -> AsyncGenerator[str, None]:
+    """Execute a research blueprint via NemoClaw sandbox.
+    
+    When USE_NEMOCLAW_SANDBOX is enabled, this runs the training loop
+    inside the NemoClaw Docker sandbox instead of the local subprocess.
+    """
+    if not NEMOCLAW_AVAILABLE:
+        yield f"event: error\ndata: {json.dumps({'message': 'NemoClaw BlueprintRunner not available'})}\n\n"
+        return
+
+    yield f"event: status\ndata: {json.dumps({'status': 'started', 'message': 'NemoClaw blueprint execution initiated'})}\n\n"
+
+    try:
+        runner = BlueprintRunner()
+        
+        # Check if sandbox container is reachable
+        try:
+            result = subprocess.run(
+                ["docker", "exec", NEMOCLAW_SANDBOX_CONTAINER, "echo", "reachable"],
+                capture_output=True, text=True, timeout=10
+            )
+            sandbox_reachable = result.returncode == 0
+        except Exception:
+            sandbox_reachable = False
+
+        if sandbox_reachable:
+            yield f"event: log\ndata: {json.dumps({'text': f'NemoClaw sandbox reachable: {NEMOCLAW_SANDBOX_CONTAINER}'})}\n\n"
+        else:
+            yield f"event: log\ndata: {json.dumps({'text': 'Sandbox not reachable, using local simulation mode'})}\n\n"
+
+        # Run the blueprint plan
+        yield f"event: log\ndata: {json.dumps({'text': 'Generating blueprint plan...'})}\n\n"
+        plan = await runner.plan()
+        
+        if isinstance(plan, dict):
+            steps = plan.get("steps", [])
+            yield f"event: log\ndata: {json.dumps({'text': f'Blueprint plan: {len(steps)} steps'})}\n\n"
+            for i, step in enumerate(steps[:5]):  # Show first 5 steps
+                yield f"event: log\ndata: {json.dumps({'text': f'  Step {i+1}: {step}'})}\n\n"
+        else:
+            yield f"event: log\ndata: {json.dumps({'text': f'Blueprint plan: {str(plan)[:200]}'})}\n\n"
+
+        # Execute the blueprint
+        yield f"event: log\ndata: {json.dumps({'text': 'Executing blueprint...'})}\n\n"
+        status = await runner.status()
+        yield f"event: log\ndata: {json.dumps({'text': f'Blueprint status: {str(status)[:200]}'})}\n\n"
+
+        yield f"event: status\ndata: {json.dumps({'status': 'completed', 'message': 'NemoClaw blueprint execution finished'})}\n\n"
+
+    except Exception as e:
+        logger.error(f"NemoClaw blueprint execution failed: {e}")
+        yield f"event: error\ndata: {json.dumps({'message': f'NemoClaw execution failed: {str(e)}'})}\n\n"

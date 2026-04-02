@@ -8,11 +8,18 @@ from __future__ import annotations
 import math
 from typing import Dict, List, Literal, Any
 
-from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
+try:
+    from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
+    _QISKIT_FT_AVAILABLE = True
+except ImportError:
+    _QISKIT_FT_AVAILABLE = False
+    QuantumCircuit = None  # type: ignore
+    QuantumRegister = None  # type: ignore
+    ClassicalRegister = None  # type: ignore
 
 
 # ── Surface Code Lattice Generator ─────────────────────
-def generate_surface_code(distance: int = 3) -> QuantumCircuit:
+def generate_surface_code(distance: int = 3) -> Any:
     """Generate a rotated surface code lattice of distance d.
 
     Requires d^2 data qubits and (d^2 - 1) syndrome qubits.
@@ -24,6 +31,9 @@ def generate_surface_code(distance: int = 3) -> QuantumCircuit:
     Returns:
         QuantumCircuit representing the syndrome extraction cycle.
     """
+    if not _QISKIT_FT_AVAILABLE:
+        raise RuntimeError("Qiskit not installed — surface code generation unavailable")
+
     if distance % 2 == 0:
         raise ValueError("Distance must be an odd integer (3, 5, 7, ...)")
 

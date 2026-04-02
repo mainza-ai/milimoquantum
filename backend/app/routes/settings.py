@@ -96,7 +96,8 @@ async def update_settings(data: dict):
     import os
     saved_any_keys = False
     for key_name in ("anthropic_api_key", "openai_api_key", "gemini_api_key",
-                      "cohere_api_key", "mistral_api_key", "deepseek_api_key"):
+                      "cohere_api_key", "mistral_api_key", "deepseek_api_key",
+                      "openrouter_api_key", "nvidia_api_key"):
         if key_name in data and data[key_name]:
             env_map = {
                 "anthropic_api_key": "ANTHROPIC_API_KEY",
@@ -105,6 +106,8 @@ async def update_settings(data: dict):
                 "cohere_api_key": "COHERE_API_KEY",
                 "mistral_api_key": "MISTRAL_API_KEY",
                 "deepseek_api_key": "DEEPSEEK_API_KEY",
+                "openrouter_api_key": "OPENROUTER_API_KEY",
+                "nvidia_api_key": "NVIDIA_API_KEY",
             }
             env_var = env_map[key_name]
             os.environ[env_var] = data[key_name]
@@ -115,6 +118,28 @@ async def update_settings(data: dict):
         _save_cloud_settings()
 
     return {"updated": updated, "status": "ok"}
+
+
+@router.get("/cloud-models/{provider}")
+async def get_cloud_models(provider: str):
+    """Fetch available models for a cloud provider dynamically."""
+    from app.llm.cloud_provider import fetch_cloud_models
+    try:
+        models = await fetch_cloud_models(provider)
+        return {"provider": provider, "models": models, "count": len(models)}
+    except Exception as e:
+        return {"provider": provider, "models": [], "error": str(e)}
+
+
+@router.get("/cloud-models/{provider}/search")
+async def search_cloud_models_endpoint(provider: str, q: str = "", limit: int = 50):
+    """Search available models for a cloud provider."""
+    from app.llm.cloud_provider import search_cloud_models
+    try:
+        models = await search_cloud_models(provider, query=q, limit=limit)
+        return {"provider": provider, "models": models, "count": len(models), "query": q}
+    except Exception as e:
+        return {"provider": provider, "models": [], "error": str(e)}
 
 
 @router.get("/agent-models")

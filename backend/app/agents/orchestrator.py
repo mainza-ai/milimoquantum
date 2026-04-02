@@ -159,33 +159,39 @@ def dispatch_to_agent(agent_type: str, query: str) -> dict:
         AgentType.NETWORKING: networking_agent,
         AgentType.QGI: qgi_agent,
         AgentType.AUTORESEARCH_ANALYZER: results_analyzer_agent,
+        # These agents fall through to LLM processing with system prompts
+        AgentType.PLANNING: None,
+        AgentType.BENCHMARKING: None,
+        AgentType.FAULT_TOLERANCE: None,
     }
 
     module = agent_map.get(agent_type)
-    if not module:
-        return {"response": f"No handler for agent {agent_type}", "artifacts": []}
+    if module is None:
+        # Agent type registered but no dedicated module — fall through to LLM
+        pass
+    elif module:
+        # Try quick topic first
+        topic_result = None
+        if hasattr(module, "try_quick_topic"):
+            topic_result = module.try_quick_topic(query)
 
-    # Try quick topic first
-    topic_result = None
-    if hasattr(module, "try_quick_topic"):
-        topic_result = module.try_quick_topic(query)
+        if topic_result:
+            return {"response": topic_result, "artifacts": []}
 
-    if topic_result:
-        return {"response": topic_result, "artifacts": []}
-
-    # Try quick circuit
-    if hasattr(module, "try_quick_circuit"):
-        artifacts, summary = module.try_quick_circuit(query)
-        if artifacts:
-            return {
-                "response": summary or f"Generated circuit for: {query}",
-                "artifacts": artifacts,
-            }
+        # Try quick circuit
+        if hasattr(module, "try_quick_circuit"):
+            artifacts, summary = module.try_quick_circuit(query)
+            if artifacts:
+                return {
+                    "response": summary or f"Generated circuit for: {query}",
+                    "artifacts": artifacts,
+                }
 
     # Fallback: return the system prompt context
     system_prompt = SYSTEM_PROMPTS.get(agent_type, "")
+    agent_label = agent_type.value if hasattr(agent_type, 'value') else agent_type
     return {
-        "response": f"[{agent_type.value}] Needs LLM processing: {query}",
+        "response": f"[{agent_label}] Needs LLM processing: {query}",
         "artifacts": [],
         "needs_llm": True,
         "system_prompt": system_prompt,

@@ -7,7 +7,13 @@ from __future__ import annotations
 import logging
 from typing import Dict, Any, Optional
 
-from qiskit import transpile
+try:
+    from qiskit import transpile
+    _QISKIT_HPC_AVAILABLE = True
+except ImportError:
+    _QISKIT_HPC_AVAILABLE = False
+    transpile = None  # type: ignore
+
 from app.quantum.hal import hal_config
 from app.quantum.executor import QISKIT_AVAILABLE
 
