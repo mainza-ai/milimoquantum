@@ -191,6 +191,143 @@ def run_on_azure(
         return {"error": str(e)}
 
 
+def run_on_google(
+    qiskit_code: str,
+    target: str = "simulator",
+    shots: int = 1000
+) -> dict:
+    """
+    Execute circuit on Google Quantum via Cirq.
+    
+    Targets:
+    - simulator: Cirq simulator (default)
+    - rainbow: Google Rainbow processor (requires auth)
+    - weber: Google Weber processor (requires auth)
+    
+    Args:
+        qiskit_code: Qiskit Python code string
+        target: Target backend name
+        shots: Number of shots
+    
+    Returns:
+        Execution result with counts
+    """
+    if not is_google_available():
+        return {
+            "error": "Cirq not installed. Install with: pip install cirq cirq-google",
+            "status": "MISSING_DEPENDENCY"
+        }
+    
+    try:
+        import cirq
+        from qiskit import QuantumCircuit
+        from qiskit.qasm2 import dumps
+        
+        # Parse Qiskit circuit
+        local_ns: dict = {}
+        exec(qiskit_code, {"QuantumCircuit": QuantumCircuit}, local_ns)
+        
+        qc = None
+        for val in local_ns.values():
+            if isinstance(val, QuantumCircuit):
+                qc = val
+                break
+        
+        if qc is None:
+            return {"error": "No QuantumCircuit found in code"}
+        
+        # Convert Qiskit to Cirq
+        cirq_circuit = _convert_qiskit_to_cirq(qc)
+        
+        # Execute on target
+        if target == "simulator":
+            simulator = cirq.Simulator()
+            result = simulator.run(cirq_circuit, repetitions=shots)
+            
+            # Extract counts
+            counts = {}
+            for measurement in result.measurements:
+                bitstrings = result.measurements[measurement]
+                for bitstring in bitstrings:
+                    key = ''.join(str(int(b)) for b in bitstring)
+                    counts[key] = counts.get(key, 0) + 1
+            
+            return {
+                "target": target,
+                "shots": shots,
+                "counts": counts,
+                "status": "COMPLETED",
+                "n_qubits": qc.num_qubits,
+                "circuit_depth": qc.depth()
+            }
+        
+        else:
+            # Real hardware requires Google Cloud authentication
+            return {
+                "error": f"Google {target} requires Google Cloud authentication",
+                "status": "AUTH_REQUIRED",
+                "setup_url": "https://quantumai.google/cirq/google/access",
+                "targets_available": ["simulator", "rainbow", "weber"]
+            }
+            
+    except ImportError as e:
+        return {"error": f"Import error: {str(e)}", "status": "IMPORT_ERROR"}
+    except Exception as e:
+        logger.error(f"Google Quantum execution failed: {e}")
+        return {"error": str(e), "status": "ERROR"}
+
+
+def _convert_qiskit_to_cirq(qc) -> "cirq.Circuit":
+    """Convert Qiskit circuit to Cirq circuit."""
+    import cirq
+    import numpy as np
+    
+    n_qubits = qc.num_qubits
+    qubits = [cirq.LineQubit(i) for i in range(n_qubits)]
+    operations = []
+    
+    for instruction in qc.data:
+        gate = instruction[0]
+        qubit_indices = [q.index for q in instruction[1]]
+        params = list(gate.params) if hasattr(gate, 'params') else []
+        
+        # Gate mapping
+        gate_name = gate.name.lower()
+        
+        if gate_name == 'h':
+            operations.append(cirq.H(qubits[qubit_indices[0]]))
+        elif gate_name == 'x':
+            operations.append(cirq.X(qubits[qubit_indices[0]]))
+        elif gate_name == 'y':
+            operations.append(cirq.Y(qubits[qubit_indices[0]]))
+        elif gate_name == 'z':
+            operations.append(cirq.Z(qubits[qubit_indices[0]]))
+        elif gate_name == 's':
+            operations.append(cirq.S(qubits[qubit_indices[0]]))
+        elif gate_name == 't':
+            operations.append(cirq.T(qubits[qubit_indices[0]]))
+        elif gate_name == 'rx':
+            operations.append(cirq.rx(params[0]).on(qubits[qubit_indices[0]]))
+        elif gate_name == 'ry':
+            operations.append(cirq.ry(params[0]).on(qubits[qubit_indices[0]]))
+        elif gate_name == 'rz':
+            operations.append(cirq.rz(params[0]).on(qubits[qubit_indices[0]]))
+        elif gate_name in ['cx', 'cnot']:
+            operations.append(cirq.CNOT(qubits[qubit_indices[0]], qubits[qubit_indices[1]]))
+        elif gate_name == 'cz':
+            operations.append(cirq.CZ(qubits[qubit_indices[0]], qubits[qubit_indices[1]]))
+        elif gate_name == 'swap':
+            operations.append(cirq.SWAP(qubits[qubit_indices[0]], qubits[qubit_indices[1]]))
+        elif gate_name == 'measure':
+            for idx in qubit_indices:
+                operations.append(cirq.measure(qubits[idx], key=f'm{idx}'))
+        else:
+            # Try to decompose or skip unknown gates
+            logger.warning(f"Unknown gate {gate_name}, skipping")
+    
+    return cirq.Circuit(operations)
+
+
 def dispatch_quantum_job(
     provider_id: str,
     qiskit_code: str,
@@ -232,7 +369,7 @@ def dispatch_quantum_job(
     if provider_id == "google":
         return {
             "provider": "google_quantum",
-            "error": "Google Quantum (Cirq) execution not yet implemented. Use Braket or Azure.",
+            **run_on_google(qiskit_code, target=kwargs.get("target", "simulator"), shots=shots),
         }
 
     if provider_id == "local":

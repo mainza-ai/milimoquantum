@@ -301,7 +301,7 @@ CIRCUIT_KEYWORDS: dict[str, list[str]] = {
 def try_quick_circuit(message: str) -> tuple[list[Artifact], str | None]:
     """Try to match a networking circuit and generate executable code."""
     lower = message.lower()
-
+    
     for circuit_type, keywords in CIRCUIT_KEYWORDS.items():
         if any(kw in lower for kw in keywords):
             if circuit_type == "bb84":
@@ -315,6 +315,28 @@ def try_quick_circuit(message: str) -> tuple[list[Artifact], str | None]:
                 summary = "## Entanglement Swapping\n\nQuantum repeater building block: two Bell pairs → node Bell measurement → long-range entanglement."
             else:
                 return [], None
+            
+            import json
+            from app.quantum.advanced_sims_v2 import run_netsquid_qkd_simulation
+            
+            netsquid_data = run_netsquid_qkd_simulation(distance_km=50.0, protocol="bb84", n_bits=1000)
+            
+            artifacts = [
+                Artifact(
+                    type=ArtifactType.CODE,
+                    title=f"Networking — {circuit_type.replace('_', ' ').title()}",
+                    content=code,
+                    language="python",
+                ),
+                Artifact(
+                    type=ArtifactType.JSON,
+                    title=f"NetSQuid QKD Simulation — {circuit_type.title()}",
+                    content=json.dumps(netsquid_data, indent=2),
+                )
+            ]
+            return artifacts, summary
+    
+    return [], None
 
             import json
             from app.quantum.advanced_sims import run_netsquid_qkd_simulation, run_squidasm_application

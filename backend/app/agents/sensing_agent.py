@@ -220,7 +220,7 @@ CIRCUIT_KEYWORDS: dict[str, list[str]] = {
 def try_quick_circuit(message: str) -> tuple[list[Artifact], str | None]:
     """Try to match a sensing circuit and generate executable code."""
     lower = message.lower()
-
+    
     for circuit_type, keywords in CIRCUIT_KEYWORDS.items():
         if any(kw in lower for kw in keywords):
             if circuit_type == "ramsey":
@@ -231,12 +231,16 @@ def try_quick_circuit(message: str) -> tuple[list[Artifact], str | None]:
                 summary = "## GHZ-Based Quantum Magnetometry\n\nComparing standard quantum limit vs. Heisenberg limit using entangled GHZ probes."
             else:
                 return [], None
-
-            import json
-            from app.quantum.advanced_sims import run_qutip_sensing_simulation
             
-            qutip_data = run_qutip_sensing_simulation(n_qubits=4, phase=0.523)
-
+            import json
+            from app.quantum.advanced_sims_v2 import run_qutip_sensing_simulation
+            
+            qutip_data = run_qutip_sensing_simulation({
+                "T2": 100e-6,
+                "B0": 1e-9,
+                "N": 4
+            })
+            
             artifacts = [
                 Artifact(
                     type=ArtifactType.CODE,
@@ -251,5 +255,5 @@ def try_quick_circuit(message: str) -> tuple[list[Artifact], str | None]:
                 )
             ]
             return artifacts, summary
-
+    
     return [], None
