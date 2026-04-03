@@ -1,22 +1,73 @@
 /* Milimo Quantum — API Service */
 
 const API_BASE = '/api';
+const KEYCLOAK_URL = 'http://localhost:8081';
+const REALM = 'milimo-realm';
+const CLIENT_ID = 'milimo-client';
 
-export async function fetchWithAuth(url: string, options: RequestInit = {}) {
-    const token = localStorage.getItem('mq_token');
-    const headers = new Headers(options.headers || {});
+export function getStoredTokens(): { accessToken: string | null; refreshToken: string | null } {
+  const accessToken = localStorage.getItem('mq_token');
+  const refreshToken = localStorage.getItem('mq_refresh_token');
+  return { accessToken, refreshToken };
+}
 
-    if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
+export function setStoredTokens(accessToken: string, refreshToken?: string): void {
+  localStorage.setItem('mq_token', accessToken);
+  if (refreshToken) {
+    localStorage.setItem('mq_refresh_token', refreshToken);
+  }
+}
+
+export function clearStoredTokens(): void {
+  localStorage.removeItem('mq_token');
+  localStorage.removeItem('mq_refresh_token');
+}
+
+export async function refreshAccessToken(refreshToken: string): Promise<string> {
+  const response = await fetch(`${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: CLIENT_ID,
+      refresh_token: refreshToken,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error('Token refresh failed');
+  }
+  const data = await response.json();
+  setStoredTokens(data.access_token, data.refresh_token);
+  return data.access_token;
+}
+
+export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+  const { accessToken, refreshToken } = getStoredTokens();
+  const headers = new Headers(options.headers || {});
+
+  if (accessToken) {
+    headers.set('Authorization', `Bearer ${accessToken}`);
+  }
+
+  const method = options.method?.toUpperCase() || 'GET';
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    headers.set('X-Requested-With', 'XMLHttpRequest');
+  }
+
+  let response = await fetch(url, { ...options, headers });
+
+  if (response.status === 401 && refreshToken) {
+    try {
+      const newAccessToken = await refreshAccessToken(refreshToken);
+      headers.set('Authorization', `Bearer ${newAccessToken}`);
+      response = await fetch(url, { ...options, headers });
+    } catch {
+      clearStoredTokens();
+      window.location.reload();
     }
+  }
 
-    // CSRF Protection Header
-    const method = options.method?.toUpperCase() || 'GET';
-    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-        headers.set('X-Requested-With', 'XMLHttpRequest');
-    }
-
-    return fetch(url, { ...options, headers });
+  return response;
 }
 
 /** Fetch and automatically throw on non-OK responses. Returns parsed JSON. */

@@ -36,7 +36,7 @@ class TestNemoClawCLI:
             capture_output=True,
             text=True
         )
-        assert result.returncode == 0 or True
+        assert result.returncode == 0
 
 
 @pytest.mark.e2e
@@ -44,14 +44,16 @@ class TestNemoClawCLI:
 class TestNemoClawIntegration:
     """Test NemoClaw integration with Autoresearch."""
 
-    async def test_autoresearch_endpoint_available(self, api_client: AsyncClient):
+    async def test_autoresearch_endpoint_available(self, authenticated_client: AsyncClient):
         """Test autoresearch endpoint is available."""
-        response = await api_client.get("/api/autoresearch/status")
-        assert response.status_code in [200, 401, 403, 404, 405]
+        response = await authenticated_client.get("/api/autoresearch/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert "status" in data or "available" in data
 
-    async def test_autoresearch_train_endpoint(self, api_client: AsyncClient):
+    async def test_autoresearch_train_endpoint(self, authenticated_client: AsyncClient):
         """Test autoresearch training endpoint."""
-        response = await api_client.post(
+        response = await authenticated_client.post(
             "/api/autoresearch/train",
             json={
                 "experiment_name": "test_vqe",
@@ -59,13 +61,13 @@ class TestNemoClawIntegration:
                 "epochs": 5
             }
         )
-        if response.status_code == 404:
-            pytest.skip("Autoresearch train endpoint not available")
-        assert response.status_code in [200, 201, 401, 403, 405]
+        assert response.status_code in [200, 201]
+        data = response.json()
+        assert "status" in data or "job_id" in data or "result" in data
 
-    async def test_autoresearch_vqe_endpoint(self, api_client: AsyncClient):
+    async def test_autoresearch_vqe_endpoint(self, authenticated_client: AsyncClient):
         """Test VQE execution via autoresearch."""
-        response = await api_client.post(
+        response = await authenticated_client.post(
             "/api/autoresearch/vqe",
             json={
                 "hamiltonian": "h2",
@@ -73,7 +75,9 @@ class TestNemoClawIntegration:
                 "optimizer_maxiter": 30
             }
         )
-        assert response.status_code in [200, 401, 403]
+        assert response.status_code == 200
+        data = response.json()
+        assert "optimal_value" in data or "energy" in data or "result" in data
 
 
 @pytest.mark.e2e
@@ -107,12 +111,11 @@ class TestSandboxExecution:
         """Test circuit execution in sandbox environment."""
         code = """
 from qiskit import QuantumCircuit
-from qiskit.primitives import StatevectorSampler
 qc = QuantumCircuit(2)
 qc.h(0)
 qc.cx(0, 1)
 qc.measure_all()
-print({"00": 50, "11": 50})
+print('Circuit created successfully')
 """
         result = subprocess.run(
             ["python", "-c", code],
@@ -120,15 +123,8 @@ print({"00": 50, "11": 50})
             text=True,
             timeout=60
         )
-        if result.returncode != 0:
-            result = subprocess.run(
-                ["python", "-c", "print('{\"00\": 50, \"11\": 50}')"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
         assert result.returncode == 0
-        assert "{" in result.stdout
+        assert "successfully" in result.stdout.lower() or "Circuit" in result.stdout
 
 
 @pytest.mark.e2e
@@ -136,35 +132,35 @@ print({"00": 50, "11": 50})
 class TestMQDDPipeline:
     """Test MQDD drug discovery pipeline."""
 
-    async def test_mqdd_extension_loaded(self, api_client: AsyncClient):
+    async def test_mqdd_extension_loaded(self, authenticated_client: AsyncClient):
         """Test MQDD extension is loaded."""
-        response = await api_client.get("/api/mqdd/status")
-        if response.status_code == 404:
-            pytest.skip("MQDD status endpoint not available")
-        assert response.status_code in [200, 401, 403, 404, 405]
+        response = await authenticated_client.get("/api/mqdd/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert "status" in data or "loaded" in data or "available" in data
 
-    async def test_mqdd_molecular_design(self, api_client: AsyncClient):
+    async def test_mqdd_molecular_design(self, authenticated_client: AsyncClient):
         """Test molecular design workflow."""
-        response = await api_client.post(
+        response = await authenticated_client.post(
             "/api/mqdd/design",
             json={
                 "target": "test_target",
                 "count": 3
             }
         )
-        if response.status_code == 404:
-            pytest.skip("MQDD design endpoint not available")
-        assert response.status_code in [200, 201, 401, 403, 404, 405]
+        assert response.status_code in [200, 201]
+        data = response.json()
+        assert "candidates" in data or "molecules" in data or "status" in data
 
-    async def test_mqdd_smiles_validation(self, api_client: AsyncClient):
-        """Test SMILES validation works."""
-        response = await api_client.post(
+    async def test_mqdd_smiles_validation(self, authenticated_client: AsyncClient):
+        """Test SMILES validation."""
+        response = await authenticated_client.post(
             "/api/mqdd/search",
             json={"smiles": "CCO"}
         )
-        if response.status_code == 404:
-            pytest.skip("MQDD search endpoint not available")
-        assert response.status_code in [200, 400, 401, 403, 404, 405]
+        assert response.status_code in [200, 201]
+        data = response.json()
+        assert "valid" in data or "properties" in data or "result" in data
 
 
 @pytest.mark.e2e
@@ -172,33 +168,44 @@ class TestMQDDPipeline:
 class TestHPCIntegration:
     """Test HPC integration."""
 
-    async def test_hpc_status(self, api_client: AsyncClient):
+    async def test_hpc_status(self, authenticated_client: AsyncClient):
         """Test HPC status endpoint."""
-        response = await api_client.get("/api/hpc/status")
-        assert response.status_code in [200, 401, 403, 404, 405]
+        response = await authenticated_client.get("/api/hpc/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert "status" in data or "available" in data or "connected" in data
 
-    async def test_hpc_job_list(self, api_client: AsyncClient):
-        """Test listing HPC jobs."""
-        response = await api_client.get("/api/hpc/jobs")
-        assert response.status_code in [200, 401, 403, 404, 405]
+    async def test_hpc_job_list(self, authenticated_client: AsyncClient):
+        """Test HPC job listing."""
+        response = await authenticated_client.get("/api/hpc/jobs")
+        assert response.status_code in [200, 405]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, list) or "jobs" in data
 
 
 @pytest.mark.e2e
 @pytest.mark.nemoclaw
 class TestCacheManagement:
-    """Test cache management endpoints."""
+    """Test cache management."""
 
-    async def test_cache_status(self, api_client: AsyncClient):
+    async def test_cache_status(self, authenticated_client: AsyncClient):
         """Test cache status endpoint."""
-        response = await api_client.get("/api/cache/status")
-        assert response.status_code in [200, 401, 403, 404, 405]
+        response = await authenticated_client.get("/api/cache/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert "status" in data or "connected" in data or "keys" in data
 
-    async def test_cache_health(self, api_client: AsyncClient):
-        """Test cache health endpoint."""
-        response = await api_client.get("/api/cache/health")
-        assert response.status_code in [200, 401, 403, 404, 405]
+    async def test_cache_health(self, authenticated_client: AsyncClient):
+        """Test cache health check."""
+        response = await authenticated_client.get("/api/cache/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get("status") in ["healthy", "ok", "UP"]
 
-    async def test_cache_clear(self, api_client: AsyncClient):
+    async def test_cache_clear(self, authenticated_client: AsyncClient):
         """Test cache clear endpoint."""
-        response = await api_client.post("/api/cache/clear")
-        assert response.status_code in [200, 400, 401, 403, 404, 405]
+        response = await authenticated_client.post("/api/cache/clear")
+        assert response.status_code == 200
+        data = response.json()
+        assert "cleared" in data or "status" in data or "result" in data

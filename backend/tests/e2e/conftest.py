@@ -6,7 +6,6 @@ import os
 import pytest
 import httpx
 import redis
-from unittest.mock import AsyncMock, patch
 
 pytestmark = pytest.mark.e2e
 
@@ -17,6 +16,12 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "milimopassword")
+
+KEYCLOAK_URL = os.getenv("KEYCLOAK_URL", "http://localhost:8081")
+KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM", "milimo-realm")
+KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "milimo-client")
+TEST_USER = os.getenv("E2E_TEST_USER", "admin")
+TEST_PASSWORD = os.getenv("E2E_TEST_PASSWORD", "admin")
 
 
 @pytest.fixture(scope="session")
@@ -65,62 +70,62 @@ def neo4j_driver():
         pytest.skip(f"Neo4j not available: {e}")
 
 
-@pytest.fixture
-async def auth_token(api_client):
-    """Get authentication token for protected endpoints."""
-    import time
-    import jwt
-    
-    payload = {
-        "sub": "test_user",
-        "exp": int(time.time()) + 3600,
-        "iat": int(time.time()),
-        "aud": "account",
-        "iss": "http://localhost:8081/realms/milimo-realm"
-    }
-    secret = "your-256-bit-secret"
-    token = jwt.encode(payload, secret, algorithm="HS256")
-    return f"Bearer {token}"
+@pytest.fixture(scope="session")
+async def keycloak_token():
+    """Get real token from Keycloak using password grant."""
+    token_url = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            token_url,
+            data={
+                "grant_type": "password",
+                "client_id": KEYCLOAK_CLIENT_ID,
+                "username": TEST_USER,
+                "password": TEST_PASSWORD,
+                "scope": "openid profile email"
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
+        )
+
+        if response.status_code != 200:
+            pytest.skip(f"Failed to get Keycloak token: {response.status_code} - {response.text}")
+
+        token_data = response.json()
+        return token_data["access_token"]
+
+
+@pytest.fixture(scope="session")
+async def keycloak_refresh_token():
+    """Get refresh token from Keycloak."""
+    token_url = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            token_url,
+            data={
+                "grant_type": "password",
+                "client_id": KEYCLOAK_CLIENT_ID,
+                "username": TEST_USER,
+                "password": TEST_PASSWORD,
+                "scope": "openid profile email"
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
+        )
+
+        if response.status_code != 200:
+            pytest.skip(f"Failed to get Keycloak token: {response.status_code}")
+
+        token_data = response.json()
+        return token_data["refresh_token"]
 
 
 @pytest.fixture
-async def authenticated_client(api_client, auth_token):
-    """HTTP client with authentication headers."""
-    api_client.headers["Authorization"] = auth_token
+async def authenticated_client(api_client, keycloak_token):
+    """HTTP client with real Keycloak authentication."""
+    api_client.headers["Authorization"] = f"Bearer {keycloak_token}"
+    api_client.headers["X-Requested-With"] = "XMLHttpRequest"
     return api_client
-
-
-@pytest.fixture
-def mock_nvidia_nim():
-    """Mock NVIDIA NIM responses for testing."""
-    mock_responses = {
-        "chat": {
-            "choices": [{"message": {"content": "Test quantum response"}}]
-        },
-        "complete": {
-            "text": "This is a test completion from NVIDIA NIM."
-        }
-    }
-    
-    with patch("app.llm.cloud_provider.NVIDIA_NIM_CLIENT") as mock_client:
-        mock_client.chat = AsyncMock(return_value=mock_responses["chat"])
-        mock_client.complete = AsyncMock(return_value=mock_responses["complete"])
-        yield mock_client
-
-
-@pytest.fixture
-def mock_qiskit_execution():
-    """Mock Qiskit circuit execution for fast testing."""
-    mock_result = {
-        "counts": {"00": 512, "11": 512},
-        "shots": 1024,
-        "backend": "aer_simulator",
-        "status": "SUCCESS"
-    }
-    
-    with patch("app.quantum.executor.run_circuit") as mock_run:
-        mock_run.return_value = mock_result
-        yield mock_run
 
 
 @pytest.fixture

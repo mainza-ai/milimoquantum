@@ -6,38 +6,79 @@ import { ArtifactPanel } from './components/layout/ArtifactPanel';
 import { WorkspaceManager } from './components/layout/WorkspaceManager';
 import { useChat } from './hooks/useChat';
 import type { Artifact, AgentType } from './types';
-import { fetchCurrentUser } from './services/api';
+import { fetchCurrentUser, getStoredTokens, refreshAccessToken, setStoredTokens, clearStoredTokens } from './services/api';
+
+const KEYCLOAK_URL = 'http://localhost:8081';
+const REALM = 'milimo-realm';
+const CLIENT_ID = 'milimo-client';
+const REDIRECT_URI = 'http://localhost:5173/';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null);
 
-  // Apply persisted theme on mount
   useEffect(() => {
-    // Check URL hash for implicit token
-    const hash = window.location.hash;
-    if (hash && hash.includes('access_token=')) {
-      const params = new URLSearchParams(hash.substring(1)); // remove #
-      const token = params.get('access_token');
-      if (token) {
-        localStorage.setItem('mq_token', token);
-        // Clear hash from URL
-        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    const initAuth = async () => {
+      const savedTheme = localStorage.getItem('mq-theme');
+      if (savedTheme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
       }
-    }
 
-    const saved = localStorage.getItem('mq-theme');
-    if (saved === 'light') {
-      document.documentElement.setAttribute('data-theme', 'light');
-    }
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
 
-    fetchCurrentUser()
-      .then(() => setIsAuthenticated(true))
-      .catch(() => {
-        localStorage.removeItem('mq_token');
-        setIsAuthenticated(false)
-      });
+      if (code) {
+        window.history.replaceState(null, '', window.location.pathname);
+        try {
+          const tokenResponse = await fetch(`${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              grant_type: 'authorization_code',
+              client_id: CLIENT_ID,
+              code: code,
+              redirect_uri: REDIRECT_URI,
+            }),
+          });
+          if (tokenResponse.ok) {
+            const tokens = await tokenResponse.json();
+            setStoredTokens(tokens.access_token, tokens.refresh_token);
+            setIsAuthenticated(true);
+            return;
+          }
+        } catch (e) {
+          console.error('Token exchange failed:', e);
+        }
+      }
+
+      const { accessToken, refreshToken } = getStoredTokens();
+      if (accessToken) {
+        try {
+          await fetchCurrentUser();
+          setIsAuthenticated(true);
+        } catch (e: any) {
+          if (e.message?.includes('401') && refreshToken) {
+            try {
+              const newAccessToken = await refreshAccessToken(refreshToken);
+              localStorage.setItem('mq_token', newAccessToken);
+              await fetchCurrentUser();
+              setIsAuthenticated(true);
+            } catch {
+              clearStoredTokens();
+              setIsAuthenticated(false);
+            }
+          } else {
+            clearStoredTokens();
+            setIsAuthenticated(false);
+          }
+        }
+      } else {
+        setIsAuthenticated(false);
+      }
+    };
+
+    initAuth();
   }, []);
 
   const {
@@ -81,12 +122,12 @@ function App() {
           <h1 className="text-xl font-semibold text-[#e8e8ed] tracking-tight mb-2">Milimo Quantum</h1>
           <p className="text-[13px] text-[#8a8a9a] mb-8">Enterprise authentication required.</p>
 
-          <button
-            className="w-full bg-quantum-cyan text-black py-2.5 px-4 rounded-lg text-[13px] font-medium hover:bg-opacity-90 transition-all flex items-center justify-center gap-2 cursor-pointer"
-            onClick={() => window.location.href = 'http://localhost:8081/realms/milimo-realm/protocol/openid-connect/auth?client_id=milimo-client&response_type=token&redirect_uri=http://localhost:5173/'}
-          >
-            Sign In with Keycloak
-          </button>
+      <button
+        className="w-full bg-quantum-cyan text-black py-2.5 px-4 rounded-lg text-[13px] font-medium hover:bg-opacity-90 transition-all flex items-center justify-center gap-2 cursor-pointer"
+        onClick={() => window.location.href = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/auth?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`}
+      >
+        Sign In with Keycloak
+      </button>
         </div>
       </div>
     );

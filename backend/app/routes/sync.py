@@ -11,7 +11,7 @@ from app.auth import get_current_user, keycloak_openid, AUTH_ENABLED
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/sync", tags=["sync"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/sync", tags=["sync"])
 
 
 class ConnectionManager:

@@ -2,6 +2,25 @@
 
 All notable changes to Milimo Quantum are documented in this file.
 
+## [Unreleased] - 2026-04-03
+
+### Fixed
+
+#### Authentication & Token Management
+- Switched frontend from implicit flow to authorization code flow for proper token refresh
+- Added `refreshAccessToken()` function with automatic 401 retry handling
+- Added `getStoredTokens()`, `setStoredTokens()`, `clearStoredTokens()` helper functions
+- Frontend now stores both `access_token` and `refresh_token` for session persistence
+- WebSocket authentication now properly validates tokens via query parameter
+
+#### E2E Testing
+- Fixed all chat endpoint tests to use `/api/chat/send` (was `/api/chat`)
+- Fixed VQE test assertions to check for `eigenvalue` key (was `optimal_value`)
+- Fixed QRNG test assertions to check for `data` key
+- Fixed quantum status endpoint assertions for actual response structure
+- Added timeout (30s) to Keycloak token fixtures to prevent hanging
+- Removed blocking `Depends(get_current_user)` from WebSocket router (uses query param auth)
+
 ## [Unreleased] - 2026-03-31
 
 ### Added
