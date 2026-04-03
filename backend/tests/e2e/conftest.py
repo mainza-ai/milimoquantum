@@ -16,7 +16,7 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "milimo123")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "milimopassword")
 
 
 @pytest.fixture(scope="session")
@@ -68,7 +68,19 @@ def neo4j_driver():
 @pytest.fixture
 async def auth_token(api_client):
     """Get authentication token for protected endpoints."""
-    return "Bearer test_token"
+    import time
+    import jwt
+    
+    payload = {
+        "sub": "test_user",
+        "exp": int(time.time()) + 3600,
+        "iat": int(time.time()),
+        "aud": "account",
+        "iss": "http://localhost:8081/realms/milimo-realm"
+    }
+    secret = "your-256-bit-secret"
+    token = jwt.encode(payload, secret, algorithm="HS256")
+    return f"Bearer {token}"
 
 
 @pytest.fixture
