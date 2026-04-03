@@ -37,6 +37,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 # ── Backend Health Tests ────────────────────────────────────
 
+@pytest.mark.integration
 class TestBackendHealth:
     """Test that the backend is running and healthy."""
 
@@ -446,6 +447,7 @@ class TestModelDiscovery:
         assert all("llama" in m["id"].lower() for m in results)
 
 
+@pytest.mark.integration
 class TestOllamaConnection:
     """Test Ollama local model server."""
 
@@ -457,6 +459,7 @@ class TestOllamaConnection:
         assert len(data.get("models", [])) > 0
 
 
+@pytest.mark.integration
 class TestMLX:
     """Test MLX framework availability."""
 
@@ -477,6 +480,7 @@ class TestMLX:
 
 # ── Data Layer Tests ────────────────────────────────────────
 
+@pytest.mark.integration
 class TestPostgreSQL:
     """Test PostgreSQL database connectivity and operations."""
 
@@ -528,6 +532,7 @@ class TestPostgreSQL:
         conn.close()
 
 
+@pytest.mark.integration
 class TestNeo4j:
     """Test Neo4j graph database connectivity."""
 
@@ -569,6 +574,7 @@ class TestNeo4j:
             raise
 
 
+@pytest.mark.integration
 class TestRedis:
     """Test Redis cache connectivity."""
 
@@ -717,6 +723,7 @@ class TestCeleryWorker:
         from app.worker import app
         assert app is not None
 
+    @pytest.mark.integration
     def test_celery_available_flag(self):
         """CELERY_AVAILABLE should reflect Redis status."""
         from app.worker import CELERY_AVAILABLE
@@ -733,6 +740,7 @@ class TestCeleryWorker:
         assert execute_quantum_circuit is not None
         assert run_parameter_sweep is not None
 
+    @pytest.mark.integration
     def test_redis_broker_reachable(self):
         """Redis broker should be reachable for Celery."""
         import redis
@@ -837,6 +845,7 @@ class TestSettingsAPI:
 
 # ── Data Feeds Tests ────────────────────────────────────────
 
+@pytest.mark.integration
 class TestDataFeeds:
     """Test external data feed integrations."""
 
@@ -999,6 +1008,7 @@ class TestSearchAPI:
 
 # ── Error Handling Tests ────────────────────────────────────
 
+@pytest.mark.integration
 class TestErrorHandling:
     """Test error handling and fallbacks."""
 
@@ -1025,6 +1035,7 @@ class TestErrorHandling:
 
 # ── System Integration Tests ────────────────────────────────
 
+@pytest.mark.integration
 class TestSystemIntegration:
     """Test end-to-end system integration."""
 

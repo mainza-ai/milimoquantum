@@ -337,31 +337,3 @@ def try_quick_circuit(message: str) -> tuple[list[Artifact], str | None]:
             return artifacts, summary
     
     return [], None
-
-            import json
-            from app.quantum.advanced_sims import run_netsquid_qkd_simulation, run_squidasm_application
-            
-            netsquid_data = run_netsquid_qkd_simulation(distance_km=50.0)
-            squidasm_data = run_squidasm_application(app_type=circuit_type)
-
-            artifacts = [
-                Artifact(
-                    type=ArtifactType.CODE,
-                    title=f"Networking — {circuit_type.replace('_', ' ').title()}",
-                    content=code,
-                    language="python",
-                ),
-                Artifact(
-                    type=ArtifactType.JSON,
-                    title=f"NetSquid Link Simulation — {circuit_type.title()}",
-                    content=json.dumps(netsquid_data, indent=2),
-                ),
-                Artifact(
-                    type=ArtifactType.JSON,
-                    title=f"SquidASM Protocol Simulation",
-                    content=json.dumps(squidasm_data, indent=2),
-                )
-            ]
-            return artifacts, summary
-
-    return [], None
