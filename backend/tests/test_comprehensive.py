@@ -398,6 +398,7 @@ class TestCloudProviders:
         for provider in expected:
             assert provider in CLOUD_PROVIDERS, f"Provider {provider} not registered"
 
+    @pytest.mark.integration
     def test_configured_providers(self):
         """Configured providers should have API keys."""
         from app.llm.cloud_provider import get_available_providers
@@ -422,6 +423,7 @@ class TestModelDiscovery:
         assert len(models) > 100  # OpenRouter has 350+ models
         assert all("id" in m for m in models)
 
+    @pytest.mark.integration
     def test_fetch_nvidia_models(self):
         """Should fetch models from NVIDIA API."""
         from app.llm.cloud_provider import fetch_cloud_models
@@ -828,6 +830,7 @@ class TestSettingsAPI:
         models = asyncio.run(fetch_cloud_models("openrouter"))
         assert len(models) > 100
 
+    @pytest.mark.integration
     def test_cloud_models_nvidia_via_import(self):
         """NVIDIA models should be fetchable."""
         from app.llm.cloud_provider import fetch_cloud_models
@@ -1062,6 +1065,7 @@ class TestSystemIntegration:
 
 # ── Dependency Tests ────────────────────────────────────────
 
+@pytest.mark.integration
 class TestDependencies:
     """Test that all required dependencies are installed."""
 
@@ -1097,6 +1101,7 @@ class TestDependencies:
 
 # ── Summary Test ────────────────────────────────────────────
 
+@pytest.mark.integration
 class TestSystemSummary:
     """Generate a system status summary."""
 
